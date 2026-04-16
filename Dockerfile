@@ -1,24 +1,26 @@
 FROM node:20-alpine
 
-# Install build tools for native modules (better-sqlite3)
+# Build tools needed for better-sqlite3 native module
 RUN apk add --no-cache python3 make g++
 
 WORKDIR /app
 
-# Copy package files
+# Copy package files first for layer caching
 COPY package*.json ./
 
-# Install all dependencies (including dev for build)
+# Install ALL dependencies (dev needed for build)
 RUN npm ci
 
-# Copy source
+# Copy all source files
 COPY . .
 
-# Build client + server
+# Build client (to dist/public/) + server (to dist/index.cjs)
 RUN npm run build
 
-# Expose port (Railway sets PORT env var)
-EXPOSE 5000
+# Remove dev dependencies after build to slim the image
+RUN npm prune --production
 
-# Start production server
+# Railway dynamically assigns PORT — don't hardcode
+ENV NODE_ENV=production
+
 CMD ["node", "dist/index.cjs"]
