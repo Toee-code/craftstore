@@ -1,0 +1,144 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Minecraft-inspired dark gaming palette — deep stone/obsidian surfaces, emerald accent */
+    --background: 220 13% 9%;
+    --foreground: 210 20% 92%;
+
+    --card: 220 13% 11%;
+    --card-foreground: 210 20% 92%;
+
+    --popover: 220 13% 11%;
+    --popover-foreground: 210 20% 92%;
+
+    --primary: 142 71% 45%;
+    --primary-foreground: 220 13% 9%;
+
+    --secondary: 220 13% 16%;
+    --secondary-foreground: 210 20% 80%;
+
+    --muted: 220 13% 16%;
+    --muted-foreground: 210 15% 55%;
+
+    --accent: 220 13% 20%;
+    --accent-foreground: 210 20% 92%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 210 20% 98%;
+
+    --border: 220 13% 18%;
+    --input: 220 13% 18%;
+    --ring: 142 71% 45%;
+
+    --radius: 0.5rem;
+
+    /* Extended tokens */
+    --color-emerald: hsl(142 71% 45%);
+    --color-emerald-dark: hsl(142 71% 35%);
+    --color-stone: hsl(220 13% 16%);
+    --color-obsidian: hsl(220 13% 7%);
+    --color-gold: hsl(45 93% 58%);
+    --color-gold-dim: hsl(45 60% 40%);
+  }
+
+  /* Light mode variant */
+  .light {
+    --background: 210 20% 97%;
+    --foreground: 220 13% 10%;
+    --card: 0 0% 100%;
+    --card-foreground: 220 13% 10%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 13% 10%;
+    --primary: 142 71% 38%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 210 15% 93%;
+    --secondary-foreground: 220 13% 20%;
+    --muted: 210 15% 93%;
+    --muted-foreground: 220 13% 42%;
+    --accent: 210 15% 89%;
+    --accent-foreground: 220 13% 15%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 210 15% 86%;
+    --input: 210 15% 86%;
+    --ring: 142 71% 38%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Cabinet Grotesk', 'Inter', sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Cabinet Grotesk', 'Inter', sans-serif;
+    font-weight: 700;
+    line-height: 1.15;
+  }
+}
+
+/* Pixel-grid background for hero areas */
+.pixel-bg {
+  background-image:
+    linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+/* Emerald glow for primary CTAs */
+.glow-emerald {
+  box-shadow: 0 0 20px rgba(34, 197, 94, 0.25), 0 0 60px rgba(34, 197, 94, 0.1);
+}
+
+/* Stat card highlight bar */
+.stat-bar {
+  position: relative;
+  overflow: hidden;
+}
+.stat-bar::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--color-emerald), var(--color-gold));
+}
+
+/* Minecraft block texture feel on product cards */
+.block-card {
+  border: 1px solid hsl(var(--border));
+  transition: border-color 180ms ease, transform 180ms ease, box-shadow 180ms ease;
+}
+.block-card:hover {
+  border-color: hsl(142 71% 45% / 0.5);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px hsl(220 13% 4% / 0.4);
+}
+
+/* Sidebar */
+.sidebar-item {
+  @apply flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors;
+}
+.sidebar-item:hover {
+  @apply bg-accent text-accent-foreground;
+}
+.sidebar-item.active {
+  @apply bg-primary/15 text-primary;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: hsl(var(--background)); }
+::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: hsl(var(--muted-foreground)); }
+
+/* Status badge */
+.status-completed { @apply bg-green-500/15 text-green-400 border-green-500/20; }
+.status-pending { @apply bg-yellow-500/15 text-yellow-400 border-yellow-500/20; }
+.status-failed { @apply bg-red-500/15 text-red-400 border-red-500/20; }
