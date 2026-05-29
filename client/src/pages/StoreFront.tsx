@@ -327,6 +327,25 @@ function MemberAuthModal({ serverId, accent, onClose, onLogin }: {
               </button>
             ))}
           </div>
+          {/* Live skin preview */}
+          <div className="flex flex-col items-center py-2 gap-2">
+            <div className="relative w-16 h-16 rounded-xl overflow-hidden flex items-center justify-center"
+              style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }}>
+              {username.trim().length >= 2 ? (
+                <img
+                  src={`https://mc-heads.net/body/${username.trim()}/64`}
+                  alt={username}
+                  className="h-full object-contain"
+                  onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
+                />
+              ) : (
+                <span className="text-2xl" style={{ color: "rgba(255,255,255,0.2)" }}>?</span>
+              )}
+            </div>
+            {username.trim().length >= 2 && (
+              <p className="text-xs font-bold" style={{ color: "rgba(255,255,255,0.7)" }}>{username.trim()}</p>
+            )}
+          </div>
           <div className="space-y-1.5">
             <Label style={{ color: "rgba(255,255,255,0.6)", fontSize: 12 }}>Minecraft Username</Label>
             <Input placeholder="Steve" value={username} onChange={e => setUsername(e.target.value)}
@@ -872,22 +891,36 @@ function EchoLayout({
             </div>
           </div>
 
-          {/* Right: Login CTA */}
+          {/* Right: Login CTA / Player Avatar */}
           <div className="relative shrink-0 ml-4">
-            <button
-              onClick={() => memberSession ? null : onLogin()}
-              className="flex flex-col items-start px-6 py-2.5 rounded-xl font-bold text-white transition-all hover:brightness-110"
-              style={{ background: accent, minWidth: 100 }}
-              data-testid="echo-subbar-login">
-              <span className="text-sm font-extrabold leading-none">
-                {memberSession ? memberSession.minecraftUsername : "Login"}
-              </span>
-              {!memberSession && (
+            {memberSession ? (
+              <div className="flex items-center gap-3 px-4 py-2 rounded-xl"
+                style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.1)" }}>
+                <div className="relative w-10 h-10 rounded-lg overflow-hidden shrink-0"
+                  style={{ background: "rgba(255,255,255,0.05)" }}>
+                  <img
+                    src={`https://mc-heads.net/body/${memberSession.minecraftUsername}/40`}
+                    alt={memberSession.minecraftUsername}
+                    className="h-full object-contain mx-auto"
+                  />
+                </div>
+                <div className="flex flex-col min-w-0">
+                  <span className="text-sm font-extrabold leading-none text-white truncate">{memberSession.minecraftUsername}</span>
+                  <span className="text-xs mt-0.5" style={{ color: "rgba(255,255,255,0.45)" }}>Logged in</span>
+                </div>
+              </div>
+            ) : (
+              <button
+                onClick={onLogin}
+                className="flex flex-col items-start px-6 py-2.5 rounded-xl font-bold text-white transition-all hover:brightness-110"
+                style={{ background: accent, minWidth: 100 }}
+                data-testid="echo-subbar-login">
+                <span className="text-sm font-extrabold leading-none">Login</span>
                 <span className="text-xs font-normal mt-0.5" style={{ color: "rgba(255,255,255,0.75)" }}>
                   to start shopping
                 </span>
-              )}
-            </button>
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -1226,13 +1259,19 @@ function ThemedStore({ data }: { data: StoreData }) {
       <div className="px-3 py-3" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
         {memberSession ? (
           <div className="rounded-2xl p-3" style={{ background: `linear-gradient(135deg, ${accent}15, ${accent}05)`, border: `1px solid ${accent}25` }}>
-            <div className="flex items-center gap-2.5 mb-2.5">
-              <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0" style={{ background: accent + "25" }}>
-                <User className="w-4 h-4" style={{ color: accent }} />
+            {/* Player skin + name */}
+            <div className="flex items-center gap-3 mb-2.5">
+              <div className="relative w-12 h-14 rounded-xl overflow-hidden shrink-0 flex items-end justify-center"
+                style={{ background: "rgba(255,255,255,0.05)", border: `1px solid ${accent}20` }}>
+                <img
+                  src={`https://mc-heads.net/body/${memberSession.minecraftUsername}/48`}
+                  alt={memberSession.minecraftUsername}
+                  className="h-full object-contain"
+                />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-xs font-bold truncate" style={{ color: "#fff" }}>{memberSession.minecraftUsername}</p>
-                <p className="text-xs truncate" style={{ color: "rgba(255,255,255,0.4)" }}>{memberSession.email}</p>
+                <p className="text-sm font-extrabold truncate" style={{ color: "#fff" }}>{memberSession.minecraftUsername}</p>
+                {memberSession.email && <p className="text-xs truncate mt-0.5" style={{ color: "rgba(255,255,255,0.4)" }}>{memberSession.email}</p>}
               </div>
               <button onClick={() => setMemberSession(null)} className="shrink-0 hover:opacity-60 transition-opacity" title="Log out" data-testid="button-member-logout">
                 <LogOut className="w-3.5 h-3.5" style={{ color: "rgba(255,255,255,0.5)" }} />
