@@ -928,14 +928,11 @@ function EchoCategoryCard({
           <img
             src={imageUrl}
             alt={name}
-            className="absolute object-contain"
+            className="object-contain"
             style={{
               imageRendering: "pixelated",
-              width: 120, height: 120,
-              bottom: 0,
-              left: "50%",
-              transform: "translateX(-50%)",
-              filter: "drop-shadow(0 -4px 16px rgba(0,0,0,0.4))"
+              width: 110, height: 110,
+              filter: "drop-shadow(0 4px 16px rgba(0,0,0,0.4))"
             }}
           />
         ) : (
@@ -1147,7 +1144,7 @@ function EchoLayout({
           <p className="text-xs font-semibold uppercase tracking-widest mb-2"
             style={{ color: "rgba(255,255,255,0.3)" }}>Welcome to</p>
           <h2 className="text-3xl font-extrabold mb-4 uppercase" style={{ color: accent }}>
-            {data.server.name}
+            {data.theme.welcomeTitle || data.server.name}
           </h2>
           <p className="text-sm leading-relaxed" style={{ color: "rgba(255,255,255,0.55)" }}>
             {data.theme.welcomeText ||

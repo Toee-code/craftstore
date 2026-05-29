@@ -591,17 +591,17 @@ export default function StoreAppearance({ serverId }: Props) {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-1.5">
-            <Label>Welcome title</Label>
+            <Label>Welcome heading <span className="text-muted-foreground font-normal text-xs">(shown in large text, e.g. "Toee SMP")</span></Label>
             <Input
-              placeholder="e.g. Welcome to SkyBlock Store!"
+              placeholder={"e.g. Toee SMP"}
               {...register("welcomeTitle")}
               data-testid="input-welcome-title"
             />
           </div>
           <div className="space-y-1.5">
-            <Label>Welcome message</Label>
+            <Label>Welcome message <span className="text-muted-foreground font-normal text-xs">(shown as body text below the heading)</span></Label>
             <Textarea
-              placeholder="e.g. Thanks for stopping by! Browse our selection of ranks, kits, and more. All purchases are delivered instantly in-game."
+              placeholder="e.g. Welcome to the official Toee SMP Store. To begin shopping, select a category above."
               rows={3}
               {...register("welcomeText")}
               data-testid="textarea-welcome-text"
