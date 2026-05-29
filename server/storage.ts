@@ -400,7 +400,8 @@ export const storage: IStorage = {
     const entries = Object.entries(data).filter(([k]) => fieldMap[k] !== undefined);
     if (entries.length === 0) return storage.getServerById(id);
     const setClauses = entries.map(([k]) => `${fieldMap[k]} = ?`).join(', ');
-    const values = entries.map(([, v]) => v);
+    // Convert booleans to 1/0 for SQLite
+    const values = entries.map(([, v]) => typeof v === 'boolean' ? (v ? 1 : 0) : v);
     sqlite.prepare(`UPDATE servers SET ${setClauses} WHERE id = ?`).run(...values, id);
     return storage.getServerById(id);
   },
