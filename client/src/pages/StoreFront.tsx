@@ -1169,24 +1169,16 @@ function EchoLayout({
               </a>
             </p>
           </div>
-          {/* Right — payment icons */}
+          {/* Right — payment icons (Stripe-supported only) */}
           <div className="flex items-center gap-2 flex-wrap">
-            {/* Apple Pay */}
-            <div className="rounded px-2 py-1 text-xs font-bold flex items-center gap-1" style={{ background: "#1a1a1a", border: "1px solid rgba(255,255,255,0.12)", color: "#fff", fontSize: 11 }}>
-               Pay
-            </div>
-            {/* Google Pay */}
-            <div className="rounded px-2 py-1 text-xs font-bold" style={{ background: "#1a1a1a", border: "1px solid rgba(255,255,255,0.12)", color: "#fff", fontSize: 11 }}>
-              G Pay
+            {/* Visa */}
+            <div className="rounded px-2 py-1 font-black italic" style={{ background: "#1a1a1a", border: "1px solid rgba(255,255,255,0.12)", color: "#1a73e8", fontSize: 13, letterSpacing: "-0.5px" }}>
+              VISA
             </div>
             {/* Mastercard */}
-            <div className="rounded px-1.5 py-1 flex items-center" style={{ background: "#1a1a1a", border: "1px solid rgba(255,255,255,0.12)" }}>
-              <span style={{ width: 18, height: 12, borderRadius: "50%", background: "#eb001b", display: "inline-block" }} />
-              <span style={{ width: 18, height: 12, borderRadius: "50%", background: "#f79e1b", display: "inline-block", marginLeft: -8 }} />
-            </div>
-            {/* Visa */}
-            <div className="rounded px-2 py-1 text-xs font-black italic" style={{ background: "#1a1a1a", border: "1px solid rgba(255,255,255,0.12)", color: "#1a1aff", fontSize: 13, letterSpacing: "-0.5px" }}>
-              VISA
+            <div className="rounded px-2 py-1 flex items-center gap-1" style={{ background: "#1a1a1a", border: "1px solid rgba(255,255,255,0.12)" }}>
+              <span style={{ width: 16, height: 16, borderRadius: "50%", background: "#eb001b", display: "inline-block" }} />
+              <span style={{ width: 16, height: 16, borderRadius: "50%", background: "#f79e1b", display: "inline-block", marginLeft: -8 }} />
             </div>
             {/* Amex */}
             <div className="rounded px-2 py-1 text-xs font-bold" style={{ background: "#016fcb", border: "1px solid rgba(255,255,255,0.12)", color: "#fff", fontSize: 11 }}>
