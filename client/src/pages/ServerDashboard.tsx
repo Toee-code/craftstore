@@ -689,6 +689,58 @@ export default function ServerDashboard() {
   });
   const categoryList: string[] = (() => { try { return JSON.parse(theme?.categories || "[]"); } catch { return []; } })();
 
+  // Category management state (synced from theme)
+  const [catList, setCatList] = useState<string[]>([]);
+  const [newCat, setNewCat] = useState("");
+  const [expandedCat, setExpandedCat] = useState<string | null>(null);
+  const [subcats, setSubcats] = useState<Record<string, string[]>>({});
+  const [newSubcatInput, setNewSubcatInput] = useState<Record<string, string>>({});
+  useEffect(() => {
+    if (!theme) return;
+    try { setCatList(JSON.parse(theme.categories || "[]")); } catch { setCatList([]); }
+    try { setSubcats(JSON.parse(theme.subcategories || "{}")); } catch { setSubcats({}); }
+  }, [theme]);
+
+  const saveCategories = useMutation({
+    mutationFn: (data: { categories: string[]; subcategories: Record<string, string[]> }) =>
+      apiRequest("PATCH", `/api/servers/${serverId}/theme`, {
+        categories: JSON.stringify(data.categories),
+        subcategories: JSON.stringify(data.subcategories),
+      }).then(r => r.json()),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["/api/servers", serverId, "theme"] });
+      toast({ title: "Categories saved" });
+    },
+  });
+
+  const addCat = () => {
+    const c = newCat.trim();
+    if (!c || catList.includes(c)) return;
+    const next = [...catList, c];
+    setCatList(next);
+    setNewCat("");
+    saveCategories.mutate({ categories: next, subcategories: subcats });
+  };
+  const removeCat = (c: string) => {
+    const next = catList.filter(x => x !== c);
+    const nextSubs = { ...subcats }; delete nextSubs[c];
+    setCatList(next); setSubcats(nextSubs);
+    saveCategories.mutate({ categories: next, subcategories: nextSubs });
+  };
+  const addSubcat = (cat: string) => {
+    const sub = (newSubcatInput[cat] || "").trim();
+    if (!sub || (subcats[cat] || []).includes(sub)) return;
+    const nextSubs = { ...subcats, [cat]: [...(subcats[cat] || []), sub] };
+    setSubcats(nextSubs);
+    setNewSubcatInput(p => ({ ...p, [cat]: "" }));
+    saveCategories.mutate({ categories: catList, subcategories: nextSubs });
+  };
+  const removeSubcat = (cat: string, sub: string) => {
+    const nextSubs = { ...subcats, [cat]: (subcats[cat] || []).filter(s => s !== sub) };
+    setSubcats(nextSubs);
+    saveCategories.mutate({ categories: catList, subcategories: nextSubs });
+  };
+
   // Add product
   const productForm = useForm<ProductForm>({ defaultValues: { imageType: "upload", playerHeadName: "", stock: -1 } });
   const addProduct = useMutation({
@@ -812,7 +864,7 @@ export default function ServerDashboard() {
 
         <Tabs defaultValue="products">
           <TabsList className="mb-6">
-            <TabsTrigger value="products" data-testid="tab-products">Products</TabsTrigger>
+            <TabsTrigger value="products" data-testid="tab-products">Products / Categories</TabsTrigger>
             <TabsTrigger value="members" data-testid="tab-members">Members</TabsTrigger>
             <TabsTrigger value="orders" data-testid="tab-orders">Orders</TabsTrigger>
             <TabsTrigger value="appearance" data-testid="tab-appearance" className="gap-1.5">
@@ -832,6 +884,85 @@ export default function ServerDashboard() {
 
           {/* Products Tab */}
           <TabsContent value="products">
+
+            {/* ── Categories ─────────────────────────────────────────── */}
+            <Card className="bg-card border-border/60 mb-6">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Categories</CardTitle>
+                <CardDescription>Organise your products into categories. Changes save instantly.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="e.g. Ranks, Kits, Weapons…"
+                    value={newCat}
+                    onChange={e => setNewCat(e.target.value)}
+                    onKeyDown={e => e.key === "Enter" && (e.preventDefault(), addCat())}
+                  />
+                  <Button type="button" onClick={addCat} variant="outline" className="shrink-0 gap-1.5">
+                    <Plus className="w-3.5 h-3.5" /> Add
+                  </Button>
+                </div>
+                {catList.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">No categories yet — products will appear unfiltered.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {catList.map(cat => (
+                      <div key={cat} className="rounded-lg border border-border/60 overflow-hidden">
+                        <div className="flex items-center gap-2 px-3 py-2.5 bg-muted/20">
+                          <button type="button"
+                            onClick={() => setExpandedCat(expandedCat === cat ? null : cat)}
+                            className="flex items-center gap-2 flex-1 text-left">
+                            {expandedCat === cat
+                              ? <ChevronRight className="w-3.5 h-3.5 text-muted-foreground rotate-90" />
+                              : <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />}
+                            <span className="font-medium text-sm">{cat}</span>
+                            {(subcats[cat] || []).length > 0 && (
+                              <span className="text-xs text-muted-foreground">({subcats[cat].length} sub{subcats[cat].length !== 1 ? "s" : ""})</span>
+                            )}
+                          </button>
+                          <button type="button" onClick={() => removeCat(cat)}
+                            className="hover:text-destructive transition-colors shrink-0">
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                        {expandedCat === cat && (
+                          <div className="px-3 py-3 space-y-2 border-t border-border/40">
+                            <div className="flex gap-2">
+                              <Input
+                                placeholder={`Add subcategory under "${cat}"…`}
+                                className="text-xs h-8"
+                                value={newSubcatInput[cat] || ""}
+                                onChange={e => setNewSubcatInput(p => ({ ...p, [cat]: e.target.value }))}
+                                onKeyDown={e => e.key === "Enter" && (e.preventDefault(), addSubcat(cat))}
+                              />
+                              <Button type="button" size="sm" variant="outline" className="h-8 px-2 shrink-0" onClick={() => addSubcat(cat)}>
+                                <Plus className="w-3 h-3" />
+                              </Button>
+                            </div>
+                            {(subcats[cat] || []).length === 0 ? (
+                              <p className="text-xs text-muted-foreground">No subcategories yet.</p>
+                            ) : (
+                              <div className="flex flex-wrap gap-1.5">
+                                {(subcats[cat] || []).map(sub => (
+                                  <span key={sub} className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-primary/10 border border-primary/20 text-xs font-medium text-primary">
+                                    {sub}
+                                    <button type="button" onClick={() => removeSubcat(cat, sub)} className="hover:text-destructive">
+                                      <Trash2 className="w-2.5 h-2.5" />
+                                    </button>
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
             <div className="flex justify-between items-center mb-4">
               <h2 className="font-semibold">Products ({products.length})</h2>
               <Dialog open={addProductOpen} onOpenChange={setAddProductOpen}>
@@ -869,10 +1000,10 @@ export default function ServerDashboard() {
                           className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm"
                           {...productForm.register("category")}>
                           <option value="">No category</option>
-                          {categoryList.map(c => <option key={c} value={c}>{c}</option>)}
+                          {catList.map(c => <option key={c} value={c}>{c}</option>)}
                         </select>
-                        {categoryList.length === 0 && (
-                          <p className="text-xs text-muted-foreground">Add categories in the Appearance tab first</p>
+                        {catList.length === 0 && (
+                          <p className="text-xs text-muted-foreground">Add categories above first</p>
                         )}
                       </div>
                       <div className="space-y-1.5">
@@ -927,7 +1058,7 @@ export default function ServerDashboard() {
                         className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm"
                         {...editForm.register("category")}>
                         <option value="">No category</option>
-                        {categoryList.map(c => <option key={c} value={c}>{c}</option>)}
+                        {catList.map(c => <option key={c} value={c}>{c}</option>)}
                       </select>
                     </div>
                     <div className="space-y-1.5">
