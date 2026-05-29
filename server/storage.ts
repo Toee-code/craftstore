@@ -193,9 +193,9 @@ for (const stmt of alterStatements) {
   try { sqlite.exec(stmt); } catch { /* column already exists */ }
 }
 
-// Migrate existing stores from old 'grid' default to 'echo' layout
+// Migrate all existing stores to 'echo' (ToeesSMP) as the new default layout
 try {
-  sqlite.exec(`UPDATE store_themes SET layout = 'echo' WHERE layout = 'grid'`);
+  sqlite.exec(`UPDATE store_themes SET layout = 'echo' WHERE layout IN ('grid', 'featured', 'list')`);
 } catch {}
 
 
