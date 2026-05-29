@@ -434,10 +434,9 @@ export default function ServerDashboard() {
     if (hydrated && !user) navigate("/login");
   }, [hydrated, user]);
 
-  const { data: server, isLoading: serverLoading } = useQuery<Server>({
+  const { data: server } = useQuery<Server>({
     queryKey: ["/api/servers", serverId],
     queryFn: () => apiRequest("GET", `/api/servers/${serverId}`).then(r => r.json()),
-    enabled: !!user,
   });
 
   const { data: products = [] } = useQuery<Product[]>({
@@ -504,15 +503,10 @@ export default function ServerDashboard() {
 
   const storeUrl = `${window.location.origin}${window.location.pathname}#/store/${serverId}`;
 
-  // Block access until hydrated + user confirmed
-  if (!hydrated || !user) return null;
-  // Wait for server to load before checking ownership
-  if (serverLoading || server === undefined) return <div className="min-h-screen bg-background flex items-center justify-center"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>;
-  // Kick non-owners back to dashboard
-  if (Number(server.ownerId) !== Number(user.id)) {
-    navigate("/dashboard");
-    return null;
-  }
+  // While session is hydrating, show nothing (avoids flash)
+  if (!hydrated) return null;
+  // Not logged in — redirect handled by useEffect above
+  if (!user) return null;
 
   return (
     <div className="min-h-screen bg-background">
