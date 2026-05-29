@@ -365,16 +365,16 @@ function MemberAuthModal({ serverId, accent, onClose, onLogin, bedrockEnabled, b
 
   return (
     <Dialog open onOpenChange={onClose}>
-      <DialogContent className="max-w-sm overflow-hidden" style={{ background: "#0f0f13", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", padding: 0 }}>
+      <DialogContent className="max-w-sm" style={{ background: "#0f0f13", border: "1px solid rgba(255,255,255,0.1)", color: "#fff" }}>
         {/* Header */}
-        <div className="px-6 pt-6 pb-4 text-center">
+        <div className="text-center pb-2">
           <DialogTitle className="text-2xl font-extrabold text-white">Login</DialogTitle>
           <p className="text-sm mt-1" style={{ color: "rgba(255,255,255,0.45)" }}>
             Enter your {platform === "bedrock" ? "Xbox Gamertag" : "Minecraft Username"} to continue
           </p>
         </div>
 
-        <div className="px-6 pb-6 space-y-4">
+        <div className="space-y-4">
           {/* Java / Bedrock switcher — always shown if bedrockEnabled, big buttons like EchoSMP */}
           {bedrockEnabled && (
             <div className="grid grid-cols-2 gap-3">
