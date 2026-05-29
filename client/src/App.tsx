@@ -76,8 +76,8 @@ export default function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthHydrator />
       <Router hook={useHashLocation}>
+        <AuthHydrator />
         {subdomain ? (
           <SubdomainRedirect />
         ) : null}
