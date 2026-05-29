@@ -3,7 +3,7 @@ import Database from "better-sqlite3";
 import { eq, and, desc, sql, gte } from "drizzle-orm";
 import {
   users, servers, products, members, orders, notifications, storeThemes, storePresets, presetPurchases,
-  checkoutSessions, memberAccounts, giftOrders, ownerSessions,
+  checkoutSessions, memberAccounts, giftOrders, ownerSessions, memberSessions,
   type User, type InsertUser,
   type Server, type InsertServer,
   type Product, type InsertProduct,
@@ -16,7 +16,7 @@ import {
   type CheckoutSession, type InsertCheckoutSession,
   type MemberAccount, type InsertMemberAccount,
   type GiftOrder, type InsertGiftOrder,
-  type OwnerSession,
+  type OwnerSession, type MemberSessionRow,
 } from "@shared/schema";
 
 // Use /data volume on Railway (persistent), fallback to local file
@@ -213,6 +213,18 @@ sqlite.exec(`
 `);
 
 sqlite.exec(`
+  CREATE TABLE IF NOT EXISTS member_sessions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    member_account_id INTEGER NOT NULL,
+    server_id INTEGER NOT NULL,
+    token TEXT NOT NULL UNIQUE,
+    platform TEXT NOT NULL DEFAULT 'java',
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    expires_at TEXT NOT NULL
+  );
+`);
+
+sqlite.exec(`
   CREATE TABLE IF NOT EXISTS owner_sessions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL,
@@ -328,6 +340,12 @@ export interface IStorage {
   getOwnerSession(token: string): OwnerSession | undefined;
   deleteOwnerSession(token: string): void;
   deleteExpiredOwnerSessions(): void;
+  // Member Sessions
+  getMemberAccountById(id: number): MemberAccount | undefined;
+  createMemberSession(memberAccountId: number, serverId: number, token: string, platform: string, expiresAt: string): MemberSessionRow;
+  getMemberSession(token: string): MemberSessionRow | undefined;
+  deleteMemberSession(token: string): void;
+  deleteExpiredMemberSessions(): void;
 }
 
 export const storage: IStorage = {
@@ -850,5 +868,22 @@ export const storage: IStorage = {
   },
   deleteExpiredOwnerSessions() {
     db.delete(ownerSessions).where(sql`expires_at < ${new Date().toISOString()}`).run();
+  },
+
+  // ── Member Sessions ────────────────────────────────────────────────────────
+  getMemberAccountById(id: number): MemberAccount | undefined {
+    return sqlite.prepare("SELECT * FROM member_accounts WHERE id = ?").get(id) as MemberAccount | undefined;
+  },
+  createMemberSession(memberAccountId, serverId, token, platform, expiresAt) {
+    return db.insert(memberSessions).values({ memberAccountId, serverId, token, platform, expiresAt }).returning().get();
+  },
+  getMemberSession(token) {
+    return db.select().from(memberSessions).where(eq(memberSessions.token, token)).get();
+  },
+  deleteMemberSession(token) {
+    db.delete(memberSessions).where(eq(memberSessions.token, token)).run();
+  },
+  deleteExpiredMemberSessions() {
+    db.delete(memberSessions).where(sql`expires_at < ${new Date().toISOString()}`).run();
   },
 };

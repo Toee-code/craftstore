@@ -910,7 +910,7 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
   // ── Member Auth (player login for storefronts) ─────────────────────────────────────────
   app.post("/api/member-auth/register", (req, res) => {
     try {
-      const { serverId, minecraftUsername, email, password } = req.body;
+      const { serverId, minecraftUsername, email, password, platform } = req.body;
       if (!serverId || !minecraftUsername || !password) return res.status(400).json({ error: "Missing fields" });
       const existing = storage.getMemberAccount(Number(serverId), minecraftUsername);
       if (existing) return res.status(409).json({ error: "Account already exists for this username" });
@@ -923,7 +923,11 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
       const { passwordHash, ...safe } = account;
       // Also find their member record to return balance
       const member = storage.getMemberByUsername(Number(serverId), minecraftUsername);
-      res.json({ ...safe, balance: member?.balance ?? 0, totalSpent: member?.totalSpent ?? 0 });
+      // Create persistent session token
+      const token = crypto.randomBytes(32).toString("hex");
+      const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+      storage.createMemberSession(account.id, Number(serverId), token, platform || "java", expiresAt);
+      res.json({ ...safe, balance: member?.balance ?? 0, totalSpent: member?.totalSpent ?? 0, sessionToken: token });
     } catch (e: any) {
       res.status(500).json({ error: e.message });
     }
@@ -931,7 +935,7 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
 
   app.post("/api/member-auth/login", (req, res) => {
     try {
-      const { serverId, minecraftUsername, password } = req.body;
+      const { serverId, minecraftUsername, password, platform } = req.body;
       if (!serverId || !minecraftUsername || !password) return res.status(400).json({ error: "Missing fields" });
       const account = storage.getMemberAccount(Number(serverId), minecraftUsername);
       if (!account || account.passwordHash !== hashPassword(password)) {
@@ -940,10 +944,64 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
       const { passwordHash, ...safe } = account;
       const member = storage.getMemberByUsername(Number(serverId), minecraftUsername);
       const orders = storage.getOrdersByServer(Number(serverId)).filter(o => o.minecraftUsername === minecraftUsername);
-      res.json({ ...safe, balance: member?.balance ?? 0, totalSpent: member?.totalSpent ?? 0, orders });
+      // Create persistent session token
+      storage.deleteExpiredMemberSessions();
+      const token = crypto.randomBytes(32).toString("hex");
+      const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+      storage.createMemberSession(account.id, Number(serverId), token, platform || "java", expiresAt);
+      res.json({ ...safe, balance: member?.balance ?? 0, totalSpent: member?.totalSpent ?? 0, orders, sessionToken: token });
     } catch (e: any) {
       res.status(500).json({ error: e.message });
     }
+  });
+
+  // ── Member Persistent Sessions ────────────────────────────────────────────
+  // Create session after player login
+  app.post("/api/member-auth/session", (req, res) => {
+    try {
+      const { memberAccountId, serverId, platform } = req.body;
+      if (!memberAccountId || !serverId) return res.status(400).json({ error: "memberAccountId and serverId required" });
+      storage.deleteExpiredMemberSessions();
+      const token = crypto.randomBytes(32).toString("hex");
+      const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+      storage.createMemberSession(Number(memberAccountId), Number(serverId), token, platform || "java", expiresAt);
+      res.json({ ok: true, token });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // Restore member session
+  app.get("/api/member-auth/session", (req, res) => {
+    try {
+      const token = req.headers["x-member-token"] as string;
+      const serverId = Number(req.query.serverId);
+      if (!token || !serverId) return res.status(401).json({ error: "No token" });
+      const session = storage.getMemberSession(token);
+      if (!session || session.serverId !== serverId) return res.status(401).json({ error: "Invalid session" });
+      if (new Date(session.expiresAt) < new Date()) {
+        storage.deleteMemberSession(token);
+        return res.status(401).json({ error: "Session expired" });
+      }
+      const accountRow = storage.getMemberAccountById(session.memberAccountId) as any;
+      if (!accountRow) return res.status(401).json({ error: "Account not found" });
+      const member = storage.getMemberByUsername(serverId, accountRow.minecraftUsername || accountRow.minecraft_username);
+      res.json({
+        ok: true,
+        id: accountRow.id,
+        minecraftUsername: accountRow.minecraftUsername || accountRow.minecraft_username,
+        email: accountRow.email,
+        platform: session.platform,
+        balance: member?.balance ?? 0,
+      });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // Delete member session (logout)
+  app.delete("/api/member-auth/session", (req, res) => {
+    try {
+      const token = req.headers["x-member-token"] as string;
+      if (token) storage.deleteMemberSession(token);
+      res.json({ ok: true });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 
   // Player-facing profile: purchase history, gifts received, balance, leaderboard rank

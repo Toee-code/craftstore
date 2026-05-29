@@ -51,6 +51,8 @@ interface StoreData {
 
 interface MemberSession {
   id: number; minecraftUsername: string; email: string;
+  platform: "java" | "bedrock";
+  sessionToken?: string;
 }
 
 interface LeaderboardEntry { rank: number; minecraftUsername: string; total: number; }
@@ -347,14 +349,14 @@ function MemberAuthModal({ serverId, accent, onClose, onLogin, bedrockEnabled, b
     try {
       const endpoint = mode === "login" ? "/api/member-auth/login" : "/api/member-auth/register";
       const body = mode === "login"
-        ? { serverId, minecraftUsername: fullUsername, password }
-        : { serverId, minecraftUsername: fullUsername, email: email.trim(), password };
+        ? { serverId, minecraftUsername: fullUsername, password, platform }
+        : { serverId, minecraftUsername: fullUsername, email: email.trim(), password, platform };
       const r = await apiRequest("POST", endpoint, body);
       const data = await r.json();
       if (!r.ok) throw new Error(data.error || "Failed");
       toast({ title: mode === "login" ? "Welcome back!" : "Account created!", description: `Logged in as ${username}` });
       const account = data.member ?? data;
-      onLogin({ id: account.id, minecraftUsername: account.minecraftUsername, email: account.email || "" });
+      onLogin({ id: account.id, minecraftUsername: account.minecraftUsername, email: account.email || "", platform, sessionToken: account.sessionToken });
       onClose();
     } catch (e: any) {
       setError(e.message || "Something went wrong.");
@@ -985,37 +987,44 @@ function EchoLayout({
           {/* Right: Login CTA / Player Avatar — skin peeks above bar like EchoSMP */}
           <div className="relative shrink-0 ml-4" style={{ height: 56 }}>
             {memberSession ? (
-              <div className="relative group">
-                <div className="flex items-center gap-2 h-full px-4 rounded-xl cursor-pointer"
+              <div className="relative">
+                <button
+                  onClick={() => setPlayerDropdownOpen(o => !o)}
+                  className="flex items-center gap-2 h-full px-4 rounded-xl cursor-pointer"
                   style={{ background: accent, minWidth: 140 }}>
                   {/* Skin overflowing above */}
                   <div className="absolute bottom-0 left-2" style={{ width: 48, height: 80, pointerEvents: "none" }}>
                     <img
-                      src={`https://nmsr.nickac.dev/fullbody/${memberSession.minecraftUsername}`}
+                      src={memberSession.platform === "bedrock"
+                        ? `https://skin.matdoes.dev/renders/body/${encodeURIComponent(memberSession.minecraftUsername)}?overlay=true`
+                        : `https://nmsr.nickac.dev/fullbody/${memberSession.minecraftUsername}`}
                       alt={memberSession.minecraftUsername}
                       style={{ width: "100%", height: "100%", objectFit: "contain", objectPosition: "bottom" }}
                     />
                   </div>
                   <div className="flex flex-col min-w-0 ml-12">
                     <span className="text-sm font-extrabold leading-none text-white truncate">{memberSession.minecraftUsername}</span>
-                    <span className="text-xs mt-0.5" style={{ color: "rgba(0,0,0,0.5)" }}>Logged in ▾</span>
+                    <span className="text-xs mt-0.5" style={{ color: "rgba(255,255,255,0.6)" }}>Logged in ▾</span>
                   </div>
-                </div>
-                {/* Dropdown */}
-                <div className="absolute right-0 top-full mt-2 rounded-xl overflow-hidden opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition-all z-50"
-                  style={{ background: "#1a1d24", border: "1px solid rgba(255,255,255,0.1)", minWidth: 160 }}>
-                  <a href={`#/store/${data.server.id}/profile`}
-                    className="flex items-center gap-2 px-4 py-3 text-sm font-medium hover:bg-white/5 transition-colors"
-                    style={{ color: "rgba(255,255,255,0.8)" }}>
-                    <User className="w-4 h-4" /> My Profile
-                  </a>
-                  <button
-                    onClick={() => setMemberSession(null)}
-                    className="w-full flex items-center gap-2 px-4 py-3 text-sm font-medium hover:bg-white/5 transition-colors"
-                    style={{ color: "#f87171", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
-                    <LogOut className="w-4 h-4" /> Log Out
-                  </button>
-                </div>
+                </button>
+                {/* Click-based dropdown */}
+                {playerDropdownOpen && (
+                  <div className="absolute right-0 top-full mt-2 rounded-xl overflow-hidden z-50"
+                    style={{ background: "#1a1d24", border: "1px solid rgba(255,255,255,0.1)", minWidth: 160, boxShadow: "0 8px 32px rgba(0,0,0,0.5)" }}>
+                    <a href={`#/store/${data.server.id}/profile`}
+                      onClick={() => setPlayerDropdownOpen(false)}
+                      className="flex items-center gap-2 px-4 py-3 text-sm font-medium hover:bg-white/5 transition-colors"
+                      style={{ color: "rgba(255,255,255,0.8)" }}>
+                      <User className="w-4 h-4" /> My Profile
+                    </a>
+                    <button
+                      onClick={handleMemberLogout}
+                      className="w-full flex items-center gap-2 px-4 py-3 text-sm font-medium hover:bg-white/5 transition-colors"
+                      style={{ color: "#f87171", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+                      <LogOut className="w-4 h-4" /> Log Out
+                    </button>
+                  </div>
+                )}
               </div>
             ) : (
               <button
@@ -1207,8 +1216,46 @@ function ThemedStore({ data }: { data: StoreData }) {
   const [directPayLoading, setDirectPayLoading] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [memberSession, setMemberSession] = useState<MemberSession | null>(null);
+  const [memberSession, setMemberSessionRaw] = useState<MemberSession | null>(null);
   const [memberAuthOpen, setMemberAuthOpen] = useState(false);
+  const [playerDropdownOpen, setPlayerDropdownOpen] = useState(false);
+
+  // ── Persistent member session ──────────────────────────────────────────────
+  const memberTokenKey = `cs_member_token_${data.server.id}`;
+
+  const setMemberSession = (session: MemberSession | null) => {
+    setMemberSessionRaw(session);
+    if (session?.sessionToken) {
+      try { localStorage.setItem(memberTokenKey, session.sessionToken); } catch {}
+    } else if (!session) {
+      try { localStorage.removeItem(memberTokenKey); } catch {}
+    }
+  };
+
+  // Restore session on mount
+  useEffect(() => {
+    const token = (() => { try { return localStorage.getItem(memberTokenKey); } catch { return null; } })();
+    if (!token) return;
+    fetch(`/api/member-auth/session?serverId=${data.server.id}`, {
+      headers: { "x-member-token": token }
+    }).then(r => r.ok ? r.json() : null).then(d => {
+      if (d?.ok) {
+        setMemberSessionRaw({ id: d.id, minecraftUsername: d.minecraftUsername, email: d.email || "", platform: d.platform || "java", sessionToken: token });
+      } else {
+        try { localStorage.removeItem(memberTokenKey); } catch {}
+      }
+    }).catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data.server.id]);
+
+  const handleMemberLogout = () => {
+    const token = (() => { try { return localStorage.getItem(memberTokenKey); } catch { return null; } })();
+    if (token) {
+      fetch("/api/member-auth/session", { method: "DELETE", headers: { "x-member-token": token } }).catch(() => {});
+    }
+    setMemberSession(null);
+    setPlayerDropdownOpen(false);
+  };
   const [giftRecipient, setGiftRecipient] = useState("");
   const [giftMessage, setGiftMessage] = useState("");
 
@@ -1380,7 +1427,9 @@ function ThemedStore({ data }: { data: StoreData }) {
               <div className="relative w-12 h-14 rounded-xl overflow-hidden shrink-0 flex items-end justify-center"
                 style={{ background: "rgba(255,255,255,0.05)", border: `1px solid ${accent}20` }}>
                 <img
-                  src={`https://nmsr.nickac.dev/fullbody/${memberSession.minecraftUsername}`}
+                  src={memberSession.platform === "bedrock"
+                    ? `https://skin.matdoes.dev/renders/body/${encodeURIComponent(memberSession.minecraftUsername)}?overlay=true`
+                    : `https://nmsr.nickac.dev/fullbody/${memberSession.minecraftUsername}`}
                   alt={memberSession.minecraftUsername}
                   className="h-full object-contain"
                 />
@@ -1389,7 +1438,7 @@ function ThemedStore({ data }: { data: StoreData }) {
                 <p className="text-sm font-extrabold truncate" style={{ color: "#fff" }}>{memberSession.minecraftUsername}</p>
                 {memberSession.email && <p className="text-xs truncate mt-0.5" style={{ color: "rgba(255,255,255,0.4)" }}>{memberSession.email}</p>}
               </div>
-              <button onClick={() => setMemberSession(null)} className="shrink-0 hover:opacity-60 transition-opacity" title="Log out" data-testid="button-member-logout">
+              <button onClick={handleMemberLogout} className="shrink-0 hover:opacity-60 transition-opacity" title="Log out" data-testid="button-member-logout">
                 <LogOut className="w-3.5 h-3.5" style={{ color: "rgba(255,255,255,0.5)" }} />
               </button>
             </div>
@@ -1535,14 +1584,22 @@ function ThemedStore({ data }: { data: StoreData }) {
 
             {/* Right: login + mobile burger */}
             <div className="ml-auto flex items-center gap-2">
-              {data.member ? (
+              {memberSession ? (
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold px-3 py-1.5 rounded-xl hidden sm:block"
-                    style={{ background: `${accent}20`, color: accent, border: `1px solid ${accent}30` }}>
-                    {data.member.minecraftUsername}
-                  </span>
+                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl hidden sm:flex"
+                    style={{ background: `${accent}20`, border: `1px solid ${accent}30` }}>
+                    <img
+                      src={memberSession.platform === "bedrock"
+                        ? `https://skin.matdoes.dev/renders/body/${encodeURIComponent(memberSession.minecraftUsername)}?overlay=true`
+                        : `https://nmsr.nickac.dev/face/${memberSession.minecraftUsername}`}
+                      alt={memberSession.minecraftUsername}
+                      className="w-5 h-5 rounded object-contain"
+                      onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
+                    />
+                    <span className="text-xs font-bold" style={{ color: accent }}>{memberSession.minecraftUsername}</span>
+                  </div>
                   <button
-                    onClick={() => { setMember(null); }}
+                    onClick={handleMemberLogout}
                     className="p-2 rounded-xl transition-all hover:opacity-70"
                     style={{ background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.5)" }}
                     title="Log out"
@@ -1552,7 +1609,7 @@ function ThemedStore({ data }: { data: StoreData }) {
                 </div>
               ) : (
                 <button
-                  onClick={() => setShowLogin(true)}
+                  onClick={() => setMemberAuthOpen(true)}
                   className="px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-1.5"
                   style={{ background: `${accent}20`, color: accent, border: `1px solid ${accent}30` }}
                   data-testid="donut-login">

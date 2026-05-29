@@ -233,3 +233,17 @@ export const ownerSessions = sqliteTable("owner_sessions", {
 });
 
 export type OwnerSession = typeof ownerSessions.$inferSelect;
+
+// ─── Member Sessions ──────────────────────────────────────────────────────────
+// Persistent login tokens for store players — per server
+export const memberSessions = sqliteTable("member_sessions", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  memberAccountId: integer("member_account_id").notNull(),
+  serverId: integer("server_id").notNull(),
+  token: text("token").notNull().unique(),
+  platform: text("platform").notNull().default("java"),
+  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+  expiresAt: text("expires_at").notNull(),
+});
+
+export type MemberSessionRow = typeof memberSessions.$inferSelect;
