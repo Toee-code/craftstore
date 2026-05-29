@@ -978,7 +978,7 @@ function CountdownBanner({ title, subtitle, endDate, ownerUsername, accent }: {
     <div
       style={{
         background: `linear-gradient(135deg, ${accent}dd 0%, ${accent}99 60%, ${accent}bb 100%)`,
-        height: 120,
+        height: 160,
         position: "relative",
         overflow: "hidden",
         display: "flex",
@@ -989,52 +989,51 @@ function CountdownBanner({ title, subtitle, endDate, ownerUsername, accent }: {
       {/* Dark overlay */}
       <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.22)", pointerEvents: "none" }} />
 
-      {/* Owner skin + bow — left side of banner */}
+      {/* Owner skin + bow — anchored from top so head always shows */}
       {skinUrl && (
         <div style={{
           position: "relative",
-          width: 180,
-          height: 120,
+          width: 140,
+          height: 160,
           flexShrink: 0,
           zIndex: 10,
-          overflow: "visible",
         }}>
+          {/* Full body skin, top-anchored */}
           <img
             src={skinUrl}
             alt={ownerUsername!}
-            width={120}
-            height={210}
+            width={100}
+            height={200}
             style={{
               position: "absolute",
-              bottom: -10,
+              top: -10,
               left: 16,
-              width: 120,
-              height: 210,
+              width: 100,
+              height: 200,
               imageRendering: "pixelated",
               filter: "drop-shadow(0 4px 16px rgba(0,0,0,0.9))",
               display: "block",
             }}
             onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
           />
-          {/* Bow in right hand */}
+          {/* Bow — served locally, positioned at right arm */}
           <img
-            src="https://raw.githubusercontent.com/InventivetalentDev/minecraft-assets/1.21/assets/minecraft/textures/item/bow_pulling_2.png"
+            src="/bow.png"
             alt="bow"
-            width={60}
-            height={60}
+            width={64}
+            height={64}
             style={{
               position: "absolute",
-              bottom: 35,
-              right: 4,
-              width: 60,
-              height: 60,
+              top: 72,
+              right: 6,
+              width: 64,
+              height: 64,
               imageRendering: "pixelated",
               transform: "rotate(-15deg) scaleX(-1)",
               filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.9))",
               display: "block",
               zIndex: 20,
             }}
-            onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
           />
         </div>
       )}
