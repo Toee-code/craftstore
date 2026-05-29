@@ -1261,13 +1261,45 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
     next();
   }
 
-  // Proxy Mojang UUID lookup — avoids CORS issues from browser
+  // Proxy Mojang UUID + skin lookup — avoids CORS, returns skinUrl directly
   app.get("/api/minecraft/uuid/:username", async (req, res) => {
     try {
       const r = await fetch(`https://api.mojang.com/users/profiles/minecraft/${req.params.username}`);
       if (!r.ok) return res.status(404).json({ error: "Player not found" });
       const data = await r.json() as { id: string; name: string };
+      // Also fetch skin texture URL from session server
+      try {
+        const sr = await fetch(`https://sessionserver.mojang.com/session/minecraft/profile/${data.id}`);
+        if (sr.ok) {
+          const profile = await sr.json() as any;
+          const texProp = profile.properties?.find((p: any) => p.name === "textures");
+          if (texProp) {
+            const texData = JSON.parse(Buffer.from(texProp.value, "base64").toString("utf8"));
+            const skinUrl = texData?.textures?.SKIN?.url;
+            if (skinUrl) return res.json({ id: data.id, name: data.name, skinUrl });
+          }
+        }
+      } catch {}
       res.json(data);
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // Proxy skin render — fetches skin texture and returns it to avoid CORS
+  app.get("/api/minecraft/skin/:uuid", async (req, res) => {
+    try {
+      const sr = await fetch(`https://sessionserver.mojang.com/session/minecraft/profile/${req.params.uuid}`);
+      if (!sr.ok) return res.status(404).json({ error: "Profile not found" });
+      const profile = await sr.json() as any;
+      const texProp = profile.properties?.find((p: any) => p.name === "textures");
+      if (!texProp) return res.status(404).json({ error: "No textures" });
+      const texData = JSON.parse(Buffer.from(texProp.value, "base64").toString("utf8"));
+      const skinUrl = texData?.textures?.SKIN?.url;
+      if (!skinUrl) return res.status(404).json({ error: "No skin URL" });
+      // Redirect to mc-heads with the actual texture hash for accurate render
+      const hash = skinUrl.split("/texture/")[1];
+      res.redirect(`https://mc-heads.net/body/${req.params.uuid}/64`);
     } catch (e: any) {
       res.status(500).json({ error: e.message });
     }
