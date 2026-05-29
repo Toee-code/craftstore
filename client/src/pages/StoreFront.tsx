@@ -43,7 +43,7 @@ interface StoreData {
   theme: {
     layout: string; colorScheme: string; accentColor: string;
     bannerUrl: string | null; startPage: string; announcementText: string | null;
-    categories: string; subcategories: string; feeMode: string; activePresetId: number | null;
+    categories: string; subcategories: string; categoryImages: string; feeMode: string; activePresetId: number | null;
     welcomeTitle: string | null; welcomeText: string | null;
   };
   preset: StorePreset | null;
@@ -1109,20 +1109,30 @@ function EchoLayout({
       )}
 
       {/* ── Categories grid (2-col) ──────────────────────────────── */}
-      {isHome && categories.length > 0 && (
-        <div className="mb-10">
-          <h2 className="font-extrabold text-white text-xl mb-4">Categories</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {categories.map(cat => {
-              const catImg = activeProducts.find(p => p.category === cat && p.imageUrl)?.imageUrl;
-              return (
-                <EchoCategoryCard key={cat} name={cat} imageUrl={catImg}
+      {isHome && categories.length > 0 && (() => {
+        const catImgMap: Record<string, { imageType: string; imageUrl: string; playerHeadName: string }> = (() => {
+          try { return JSON.parse(data.theme.categoryImages || "{}"); } catch { return {}; }
+        })();
+        const resolveCatImg = (cat: string): string | null => {
+          const img = catImgMap[cat];
+          if (img?.imageType === "playerhead" && img.playerHeadName)
+            return `https://nmsr.nickac.dev/head/${encodeURIComponent(img.playerHeadName)}`;
+          if (img?.imageUrl) return img.imageUrl;
+          // Fallback: first product in category with an image
+          return activeProducts.find(p => p.category === cat && p.imageUrl)?.imageUrl ?? null;
+        };
+        return (
+          <div className="mb-10">
+            <h2 className="font-extrabold text-white text-xl mb-4">Categories</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {categories.map(cat => (
+                <EchoCategoryCard key={cat} name={cat} imageUrl={resolveCatImg(cat)}
                   accent={accent} onClick={() => setPage(cat)} />
-              );
-            })}
+              ))}
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* ── Welcome card ────────────────────────────────────────── */}
       {isHome && (
@@ -1188,23 +1198,45 @@ function StoreHome({ data, accent, onCategory }: {
       </div>
 
       {/* Category cards */}
-      {categories.length > 0 && (
+      {categories.length > 0 && (() => {
+        const catImgMap: Record<string, { imageType: string; imageUrl: string; playerHeadName: string }> = (() => {
+          try { return JSON.parse(data.theme.categoryImages || "{}"); } catch { return {}; }
+        })();
+        const resolveCatImg = (cat: string): string | null => {
+          const img = catImgMap[cat];
+          if (img?.imageType === "playerhead" && img.playerHeadName)
+            return `https://nmsr.nickac.dev/head/${encodeURIComponent(img.playerHeadName)}`;
+          return img?.imageUrl || null;
+        };
+        return (
         <div>
           <h2 className="font-bold text-xs uppercase tracking-widest mb-4" style={{ color: "rgba(255,255,255,0.35)" }}>Browse Categories</h2>
           <div className="grid grid-cols-2 gap-3">
-            {categories.map(cat => (
+            {categories.map(cat => {
+              const thumb = resolveCatImg(cat);
+              const isHead = catImgMap[cat]?.imageType === "playerhead";
+              return (
               <button key={cat} onClick={() => onCategory(cat)}
-                className="rounded-2xl p-5 text-left transition-all hover:scale-[1.02] group"
+                className="rounded-2xl p-5 text-left transition-all hover:scale-[1.02] group overflow-hidden relative"
                 style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}
                 data-testid={`home-category-${cat}`}>
-                <div className="w-8 h-8 rounded-xl flex items-center justify-center mb-3 transition-colors"
-                  style={{ background: accent + "15", border: `1px solid ${accent}25` }}>
-                  <ChevronRight className="w-4 h-4" style={{ color: accent }} />
-                </div>
+                {thumb ? (
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-3 overflow-hidden"
+                    style={{ background: accent + "15", border: `1px solid ${accent}25` }}>
+                    <img src={thumb} alt={cat} className="w-full h-full object-contain"
+                      style={isHead ? { imageRendering: "pixelated" } : {}} />
+                  </div>
+                ) : (
+                  <div className="w-8 h-8 rounded-xl flex items-center justify-center mb-3 transition-colors"
+                    style={{ background: accent + "15", border: `1px solid ${accent}25` }}>
+                    <ChevronRight className="w-4 h-4" style={{ color: accent }} />
+                  </div>
+                )}
                 <p className="font-bold text-sm" style={{ color: "rgba(255,255,255,0.85)" }}>{cat}</p>
                 <p className="text-xs mt-1" style={{ color: "rgba(255,255,255,0.4)" }}>{categoryMap[cat] || 0} items</p>
               </button>
-            ))}
+              );
+            })}
             <button onClick={() => onCategory("all")}
               className="rounded-2xl p-5 text-left transition-all hover:scale-[1.02]"
               style={{ background: `linear-gradient(135deg, ${accent}18, ${accent}08)`, border: `1px solid ${accent}30` }}
@@ -1217,7 +1249,8 @@ function StoreHome({ data, accent, onCategory }: {
             </button>
           </div>
         </div>
-      )}
+        );
+      })()}
     </div>
   );
 }

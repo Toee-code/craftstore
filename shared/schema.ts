@@ -129,6 +129,7 @@ export const storeThemes = sqliteTable("store_themes", {
   announcementText: text("announcement_text"),
   categories: text("categories").default("[]"),       // JSON array
   subcategories: text("subcategories").default("{}"), // NEW: JSON object map
+  categoryImages: text("category_images").default("{}"), // NEW: JSON {catName: {imageType, imageUrl, playerHeadName}}
   feeMode: text("fee_mode").notNull().default("absorb"), // NEW: "absorb" | "passthrough"
   activePresetId: integer("active_preset_id"),           // NEW: purchased preset
   welcomeTitle: text("welcome_title"),                    // NEW: welcome section heading

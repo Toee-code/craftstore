@@ -732,17 +732,28 @@ export default function ServerDashboard() {
   const [newSubcatInput, setNewSubcatInput] = useState<Record<string, string>>({});
   const [dragOverCat, setDragOverCat] = useState<string | null>(null);
   const dragProductId = useRef<number | null>(null);
+
+  // Category image editing
+  type CatImage = { imageType: string; imageUrl: string; playerHeadName: string };
+  const [categoryImages, setCategoryImages] = useState<Record<string, CatImage>>({});
+  const [editCatImage, setEditCatImage] = useState<string | null>(null); // which cat is being edited
+  const [catImgType, setCatImgType] = useState("upload");
+  const [catImgUrl, setCatImgUrl] = useState("");
+  const [catImgHead, setCatImgHead] = useState("");
+
   useEffect(() => {
     if (!theme) return;
     try { setCatList(JSON.parse(theme.categories || "[]")); } catch { setCatList([]); }
     try { setSubcats(JSON.parse(theme.subcategories || "{}")); } catch { setSubcats({}); }
+    try { setCategoryImages(JSON.parse(theme.categoryImages || "{}")); } catch { setCategoryImages({}); }
   }, [theme]);
 
   const saveCategories = useMutation({
-    mutationFn: (data: { categories: string[]; subcategories: Record<string, string[]> }) =>
+    mutationFn: (data: { categories: string[]; subcategories: Record<string, string[]>; catImgs?: Record<string, CatImage> }) =>
       apiRequest("PATCH", `/api/servers/${serverId}/theme`, {
         categories: JSON.stringify(data.categories),
         subcategories: JSON.stringify(data.subcategories),
+        categoryImages: JSON.stringify(data.catImgs ?? categoryImages),
       }).then(r => r.json()),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["/api/servers", serverId, "theme"] });
@@ -761,8 +772,38 @@ export default function ServerDashboard() {
   const removeCat = (c: string) => {
     const next = catList.filter(x => x !== c);
     const nextSubs = { ...subcats }; delete nextSubs[c];
-    setCatList(next); setSubcats(nextSubs);
-    saveCategories.mutate({ categories: next, subcategories: nextSubs });
+    const nextImgs = { ...categoryImages }; delete nextImgs[c];
+    setCatList(next); setSubcats(nextSubs); setCategoryImages(nextImgs);
+    saveCategories.mutate({ categories: next, subcategories: nextSubs, catImgs: nextImgs });
+  };
+
+  const openCatImageEditor = (cat: string) => {
+    const existing = categoryImages[cat];
+    setCatImgType(existing?.imageType || "upload");
+    setCatImgUrl(existing?.imageUrl || "");
+    setCatImgHead(existing?.playerHeadName || "");
+    setEditCatImage(cat);
+  };
+
+  const saveCatImage = () => {
+    if (!editCatImage) return;
+    const nextImgs = { ...categoryImages, [editCatImage]: { imageType: catImgType, imageUrl: catImgUrl, playerHeadName: catImgHead } };
+    setCategoryImages(nextImgs);
+    setEditCatImage(null);
+    saveCategories.mutate({ categories: catList, subcategories: subcats, catImgs: nextImgs });
+  };
+
+  const removeCatImage = (cat: string) => {
+    const nextImgs = { ...categoryImages }; delete nextImgs[cat];
+    setCategoryImages(nextImgs);
+    saveCategories.mutate({ categories: catList, subcategories: subcats, catImgs: nextImgs });
+  };
+
+  const catImageUrl = (cat: string): string | null => {
+    const img = categoryImages[cat];
+    if (!img) return null;
+    if (img.imageType === "playerhead" && img.playerHeadName) return `https://nmsr.nickac.dev/head/${encodeURIComponent(img.playerHeadName)}`;
+    return img.imageUrl || null;
   };
   const addSubcat = (cat: string) => {
     const sub = (newSubcatInput[cat] || "").trim();
@@ -950,9 +991,28 @@ export default function ServerDashboard() {
                   <p className="text-xs text-muted-foreground">No categories yet — products will appear unfiltered.</p>
                 ) : (
                   <div className="space-y-2">
-                    {catList.map(cat => (
+                    {catList.map(cat => {
+                      const thumb = catImageUrl(cat);
+                      const isHead = categoryImages[cat]?.imageType === "playerhead";
+                      return (
                       <div key={cat} className="rounded-lg border border-border/60 overflow-hidden">
-                        <div className="flex items-center gap-2 px-3 py-2.5 bg-muted/20">
+                        <div className="flex items-center gap-2 px-3 py-2 bg-muted/20">
+                          {/* Thumbnail */}
+                          <div
+                            className="w-9 h-9 rounded-md flex items-center justify-center shrink-0 overflow-hidden cursor-pointer hover:opacity-80 transition-opacity border border-border/40"
+                            style={{ background: "rgba(255,255,255,0.03)" }}
+                            onClick={() => openCatImageEditor(cat)}
+                            title="Set category image"
+                          >
+                            {thumb ? (
+                              <img src={thumb} alt={cat}
+                                className="w-full h-full object-contain"
+                                style={isHead ? { imageRendering: "pixelated" } : {}}
+                              />
+                            ) : (
+                              <Edit3 className="w-3.5 h-3.5 text-muted-foreground/50" />
+                            )}
+                          </div>
                           <button type="button"
                             onClick={() => setExpandedCat(expandedCat === cat ? null : cat)}
                             className="flex items-center gap-2 flex-1 text-left">
@@ -964,6 +1024,12 @@ export default function ServerDashboard() {
                               <span className="text-xs text-muted-foreground">({subcats[cat].length} sub{subcats[cat].length !== 1 ? "s" : ""})</span>
                             )}
                           </button>
+                          {thumb && (
+                            <button type="button" onClick={() => removeCatImage(cat)}
+                              className="hover:text-muted-foreground transition-colors shrink-0 text-muted-foreground/40" title="Remove image">
+                              <XCircle className="w-3.5 h-3.5" />
+                            </button>
+                          )}
                           <button type="button" onClick={() => removeCat(cat)}
                             className="hover:text-destructive transition-colors shrink-0">
                             <Trash2 className="w-3.5 h-3.5" />
@@ -1000,11 +1066,35 @@ export default function ServerDashboard() {
                           </div>
                         )}
                       </div>
-                    ))}
+                    ); })}
                   </div>
                 )}
               </CardContent>
             </Card>
+
+            {/* Category image editor dialog */}
+            <Dialog open={!!editCatImage} onOpenChange={o => { if (!o) setEditCatImage(null); }}>
+              <DialogContent className="bg-card border-border/60 max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>Set image for "{editCatImage}"</DialogTitle>
+                </DialogHeader>
+                <ProductImagePicker
+                  imageType={catImgType}
+                  setImageType={setCatImgType}
+                  imageUrl={catImgUrl}
+                  setImageUrl={setCatImgUrl}
+                  playerHeadName={catImgHead}
+                  setPlayerHeadName={setCatImgHead}
+                />
+                <div className="flex gap-2 pt-2">
+                  <Button type="button" variant="outline" className="flex-1" onClick={() => setEditCatImage(null)}>Cancel</Button>
+                  <Button type="button" className="flex-1 bg-primary text-primary-foreground" onClick={saveCatImage}
+                    disabled={saveCategories.isPending}>
+                    {saveCategories.isPending ? "Saving…" : "Save image"}
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
 
             <div className="flex justify-between items-center mb-4">
               <h2 className="font-semibold">Products ({products.length})</h2>

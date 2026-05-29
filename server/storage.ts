@@ -176,6 +176,7 @@ const alterStatements = [
   "ALTER TABLE servers ADD COLUMN bedrock_replace_spaces INTEGER DEFAULT 1",
   "ALTER TABLE products ADD COLUMN image_type TEXT DEFAULT 'custom'",
   "ALTER TABLE products ADD COLUMN player_head_name TEXT",
+  "ALTER TABLE store_themes ADD COLUMN category_images TEXT DEFAULT '{}'",
 ];
 for (const stmt of alterStatements) {
   try { sqlite.exec(stmt); } catch { /* column already exists */ }
