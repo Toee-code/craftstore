@@ -422,12 +422,17 @@ export default function ServerDashboard() {
   const { id } = useParams<{ id: string }>();
   const serverId = Number(id);
   const [, navigate] = useLocation();
-  const { user } = useAuthStore();
+  const { user, hydrated } = useAuthStore();
   const { toast } = useToast();
   const qc = useQueryClient();
   const [addProductOpen, setAddProductOpen] = useState(false);
   const [addMemberOpen, setAddMemberOpen] = useState(false);
   const [statsMember, setStatsMember] = useState<string | null>(null);
+
+  // Redirect to login if not authenticated (wait for hydration first)
+  useEffect(() => {
+    if (hydrated && !user) navigate("/login");
+  }, [hydrated, user]);
 
   const { data: server } = useQuery<Server>({
     queryKey: ["/api/servers", serverId],
@@ -497,6 +502,13 @@ export default function ServerDashboard() {
   });
 
   const storeUrl = `${window.location.origin}${window.location.pathname}#/store/${serverId}`;
+
+  // Block access until hydrated; redirect if not owner of this server
+  if (!hydrated || !user) return null;
+  if (server && server.ownerId !== user.id) {
+    navigate("/dashboard");
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-background">
