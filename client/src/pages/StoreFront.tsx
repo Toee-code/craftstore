@@ -1152,6 +1152,49 @@ function EchoLayout({
           </p>
         </div>
       )}
+      {/* ── Footer ────────────────────────────────────────── */}
+      <footer style={{ background: "#0e1015", borderTop: "1px solid rgba(255,255,255,0.06)", marginTop: 40 }}>
+        <div className="max-w-5xl mx-auto px-6 py-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          {/* Left */}
+          <div>
+            <p className="font-extrabold text-white text-sm">{data.server.name}</p>
+            <p className="text-xs mt-1" style={{ color: "rgba(255,255,255,0.35)" }}>
+              © {new Date().getFullYear()} {data.server.name}. All Rights Reserved. We do not have affiliation with any real world brands.
+            </p>
+            <p className="text-xs mt-0.5" style={{ color: "rgba(255,255,255,0.25)" }}>
+              Powered by{" "}
+              <a href="https://craftstore.org.uk" target="_blank" rel="noreferrer"
+                className="underline hover:text-white transition-colors" style={{ color: "rgba(255,255,255,0.4)" }}>
+                CraftStore
+              </a>
+            </p>
+          </div>
+          {/* Right — payment icons */}
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Apple Pay */}
+            <div className="rounded px-2 py-1 text-xs font-bold flex items-center gap-1" style={{ background: "#1a1a1a", border: "1px solid rgba(255,255,255,0.12)", color: "#fff", fontSize: 11 }}>
+               Pay
+            </div>
+            {/* Google Pay */}
+            <div className="rounded px-2 py-1 text-xs font-bold" style={{ background: "#1a1a1a", border: "1px solid rgba(255,255,255,0.12)", color: "#fff", fontSize: 11 }}>
+              G Pay
+            </div>
+            {/* Mastercard */}
+            <div className="rounded px-1.5 py-1 flex items-center" style={{ background: "#1a1a1a", border: "1px solid rgba(255,255,255,0.12)" }}>
+              <span style={{ width: 18, height: 12, borderRadius: "50%", background: "#eb001b", display: "inline-block" }} />
+              <span style={{ width: 18, height: 12, borderRadius: "50%", background: "#f79e1b", display: "inline-block", marginLeft: -8 }} />
+            </div>
+            {/* Visa */}
+            <div className="rounded px-2 py-1 text-xs font-black italic" style={{ background: "#1a1a1a", border: "1px solid rgba(255,255,255,0.12)", color: "#1a1aff", fontSize: 13, letterSpacing: "-0.5px" }}>
+              VISA
+            </div>
+            {/* Amex */}
+            <div className="rounded px-2 py-1 text-xs font-bold" style={{ background: "#016fcb", border: "1px solid rgba(255,255,255,0.12)", color: "#fff", fontSize: 11 }}>
+              AMEX
+            </div>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }
