@@ -986,16 +986,16 @@ function CountdownBanner({ title, subtitle, endDate, ownerUsername, accent }: {
       {/* Dark overlay */}
       <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.22)", pointerEvents: "none" }} />
 
-      {/* Owner skin + bow — peeks above the banner */}
+      {/* Owner skin + bow — absolutely positioned, peeks above banner */}
       {skinUrl && (
         <div style={{
-          position: "relative",
-          width: 90,
-          height: 160,
-          marginBottom: -20,
-          alignSelf: "flex-end",
-          flexShrink: 0,
+          position: "absolute",
+          left: 16,
+          bottom: 0,
+          width: 110,
+          height: 200,
           zIndex: 10,
+          pointerEvents: "none",
         }}>
           {/* Skin */}
           <img
@@ -1005,35 +1005,35 @@ function CountdownBanner({ title, subtitle, endDate, ownerUsername, accent }: {
               position: "absolute",
               bottom: 0,
               left: 0,
-              width: 90,
-              height: 160,
+              width: 110,
+              height: 200,
               objectFit: "contain",
               imageRendering: "pixelated",
-              filter: "drop-shadow(0 6px 18px rgba(0,0,0,0.7))",
+              filter: "drop-shadow(0 6px 20px rgba(0,0,0,0.8))",
             }}
             onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
           />
-          {/* Bow overlaid in front of right hand */}
+          {/* Bow overlaid in right hand */}
           <img
             src="https://raw.githubusercontent.com/InventivetalentDev/minecraft-assets/1.21/assets/minecraft/textures/item/bow_pulling_2.png"
             alt="bow"
             style={{
               position: "absolute",
-              bottom: 52,
-              right: -22,
-              width: 48,
-              height: 48,
+              bottom: 68,
+              right: -20,
+              width: 56,
+              height: 56,
               imageRendering: "pixelated",
               transform: "rotate(-25deg) scaleX(-1)",
-              filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.6))",
+              filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.7))",
             }}
             onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
           />
         </div>
       )}
 
-      {/* Text block */}
-      <div className="flex-1 relative z-10">
+      {/* Text block — offset right to clear the skin */}
+      <div className="flex-1 relative z-10" style={{ paddingLeft: 140 }}>
         <p className="text-[10px] font-extrabold uppercase tracking-widest mb-0.5" style={{ color: "rgba(255,255,255,0.55)" }}>LIMITED TIME</p>
         <p className="font-extrabold text-xl leading-tight text-white" style={{ textShadow: "0 1px 6px rgba(0,0,0,0.4)" }}>{title}</p>
         {subtitle && <p className="text-xs font-medium mt-1" style={{ color: "rgba(255,255,255,0.8)" }}>{subtitle}</p>}
