@@ -976,37 +976,56 @@ function CountdownBanner({ title, subtitle, endDate, ownerUsername, accent }: {
 
   return (
     <div
-      className="relative overflow-hidden flex items-center gap-4 px-6 py-0"
+      className="relative flex items-center gap-6 px-6"
       style={{
-        background: `linear-gradient(135deg, ${accent}cc 0%, ${accent}88 50%, ${accent}aa 100%)`,
-        minHeight: 80,
+        background: `linear-gradient(135deg, ${accent}dd 0%, ${accent}99 60%, ${accent}bb 100%)`,
+        minHeight: 100,
+        overflow: "visible",
       }}
     >
-      {/* Subtle radial glow */}
-      <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.18)", pointerEvents: "none" }} />
+      {/* Dark overlay */}
+      <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.22)", pointerEvents: "none" }} />
 
-      {/* Owner skin + bow — peeking up from bottom-left */}
+      {/* Owner skin + bow — peeks above the banner */}
       {skinUrl && (
-        <div className="relative shrink-0" style={{ width: 72, height: 100, marginBottom: -8, alignSelf: "flex-end" }}>
+        <div style={{
+          position: "relative",
+          width: 90,
+          height: 160,
+          marginBottom: -20,
+          alignSelf: "flex-end",
+          flexShrink: 0,
+          zIndex: 10,
+        }}>
+          {/* Skin */}
           <img
             src={skinUrl}
             alt={ownerUsername!}
-            style={{ width: 72, height: 100, objectFit: "contain", imageRendering: "pixelated", filter: "drop-shadow(0 4px 16px rgba(0,0,0,0.6))" }}
+            style={{
+              position: "absolute",
+              bottom: 0,
+              left: 0,
+              width: 90,
+              height: 160,
+              objectFit: "contain",
+              imageRendering: "pixelated",
+              filter: "drop-shadow(0 6px 18px rgba(0,0,0,0.7))",
+            }}
             onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
           />
-          {/* Bow in right hand */}
+          {/* Bow overlaid in front of right hand */}
           <img
             src="https://raw.githubusercontent.com/InventivetalentDev/minecraft-assets/1.21/assets/minecraft/textures/item/bow_pulling_2.png"
             alt="bow"
             style={{
               position: "absolute",
-              bottom: 26,
-              right: -16,
-              width: 36,
-              height: 36,
+              bottom: 52,
+              right: -22,
+              width: 48,
+              height: 48,
               imageRendering: "pixelated",
-              transform: "rotate(-20deg) scaleX(-1)",
-              filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.5))",
+              transform: "rotate(-25deg) scaleX(-1)",
+              filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.6))",
             }}
             onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
           />
@@ -1015,9 +1034,9 @@ function CountdownBanner({ title, subtitle, endDate, ownerUsername, accent }: {
 
       {/* Text block */}
       <div className="flex-1 relative z-10">
-        <p className="text-[10px] font-extrabold uppercase tracking-widest mb-0.5" style={{ color: "rgba(0,0,0,0.55)" }}>LIMITED TIME</p>
-        <p className="font-extrabold text-lg leading-tight text-white" style={{ textShadow: "0 1px 4px rgba(0,0,0,0.3)" }}>{title}</p>
-        {subtitle && <p className="text-xs font-medium mt-0.5" style={{ color: "rgba(255,255,255,0.8)" }}>{subtitle}</p>}
+        <p className="text-[10px] font-extrabold uppercase tracking-widest mb-0.5" style={{ color: "rgba(255,255,255,0.55)" }}>LIMITED TIME</p>
+        <p className="font-extrabold text-xl leading-tight text-white" style={{ textShadow: "0 1px 6px rgba(0,0,0,0.4)" }}>{title}</p>
+        {subtitle && <p className="text-xs font-medium mt-1" style={{ color: "rgba(255,255,255,0.8)" }}>{subtitle}</p>}
       </div>
 
       {/* Countdown digits */}
@@ -1032,13 +1051,13 @@ function CountdownBanner({ title, subtitle, endDate, ownerUsername, accent }: {
             <div className="flex flex-col items-center">
               <div
                 className="rounded-lg flex items-center justify-center font-extrabold text-white"
-                style={{ width: 48, height: 44, background: "rgba(0,0,0,0.4)", fontSize: 22, letterSpacing: -1, backdropFilter: "blur(4px)" }}
+                style={{ width: 52, height: 48, background: "rgba(0,0,0,0.45)", fontSize: 24, letterSpacing: -1, backdropFilter: "blur(4px)" }}
               >
                 {pad(val)}
               </div>
               <span className="text-[9px] font-bold uppercase tracking-wider mt-1" style={{ color: "rgba(255,255,255,0.7)" }}>{label}</span>
             </div>
-            {i < 3 && <span className="font-extrabold text-white text-lg" style={{ marginBottom: 12, opacity: 0.6 }}>:</span>}
+            {i < 3 && <span className="font-extrabold text-white text-lg" style={{ marginBottom: 14, opacity: 0.6 }}>:</span>}
           </div>
         ))}
       </div>
