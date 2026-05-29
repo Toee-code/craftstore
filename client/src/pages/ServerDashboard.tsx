@@ -503,10 +503,8 @@ export default function ServerDashboard() {
 
   const storeUrl = `${window.location.origin}${window.location.pathname}#/store/${serverId}`;
 
-  // While session is hydrating, show nothing (avoids flash)
-  if (!hydrated) return null;
-  // Not logged in — redirect handled by useEffect above
-  if (!user) return null;
+  // Show spinner while session hydrates or user is null (redirect fires via useEffect)
+  if (!hydrated || !user) return <div className="min-h-screen bg-background flex items-center justify-center"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>;
 
   return (
     <div className="min-h-screen bg-background">

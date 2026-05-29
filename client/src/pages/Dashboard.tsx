@@ -5,7 +5,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Server, Settings, LogOut, Bell, ExternalLink, ShoppingBag } from "lucide-react";
+import { Plus, Server, Settings, LogOut, Bell, ExternalLink, ShoppingBag, Loader2 } from "lucide-react";
 import type { Server as ServerType, Notification } from "@shared/schema";
 import { useEffect } from "react";
 
@@ -67,7 +67,7 @@ export default function Dashboard() {
 
   const logout = () => { authLogout(); navigate("/"); };
 
-  if (!user) return null;
+  if (!hydrated || !user) return <div className="min-h-screen bg-background flex items-center justify-center"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>;
 
   return (
     <div className="min-h-screen bg-background">
