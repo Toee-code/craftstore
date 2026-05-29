@@ -52,8 +52,21 @@ function SubdomainRedirect() {
 }
 
 function AuthHydrator() {
-  const hydrate = useAuthStore((s) => s.hydrate);
+  const { hydrate, user, hydrated } = useAuthStore();
+  const [, navigate] = useLocation();
+
   useEffect(() => { hydrate(); }, []);
+
+  // Once hydration completes, if user is restored and we're on the landing/login page, go to dashboard
+  useEffect(() => {
+    if (!hydrated) return;
+    if (!user) return;
+    const path = window.location.hash.replace('#', '') || '/';
+    if (path === '/' || path === '/login' || path === '') {
+      navigate('/dashboard');
+    }
+  }, [hydrated, user]);
+
   return null;
 }
 
