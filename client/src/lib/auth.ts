@@ -1,5 +1,4 @@
 import { create } from "zustand";
-import { apiRequest } from "@/lib/queryClient";
 
 interface AuthUser {
   id: number;
@@ -26,7 +25,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   // Note: setUser is called first (from Login.tsx) then this is called to persist it
   logout: async () => {
     try {
-      await apiRequest("DELETE", "/api/auth/session");
+      await fetch("/api/auth/session", { method: "DELETE", credentials: "include" });
     } catch {}
     set({ user: null });
   },
@@ -35,7 +34,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   hydrate: async () => {
     if (get().hydrated) return;
     try {
-      const res = await apiRequest("GET", "/api/auth/session");
+      // Use raw fetch so 401 (no session) doesn't throw — just means not logged in
+      const res = await fetch("/api/auth/session", { credentials: "include" });
       if (res.ok) {
         const data = await res.json();
         set({ user: data.user, hydrated: true });
