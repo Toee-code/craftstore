@@ -993,11 +993,11 @@ function CountdownBanner({ title, subtitle, endDate, ownerUsername, accent }: {
       {skinUrl && (
         <div style={{
           position: "relative",
-          width: 160,
+          width: 180,
           height: 120,
           flexShrink: 0,
           zIndex: 10,
-          overflow: "hidden",
+          overflow: "visible",
         }}>
           <img
             src={skinUrl}
@@ -1020,18 +1020,19 @@ function CountdownBanner({ title, subtitle, endDate, ownerUsername, accent }: {
           <img
             src="https://raw.githubusercontent.com/InventivetalentDev/minecraft-assets/1.21/assets/minecraft/textures/item/bow_pulling_2.png"
             alt="bow"
-            width={56}
-            height={56}
+            width={60}
+            height={60}
             style={{
               position: "absolute",
-              bottom: 30,
-              right: 8,
-              width: 56,
-              height: 56,
+              bottom: 35,
+              right: 4,
+              width: 60,
+              height: 60,
               imageRendering: "pixelated",
-              transform: "rotate(-20deg) scaleX(-1)",
-              filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.8))",
+              transform: "rotate(-15deg) scaleX(-1)",
+              filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.9))",
               display: "block",
+              zIndex: 20,
             }}
             onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
           />
