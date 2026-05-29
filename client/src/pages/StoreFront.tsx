@@ -55,6 +55,25 @@ interface MemberSession {
   sessionToken?: string;
 }
 
+// Strip bedrock prefix (. or _) to get raw Xbox gamertag for skin API
+function bedrockSkinName(username: string): string {
+  return username.replace(/^[._]/, "");
+}
+
+function skinUrl(username: string, platform: "java" | "bedrock"): string {
+  if (platform === "bedrock") {
+    return `https://skin.matdoes.dev/renders/body/${encodeURIComponent(bedrockSkinName(username))}?overlay=true`;
+  }
+  return `https://nmsr.nickac.dev/fullbody/${username}`;
+}
+
+function faceSkinUrl(username: string, platform: "java" | "bedrock"): string {
+  if (platform === "bedrock") {
+    return `https://skin.matdoes.dev/renders/head/${encodeURIComponent(bedrockSkinName(username))}?overlay=true`;
+  }
+  return `https://nmsr.nickac.dev/face/${username}`;
+}
+
 interface LeaderboardEntry { rank: number; minecraftUsername: string; total: number; }
 type LeaderboardPeriod = "monthly" | "yearly" | "alltime";
 type SidebarPage = "home" | "leaderboard" | string;
@@ -96,13 +115,7 @@ function SkinPreview({ username, platform = "java" }: { username: string; platfo
     setLoading(true);
     setSkinUrl(null);
     const timer = setTimeout(() => {
-      if (platform === "bedrock") {
-        // GeyserMC skin API for Bedrock/Xbox players
-        setSkinUrl(`https://skin.matdoes.dev/renders/body/${encodeURIComponent(username)}?overlay=true`);
-      } else {
-        // Java — nmsr accepts usernames directly
-        setSkinUrl(`https://nmsr.nickac.dev/fullbody/${username}`);
-      }
+      setSkinUrl(skinUrl(username, platform as "java" | "bedrock"));
       setLoading(false);
     }, 600);
     return () => clearTimeout(timer);
@@ -424,9 +437,7 @@ function MemberAuthModal({ serverId, accent, onClose, onLogin, bedrockEnabled, b
                 style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}>
                 {username.trim().length >= 2 ? (
                   <img
-                    src={platform === "bedrock"
-                      ? `https://skin.matdoes.dev/renders/body/${encodeURIComponent(username.trim())}?overlay=true`
-                      : `https://nmsr.nickac.dev/face/${username.trim()}`}
+                    src={faceSkinUrl(username.trim(), platform)}
                     alt={username}
                     className="w-full h-full object-contain"
                     onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
@@ -995,9 +1006,7 @@ function EchoLayout({
                   {/* Skin overflowing above */}
                   <div className="absolute bottom-0 left-2" style={{ width: 48, height: 80, pointerEvents: "none" }}>
                     <img
-                      src={memberSession.platform === "bedrock"
-                        ? `https://skin.matdoes.dev/renders/body/${encodeURIComponent(memberSession.minecraftUsername)}?overlay=true`
-                        : `https://nmsr.nickac.dev/fullbody/${memberSession.minecraftUsername}`}
+                      src={skinUrl(memberSession.minecraftUsername, memberSession.platform)}
                       alt={memberSession.minecraftUsername}
                       style={{ width: "100%", height: "100%", objectFit: "contain", objectPosition: "bottom" }}
                     />
@@ -1427,9 +1436,7 @@ function ThemedStore({ data }: { data: StoreData }) {
               <div className="relative w-12 h-14 rounded-xl overflow-hidden shrink-0 flex items-end justify-center"
                 style={{ background: "rgba(255,255,255,0.05)", border: `1px solid ${accent}20` }}>
                 <img
-                  src={memberSession.platform === "bedrock"
-                    ? `https://skin.matdoes.dev/renders/body/${encodeURIComponent(memberSession.minecraftUsername)}?overlay=true`
-                    : `https://nmsr.nickac.dev/fullbody/${memberSession.minecraftUsername}`}
+                  src={skinUrl(memberSession.minecraftUsername, memberSession.platform)}
                   alt={memberSession.minecraftUsername}
                   className="h-full object-contain"
                 />
@@ -1589,9 +1596,7 @@ function ThemedStore({ data }: { data: StoreData }) {
                   <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl hidden sm:flex"
                     style={{ background: `${accent}20`, border: `1px solid ${accent}30` }}>
                     <img
-                      src={memberSession.platform === "bedrock"
-                        ? `https://skin.matdoes.dev/renders/body/${encodeURIComponent(memberSession.minecraftUsername)}?overlay=true`
-                        : `https://nmsr.nickac.dev/face/${memberSession.minecraftUsername}`}
+                      src={faceSkinUrl(memberSession.minecraftUsername, memberSession.platform)}
                       alt={memberSession.minecraftUsername}
                       className="w-5 h-5 rounded object-contain"
                       onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
