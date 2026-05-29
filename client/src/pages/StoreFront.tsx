@@ -75,7 +75,7 @@ function SkinAvatar({ username, size = 40 }: { username: string; size?: number }
   }
   return (
     <img
-      src={`https://mc-heads.net/avatar/${username}/${size}`}
+      src={`https://crafatar.com/avatars/${username}?size=${size}&overlay`}
       alt={username}
       width={size} height={size}
       style={{ imageRendering: "pixelated", borderRadius: 8 }}
@@ -333,7 +333,7 @@ function MemberAuthModal({ serverId, accent, onClose, onLogin }: {
               style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }}>
               {username.trim().length >= 2 ? (
                 <img
-                  src={`https://mc-heads.net/body/${username.trim()}/64`}
+                  src={`https://crafatar.com/renders/body/${username.trim()}?size=64&overlay`}
                   alt={username}
                   className="h-full object-contain"
                   onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
@@ -899,7 +899,7 @@ function EchoLayout({
                 <div className="relative w-10 h-10 rounded-lg overflow-hidden shrink-0"
                   style={{ background: "rgba(255,255,255,0.05)" }}>
                   <img
-                    src={`https://mc-heads.net/body/${memberSession.minecraftUsername}/40`}
+                    src={`https://crafatar.com/renders/body/${memberSession.minecraftUsername}?size=64&overlay`}
                     alt={memberSession.minecraftUsername}
                     className="h-full object-contain mx-auto"
                   />
@@ -1264,7 +1264,7 @@ function ThemedStore({ data }: { data: StoreData }) {
               <div className="relative w-12 h-14 rounded-xl overflow-hidden shrink-0 flex items-end justify-center"
                 style={{ background: "rgba(255,255,255,0.05)", border: `1px solid ${accent}20` }}>
                 <img
-                  src={`https://mc-heads.net/body/${memberSession.minecraftUsername}/48`}
+                  src={`https://crafatar.com/renders/body/${memberSession.minecraftUsername}?size=64&overlay`}
                   alt={memberSession.minecraftUsername}
                   className="h-full object-contain"
                 />
