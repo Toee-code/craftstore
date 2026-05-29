@@ -943,6 +943,82 @@ function EchoCategoryCard({
   );
 }
 
+// ─── Top Customers Sticky Sidebar ───────────────────────────────────────────
+function TopCustomersSidebar({ serverId, accent }: { serverId: number; accent: string }) {
+  const { data: entries = [], isLoading } = useQuery<LeaderboardEntry[]>({
+    queryKey: ["/api/servers", serverId, "leaderboard", "alltime"],
+    queryFn: () => apiRequest("GET", `/api/servers/${serverId}/leaderboard?period=alltime`).then(r => r.json()),
+    staleTime: 60_000,
+  });
+
+  const top3 = entries.slice(0, 3);
+  const medals = ["🥇", "🥈", "🥉"];
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        top: "50%",
+        right: 16,
+        transform: "translateY(-50%)",
+        width: 168,
+        zIndex: 40,
+        background: "rgba(13,15,20,0.85)",
+        backdropFilter: "blur(14px)",
+        WebkitBackdropFilter: "blur(14px)",
+        border: "1px solid rgba(255,255,255,0.09)",
+        borderRadius: 16,
+        padding: "14px 12px",
+        boxShadow: "0 8px 40px rgba(0,0,0,0.6)",
+        pointerEvents: "none",
+      }}
+    >
+      {/* Header */}
+      <div className="flex items-center gap-1.5 mb-3">
+        <Trophy className="w-3.5 h-3.5 shrink-0" style={{ color: accent }} />
+        <span className="text-[11px] font-extrabold uppercase tracking-widest" style={{ color: accent }}>Top Customers</span>
+      </div>
+
+      {isLoading ? (
+        <div className="flex justify-center py-4">
+          <Loader2 className="w-4 h-4 animate-spin" style={{ color: accent }} />
+        </div>
+      ) : top3.length === 0 ? (
+        <p className="text-[10px] text-center py-4" style={{ color: "rgba(255,255,255,0.3)" }}>No purchases yet</p>
+      ) : (
+        <div className="flex flex-col gap-2.5">
+          {top3.map((entry, i) => (
+            <div key={entry.minecraftUsername} className="flex flex-col items-center gap-1">
+              {/* Rank badge */}
+              <div className="text-base leading-none">{medals[i]}</div>
+              {/* Skin */}
+              <div className="relative" style={{ width: 48, height: 64 }}>
+                <img
+                  src={`https://nmsr.nickac.dev/fullbody/${entry.minecraftUsername}`}
+                  alt={entry.minecraftUsername}
+                  style={{ width: 48, height: 64, objectFit: "contain", imageRendering: "pixelated", filter: i === 0 ? `drop-shadow(0 0 6px ${accent}80)` : "none" }}
+                  onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
+                />
+                {i === 0 && (
+                  <div style={{ position: "absolute", inset: 0, borderRadius: 8, boxShadow: `0 0 18px ${accent}40`, pointerEvents: "none" }} />
+                )}
+              </div>
+              {/* Name */}
+              <p className="text-[11px] font-bold text-center truncate w-full" style={{ color: i === 0 ? "#fff" : "rgba(255,255,255,0.7)" }}>{entry.minecraftUsername}</p>
+              {/* Amount */}
+              <p className="text-[11px] font-extrabold" style={{ color: accent }}>£{entry.total.toFixed(2)}</p>
+              {/* Divider below top 1 & 2 */}
+              {i < 2 && top3[i + 1] && (
+                <div style={{ width: "80%", height: 1, background: "rgba(255,255,255,0.06)", marginTop: 2 }} />
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function EchoLayout({
   data, accent, onBuy, onGift, calcPlayerPrice, page, setPage, memberSession, onLogin,
   playerDropdownOpen, setPlayerDropdownOpen, onLogout
@@ -1872,6 +1948,9 @@ function ThemedStore({ data }: { data: StoreData }) {
 
     return (
       <div style={{ background: "#0a0a0a", minHeight: "100vh", color: "#fff", fontFamily: "'Cabinet Grotesk','Inter',sans-serif" }}>
+        {/* Sticky Top Customers sidebar — right side */}
+        <TopCustomersSidebar serverId={data.server.id} accent={accent} />
+
         {/* Announcement strip */}
         {data.theme.announcementText && (
           <div style={{ background: accent }}
