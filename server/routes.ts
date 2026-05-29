@@ -213,6 +213,21 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 
+  // POST /api/upload-image — generic image upload (base64 data URL), returns url
+  app.post("/api/upload-image", (req, res) => {
+    try {
+      const { dataUrl } = req.body;
+      if (!dataUrl || !dataUrl.startsWith("data:image/")) {
+        return res.status(400).json({ error: "Invalid image data" });
+      }
+      if (dataUrl.length > 2_800_000) {
+        return res.status(413).json({ error: "Image too large — max 2MB" });
+      }
+      // Return the data URL itself as the image URL (stored inline like logos)
+      res.json({ url: dataUrl });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
   // ── Products ──────────────────────────────────────────────────────────────
   app.get("/api/servers/:serverId/products", (req, res) => {
     res.json(storage.getProductsByServer(Number(req.params.serverId)));

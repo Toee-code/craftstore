@@ -195,6 +195,123 @@ function EarningsSummary({ serverId }: { serverId: number }) {
   );
 }
 
+// ─── ProductImagePicker ──────────────────────────────────────────────────────
+function ProductImagePicker({
+  imageType, setImageType,
+  imageUrl, setImageUrl,
+  playerHeadName, setPlayerHeadName,
+}: {
+  imageType: string; setImageType: (v: string) => void;
+  imageUrl: string; setImageUrl: (v: string) => void;
+  playerHeadName: string; setPlayerHeadName: (v: string) => void;
+}) {
+  const [uploading, setUploading] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string>(imageUrl || "");
+
+  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      alert("Image must be under 2MB");
+      return;
+    }
+    setUploading(true);
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const dataUrl = reader.result as string;
+      try {
+        const res = await fetch("/api/upload-image", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ dataUrl }),
+        });
+        const json = await res.json();
+        setImageUrl(json.url);
+        setPreviewUrl(json.url);
+      } catch { alert("Upload failed"); }
+      finally { setUploading(false); }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const tabs = [
+    { key: "upload", label: "Upload" },
+    { key: "playerhead", label: "Player Head" },
+    { key: "custom", label: "URL" },
+  ];
+
+  return (
+    <div className="space-y-2">
+      <Label>Product Image</Label>
+      {/* Tab switcher */}
+      <div className="flex rounded-lg overflow-hidden border border-border">
+        {tabs.map(t => (
+          <button key={t.key} type="button"
+            className={`flex-1 py-1.5 text-sm font-medium transition-colors ${
+              imageType === t.key
+                ? "bg-primary text-primary-foreground"
+                : "bg-muted text-muted-foreground hover:bg-muted/80"
+            }`}
+            onClick={() => setImageType(t.key)}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {imageType === "upload" && (
+        <div className="flex items-center gap-3">
+          <label className="flex-1 flex flex-col items-center justify-center gap-1.5 border-2 border-dashed border-border rounded-lg py-4 cursor-pointer hover:border-primary/50 transition-colors">
+            {uploading ? (
+              <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+            ) : previewUrl ? (
+              <img src={previewUrl} alt="preview" className="w-16 h-16 object-contain rounded" style={{ imageRendering: "pixelated" }} />
+            ) : (
+              <>
+                <Package className="w-6 h-6 text-muted-foreground" />
+                <span className="text-xs text-muted-foreground">Click to upload (max 2MB)</span>
+              </>
+            )}
+            <input type="file" accept="image/*" className="hidden" onChange={handleFile} />
+          </label>
+          {previewUrl && (
+            <button type="button" onClick={() => { setPreviewUrl(""); setImageUrl(""); }}
+              className="text-xs text-destructive hover:underline">Remove</button>
+          )}
+        </div>
+      )}
+
+      {imageType === "playerhead" && (
+        <div className="flex items-center gap-3">
+          <div className="flex-1 space-y-1">
+            <Input
+              placeholder="Minecraft username (e.g. Notch)"
+              value={playerHeadName}
+              onChange={e => setPlayerHeadName(e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">Any Java username — renders as a 3D head on the store</p>
+          </div>
+          {playerHeadName && (
+            <img
+              src={`https://mc-heads.net/3d/head/${playerHeadName}/100`}
+              alt="head preview"
+              className="w-16 h-16 object-contain rounded-lg"
+              style={{ imageRendering: "pixelated", background: "rgba(255,255,255,0.05)" }}
+            />
+          )}
+        </div>
+      )}
+
+      {imageType === "custom" && (
+        <Input
+          placeholder="https://example.com/image.png"
+          value={imageUrl}
+          onChange={e => { setImageUrl(e.target.value); setPreviewUrl(e.target.value); }}
+        />
+      )}
+    </div>
+  );
+}
+
 interface ProductForm {
   name: string; description: string; price: number;
   command: string; category: string; stock: number; imageUrl: string;
@@ -529,6 +646,7 @@ export default function ServerDashboard() {
   const { toast } = useToast();
   const qc = useQueryClient();
   const [addProductOpen, setAddProductOpen] = useState(false);
+  const [editProduct, setEditProduct] = useState<Product | null>(null);
   const [addMemberOpen, setAddMemberOpen] = useState(false);
   const [statsMember, setStatsMember] = useState<string | null>(null);
 
@@ -564,8 +682,15 @@ export default function ServerDashboard() {
     refetchInterval: 30000,
   });
 
+  // Theme (for category list)
+  const { data: theme } = useQuery<any>({
+    queryKey: ["/api/servers", serverId, "theme"],
+    queryFn: () => apiRequest("GET", `/api/servers/${serverId}/theme`).then(r => r.json()),
+  });
+  const categoryList: string[] = (() => { try { return JSON.parse(theme?.categories || "[]"); } catch { return []; } })();
+
   // Add product
-  const productForm = useForm<ProductForm>({ defaultValues: { imageType: "custom", playerHeadName: "" } });
+  const productForm = useForm<ProductForm>({ defaultValues: { imageType: "upload", playerHeadName: "", stock: -1 } });
   const addProduct = useMutation({
     mutationFn: (data: ProductForm) =>
       apiRequest("POST", `/api/servers/${serverId}/products`, data).then(r => r.json()),
@@ -573,10 +698,38 @@ export default function ServerDashboard() {
       qc.invalidateQueries({ queryKey: ["/api/servers", serverId, "products"] });
       qc.invalidateQueries({ queryKey: ["/api/servers", serverId, "stats"] });
       setAddProductOpen(false);
-      productForm.reset();
+      productForm.reset({ imageType: "upload", playerHeadName: "", stock: -1 });
       toast({ title: "Product added" });
     },
   });
+
+  // Edit product
+  const editForm = useForm<ProductForm>({ defaultValues: { imageType: "upload", playerHeadName: "", stock: -1 } });
+  const updateProduct = useMutation({
+    mutationFn: (data: ProductForm & { id: number }) =>
+      apiRequest("PATCH", `/api/products/${data.id}`, data).then(r => r.json()),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["/api/servers", serverId, "products"] });
+      setEditProduct(null);
+      toast({ title: "Product updated" });
+    },
+  });
+
+  // Open edit dialog and pre-fill form
+  const openEdit = (p: Product) => {
+    setEditProduct(p);
+    editForm.reset({
+      name: p.name,
+      description: p.description ?? "",
+      price: p.price,
+      command: p.command,
+      category: p.category ?? "",
+      stock: p.stock ?? -1,
+      imageUrl: p.imageUrl ?? "",
+      imageType: (p as any).imageType ?? "upload",
+      playerHeadName: (p as any).playerHeadName ?? "",
+    });
+  };
 
   const deleteProduct = useMutation({
     mutationFn: (pid: number) => apiRequest("DELETE", `/api/products/${pid}`),
@@ -687,7 +840,7 @@ export default function ServerDashboard() {
                     <Plus className="w-3.5 h-3.5" /> Add Product
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="bg-card border-border/60">
+                <DialogContent className="bg-card border-border/60 max-h-[90vh] overflow-y-auto">
                   <DialogHeader><DialogTitle>Add Product</DialogTitle></DialogHeader>
                   <form onSubmit={productForm.handleSubmit((d) => addProduct.mutate(d))} className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
@@ -707,64 +860,34 @@ export default function ServerDashboard() {
                     <div className="space-y-1.5">
                       <Label className="flex items-center gap-1.5"><Terminal className="w-3.5 h-3.5" /> In-game command</Label>
                       <Input placeholder="give {player} diamond_sword 1" data-testid="input-product-command" {...productForm.register("command", { required: true })} />
-                      <p className="text-xs text-muted-foreground">Use <code className="text-primary">{"{player}"}</code> as a placeholder for the buyer's Minecraft username.</p>
+                      <p className="text-xs text-muted-foreground">Use <code className="text-primary">{"{player}"}</code> as placeholder for the buyer's username.</p>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-1.5">
                         <Label>Category</Label>
-                        <Input placeholder="Weapons" {...productForm.register("category")} />
+                        <select
+                          className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm"
+                          {...productForm.register("category")}>
+                          <option value="">No category</option>
+                          {categoryList.map(c => <option key={c} value={c}>{c}</option>)}
+                        </select>
+                        {categoryList.length === 0 && (
+                          <p className="text-xs text-muted-foreground">Add categories in the Appearance tab first</p>
+                        )}
                       </div>
                       <div className="space-y-1.5">
                         <Label>Stock (-1 = unlimited)</Label>
-                        <Input type="number" defaultValue={-1} {...productForm.register("stock", { valueAsNumber: true })} />
+                        <Input type="number" {...productForm.register("stock", { valueAsNumber: true })} />
                       </div>
                     </div>
-                    {/* Image picker: Custom URL or Player Head */}
-                    <div className="space-y-2">
-                      <Label>Product Image</Label>
-                      <div className="flex rounded-lg overflow-hidden border border-border">
-                        <button type="button"
-                          className={`flex-1 py-1.5 text-sm font-medium transition-colors ${
-                            productForm.watch("imageType") !== "playerhead"
-                              ? "bg-primary text-primary-foreground"
-                              : "bg-muted text-muted-foreground hover:bg-muted/80"
-                          }`}
-                          onClick={() => productForm.setValue("imageType", "custom")}>
-                          Custom URL
-                        </button>
-                        <button type="button"
-                          className={`flex-1 py-1.5 text-sm font-medium transition-colors ${
-                            productForm.watch("imageType") === "playerhead"
-                              ? "bg-primary text-primary-foreground"
-                              : "bg-muted text-muted-foreground hover:bg-muted/80"
-                          }`}
-                          onClick={() => productForm.setValue("imageType", "playerhead")}>
-                          Player Head
-                        </button>
-                      </div>
-
-                      {productForm.watch("imageType") === "playerhead" ? (
-                        <div className="flex items-center gap-3">
-                          <div className="flex-1 space-y-1">
-                            <Input
-                              placeholder="Minecraft username (e.g. Notch)"
-                              {...productForm.register("playerHeadName")}
-                            />
-                            <p className="text-xs text-muted-foreground">Enter any Java player name to use their head as the product image</p>
-                          </div>
-                          {productForm.watch("playerHeadName") && (
-                            <img
-                              src={`https://mc-heads.net/3d/head/${productForm.watch("playerHeadName")}/100`}
-                              alt="head preview"
-                              className="w-16 h-16 object-contain rounded-lg"
-                              style={{ imageRendering: "pixelated", background: "rgba(255,255,255,0.05)" }}
-                            />
-                          )}
-                        </div>
-                      ) : (
-                        <Input placeholder="https://example.com/image.png" {...productForm.register("imageUrl")} />
-                      )}
-                    </div>
+                    <ProductImagePicker
+                      imageType={productForm.watch("imageType") || "upload"}
+                      setImageType={(v) => productForm.setValue("imageType", v)}
+                      imageUrl={productForm.watch("imageUrl") || ""}
+                      setImageUrl={(v) => productForm.setValue("imageUrl", v)}
+                      playerHeadName={productForm.watch("playerHeadName") || ""}
+                      setPlayerHeadName={(v) => productForm.setValue("playerHeadName", v)}
+                    />
                     <Button type="submit" className="w-full bg-primary text-primary-foreground" disabled={addProduct.isPending}>
                       {addProduct.isPending ? "Adding…" : "Add product"}
                     </Button>
@@ -772,6 +895,64 @@ export default function ServerDashboard() {
                 </DialogContent>
               </Dialog>
             </div>
+
+            {/* Edit product dialog */}
+            <Dialog open={!!editProduct} onOpenChange={(o) => { if (!o) setEditProduct(null); }}>
+              <DialogContent className="bg-card border-border/60 max-h-[90vh] overflow-y-auto">
+                <DialogHeader><DialogTitle>Edit Product</DialogTitle></DialogHeader>
+                <form onSubmit={editForm.handleSubmit((d) => updateProduct.mutate({ ...d, id: editProduct!.id }))} className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <Label>Name</Label>
+                      <Input {...editForm.register("name", { required: true })} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Price (£)</Label>
+                      <Input type="number" step="0.01" {...editForm.register("price", { required: true, valueAsNumber: true })} />
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Description</Label>
+                    <Textarea rows={2} {...editForm.register("description")} />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="flex items-center gap-1.5"><Terminal className="w-3.5 h-3.5" /> In-game command</Label>
+                    <Input {...editForm.register("command", { required: true })} />
+                    <p className="text-xs text-muted-foreground">Use <code className="text-primary">{"{player}"}</code> as placeholder for the buyer's username.</p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <Label>Category</Label>
+                      <select
+                        className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm"
+                        {...editForm.register("category")}>
+                        <option value="">No category</option>
+                        {categoryList.map(c => <option key={c} value={c}>{c}</option>)}
+                      </select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Stock (-1 = unlimited)</Label>
+                      <Input type="number" {...editForm.register("stock", { valueAsNumber: true })} />
+                    </div>
+                  </div>
+                  <ProductImagePicker
+                    imageType={editForm.watch("imageType") || "upload"}
+                    setImageType={(v) => editForm.setValue("imageType", v)}
+                    imageUrl={editForm.watch("imageUrl") || ""}
+                    setImageUrl={(v) => editForm.setValue("imageUrl", v)}
+                    playerHeadName={editForm.watch("playerHeadName") || ""}
+                    setPlayerHeadName={(v) => editForm.setValue("playerHeadName", v)}
+                  />
+                  <div className="flex gap-2">
+                    <Button type="button" variant="outline" className="flex-1" onClick={() => setEditProduct(null)}>Cancel</Button>
+                    <Button type="submit" className="flex-1 bg-primary text-primary-foreground" disabled={updateProduct.isPending}>
+                      {updateProduct.isPending ? "Saving…" : "Save changes"}
+                    </Button>
+                  </div>
+                </form>
+              </DialogContent>
+            </Dialog>
+
             {products.length === 0 ? (
               <div className="text-center py-16 border-2 border-dashed border-border/60 rounded-xl">
                 <Package className="w-8 h-8 text-muted-foreground mx-auto mb-3" />
@@ -779,42 +960,63 @@ export default function ServerDashboard() {
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {products.map(p => (
-                  <Card key={p.id} className="block-card bg-card border-border/60" data-testid={`card-product-${p.id}`}>
-                    {p.imageUrl && (
-                      <div className="h-32 overflow-hidden rounded-t-xl">
-                        <img src={p.imageUrl} alt={p.name} className="w-full h-full object-cover" />
-                      </div>
-                    )}
-                    <CardContent className="p-4">
-                      <div className="flex items-start justify-between mb-2">
-                        <div>
-                          <h3 className="font-semibold text-sm">{p.name}</h3>
-                          {p.category && <Badge variant="outline" className="text-xs mt-1">{p.category}</Badge>}
+                {products.map(p => {
+                  const imgUrl = (p as any).imageType === "playerhead" && (p as any).playerHeadName
+                    ? `https://mc-heads.net/3d/head/${(p as any).playerHeadName}/100`
+                    : p.imageUrl;
+                  return (
+                    <Card key={p.id} className="block-card bg-card border-border/60 flex flex-col" data-testid={`card-product-${p.id}`}>
+                      {imgUrl ? (
+                        <div className="h-32 overflow-hidden rounded-t-xl flex items-center justify-center" style={{ background: "rgba(255,255,255,0.02)" }}>
+                          <img src={imgUrl} alt={p.name}
+                            className={(p as any).imageType === "playerhead" ? "h-28 object-contain" : "w-full h-full object-cover"}
+                            style={(p as any).imageType === "playerhead" ? { imageRendering: "pixelated" } : {}}
+                          />
                         </div>
-                        <span className="text-primary font-bold">£{p.price.toFixed(2)}</span>
-                      </div>
-                      {p.description && <p className="text-muted-foreground text-xs mb-3 line-clamp-2">{p.description}</p>}
-                      <div className="bg-muted/30 rounded-md p-2 mb-3">
-                        <code className="text-xs text-primary/80 font-mono line-clamp-1">{p.command}</code>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs text-muted-foreground">
-                          {p.stock === -1 ? "Unlimited stock" : `${p.stock} left`}
-                        </span>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-7 w-7 text-destructive hover:text-destructive"
-                          onClick={() => deleteProduct.mutate(p.id)}
-                          data-testid={`button-delete-product-${p.id}`}
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                      ) : (
+                        <div className="h-32 rounded-t-xl flex items-center justify-center" style={{ background: "rgba(255,255,255,0.03)" }}>
+                          <Package className="w-10 h-10 text-muted-foreground/30" />
+                        </div>
+                      )}
+                      <CardContent className="p-4 flex flex-col flex-1">
+                        <div className="flex items-start justify-between mb-1">
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-semibold text-sm truncate">{p.name}</h3>
+                            {p.category && <Badge variant="outline" className="text-xs mt-1">{p.category}</Badge>}
+                          </div>
+                          <span className="text-primary font-bold ml-2 shrink-0">£{p.price.toFixed(2)}</span>
+                        </div>
+                        {p.description && <p className="text-muted-foreground text-xs mb-2 line-clamp-2">{p.description}</p>}
+                        <div className="bg-muted/30 rounded-md p-2 mb-3">
+                          <code className="text-xs text-primary/80 font-mono line-clamp-1">{p.command}</code>
+                        </div>
+                        <div className="flex items-center justify-between mt-auto">
+                          <span className="text-xs text-muted-foreground">
+                            {p.stock === -1 ? "Unlimited" : `${p.stock} left`}
+                          </span>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              size="icon" variant="ghost"
+                              className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                              onClick={() => openEdit(p)}
+                              data-testid={`button-edit-product-${p.id}`}
+                            >
+                              <Edit3 className="w-3.5 h-3.5" />
+                            </Button>
+                            <Button
+                              size="icon" variant="ghost"
+                              className="h-7 w-7 text-destructive hover:text-destructive"
+                              onClick={() => deleteProduct.mutate(p.id)}
+                              data-testid={`button-delete-product-${p.id}`}
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </Button>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
               </div>
             )}
           </TabsContent>
