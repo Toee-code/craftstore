@@ -976,88 +976,93 @@ function CountdownBanner({ title, subtitle, endDate, ownerUsername, accent }: {
 
   return (
     <div
-      className="relative flex items-center gap-6 px-6"
       style={{
         background: `linear-gradient(135deg, ${accent}dd 0%, ${accent}99 60%, ${accent}bb 100%)`,
-        minHeight: 100,
-        overflow: "visible",
+        height: 120,
+        position: "relative",
+        overflow: "hidden",
+        display: "flex",
+        alignItems: "center",
+        paddingRight: 24,
       }}
     >
       {/* Dark overlay */}
       <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.22)", pointerEvents: "none" }} />
 
-      {/* Owner skin + bow — absolutely positioned, peeks above banner */}
+      {/* Owner skin + bow — sits at bottom-left, fills full banner height */}
       {skinUrl && (
         <div style={{
-          position: "absolute",
-          left: 16,
-          bottom: 0,
-          width: 110,
-          height: 200,
+          position: "relative",
+          width: 130,
+          height: 120,
+          flexShrink: 0,
           zIndex: 10,
-          pointerEvents: "none",
         }}>
-          {/* Skin */}
           <img
             src={skinUrl}
             alt={ownerUsername!}
             style={{
               position: "absolute",
               bottom: 0,
-              left: 0,
-              width: 110,
-              height: 200,
+              left: 8,
+              width: 100,
+              height: 175,
               objectFit: "contain",
               imageRendering: "pixelated",
-              filter: "drop-shadow(0 6px 20px rgba(0,0,0,0.8))",
+              filter: "drop-shadow(0 4px 16px rgba(0,0,0,0.9))",
             }}
             onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
           />
-          {/* Bow overlaid in right hand */}
+          {/* Bow in right hand */}
           <img
             src="https://raw.githubusercontent.com/InventivetalentDev/minecraft-assets/1.21/assets/minecraft/textures/item/bow_pulling_2.png"
             alt="bow"
             style={{
               position: "absolute",
-              bottom: 68,
-              right: -20,
-              width: 56,
-              height: 56,
+              bottom: 40,
+              right: 2,
+              width: 52,
+              height: 52,
               imageRendering: "pixelated",
-              transform: "rotate(-25deg) scaleX(-1)",
-              filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.7))",
+              transform: "rotate(-20deg) scaleX(-1)",
+              filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.8))",
             }}
             onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
           />
         </div>
       )}
 
-      {/* Text block — offset right to clear the skin */}
-      <div className="flex-1 relative z-10" style={{ paddingLeft: 140 }}>
-        <p className="text-[10px] font-extrabold uppercase tracking-widest mb-0.5" style={{ color: "rgba(255,255,255,0.55)" }}>LIMITED TIME</p>
-        <p className="font-extrabold text-xl leading-tight text-white" style={{ textShadow: "0 1px 6px rgba(0,0,0,0.4)" }}>{title}</p>
-        {subtitle && <p className="text-xs font-medium mt-1" style={{ color: "rgba(255,255,255,0.8)" }}>{subtitle}</p>}
+      {/* Text block */}
+      <div style={{ flex: 1, position: "relative", zIndex: 10 }}>
+        <p style={{ fontSize: 10, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.12em", color: "rgba(255,255,255,0.6)", marginBottom: 2 }}>LIMITED TIME</p>
+        <p style={{ fontWeight: 800, fontSize: 20, lineHeight: 1.2, color: "#fff", textShadow: "0 1px 6px rgba(0,0,0,0.5)", margin: 0 }}>{title}</p>
+        {subtitle && <p style={{ fontSize: 12, color: "rgba(255,255,255,0.8)", marginTop: 4, margin: 0 }}>{subtitle}</p>}
       </div>
 
       {/* Countdown digits */}
-      <div className="flex items-center gap-2 relative z-10 shrink-0">
+      <div style={{ display: "flex", alignItems: "center", gap: 8, position: "relative", zIndex: 10, flexShrink: 0 }}>
         {[
           { val: timeLeft.days, label: "Days" },
           { val: timeLeft.hours, label: "Hours" },
           { val: timeLeft.mins, label: "Mins" },
           { val: timeLeft.secs, label: "Secs" },
         ].map(({ val, label }, i) => (
-          <div key={label} className="flex items-center gap-2">
-            <div className="flex flex-col items-center">
-              <div
-                className="rounded-lg flex items-center justify-center font-extrabold text-white"
-                style={{ width: 52, height: 48, background: "rgba(0,0,0,0.45)", fontSize: 24, letterSpacing: -1, backdropFilter: "blur(4px)" }}
-              >
+          <div key={label} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+              <div style={{
+                width: 52, height: 48,
+                background: "rgba(0,0,0,0.5)",
+                borderRadius: 8,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontWeight: 800, fontSize: 24, color: "#fff",
+                letterSpacing: -1,
+                backdropFilter: "blur(4px)",
+              }}>
                 {pad(val)}
               </div>
-              <span className="text-[9px] font-bold uppercase tracking-wider mt-1" style={{ color: "rgba(255,255,255,0.7)" }}>{label}</span>
+              <span style={{ fontSize: 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "rgba(255,255,255,0.7)", marginTop: 4 }}>{label}</span>
             </div>
-            {i < 3 && <span className="font-extrabold text-white text-lg" style={{ marginBottom: 14, opacity: 0.6 }}>:</span>}
+            {i < 3 && <span style={{ fontWeight: 800, color: "#fff", fontSize: 18, marginBottom: 14, opacity: 0.6 }}>:</span>}
           </div>
         ))}
       </div>
