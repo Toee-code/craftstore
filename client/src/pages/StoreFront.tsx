@@ -985,13 +985,29 @@ function CountdownBanner({ title, subtitle, endDate, ownerUsername, accent }: {
       {/* Subtle radial glow */}
       <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.18)", pointerEvents: "none" }} />
 
-      {/* Owner skin — peeking up from bottom */}
+      {/* Owner skin + bow — peeking up from bottom-left */}
       {skinUrl && (
-        <div className="relative shrink-0" style={{ width: 56, height: 88, marginBottom: -8 }}>
+        <div className="relative shrink-0" style={{ width: 72, height: 100, marginBottom: -8, alignSelf: "flex-end" }}>
           <img
             src={skinUrl}
             alt={ownerUsername!}
-            style={{ width: 56, height: 88, objectFit: "contain", imageRendering: "pixelated", filter: "drop-shadow(0 4px 12px rgba(0,0,0,0.5))" }}
+            style={{ width: 72, height: 100, objectFit: "contain", imageRendering: "pixelated", filter: "drop-shadow(0 4px 16px rgba(0,0,0,0.6))" }}
+            onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
+          />
+          {/* Bow in right hand */}
+          <img
+            src="https://raw.githubusercontent.com/InventivetalentDev/minecraft-assets/1.21/assets/minecraft/textures/item/bow_pulling_2.png"
+            alt="bow"
+            style={{
+              position: "absolute",
+              bottom: 26,
+              right: -16,
+              width: 36,
+              height: 36,
+              imageRendering: "pixelated",
+              transform: "rotate(-20deg) scaleX(-1)",
+              filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.5))",
+            }}
             onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
           />
         </div>
@@ -1436,72 +1452,17 @@ function EchoLayout({
 
       {/* ── Welcome card ────────────────────────────────────────── */}
       {isHome && (
-        <div className="rounded-2xl mb-4 overflow-hidden"
-          style={{ background: "#13161c", border: "1px solid rgba(255,255,255,0.07)", position: "relative" }}>
-          {/* Owner skin with bow — right side */}
-          {data.server.ownerUsername && (
-            <div style={{
-              position: "absolute",
-              right: 24,
-              bottom: 0,
-              width: 140,
-              height: "100%",
-              display: "flex",
-              alignItems: "flex-end",
-              justifyContent: "flex-end",
-              pointerEvents: "none",
-              zIndex: 1,
-            }}>
-              {/* Glow behind skin */}
-              <div style={{
-                position: "absolute",
-                bottom: 0,
-                right: 0,
-                width: 140,
-                height: 160,
-                background: `radial-gradient(ellipse at 70% 100%, ${accent}30 0%, transparent 70%)`,
-                borderRadius: "50%",
-                filter: "blur(18px)",
-              }} />
-              {/* Skin */}
-              <div style={{ position: "relative", width: 110, height: 150 }}>
-                <img
-                  src={`https://nmsr.nickac.dev/fullbody/${data.server.ownerUsername}`}
-                  alt={data.server.ownerUsername}
-                  style={{ width: 110, height: 150, imageRendering: "pixelated", objectFit: "contain", display: "block" }}
-                  onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
-                />
-                {/* Bow overlay — positioned in right hand */}
-                <img
-                  src="https://raw.githubusercontent.com/InventivetalentDev/minecraft-assets/1.21/assets/minecraft/textures/item/bow_pulling_2.png"
-                  alt="bow"
-                  style={{
-                    position: "absolute",
-                    bottom: 34,
-                    right: -18,
-                    width: 38,
-                    height: 38,
-                    imageRendering: "pixelated",
-                    transform: "rotate(-25deg) scaleX(-1)",
-                    filter: `drop-shadow(0 0 6px ${accent}80)`,
-                  }}
-                  onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
-                />
-              </div>
-            </div>
-          )}
-          {/* Text content */}
-          <div className="p-8" style={{ position: "relative", zIndex: 2, paddingRight: data.server.ownerUsername ? 180 : 32 }}>
-            <p className="text-xs font-semibold uppercase tracking-widest mb-2"
-              style={{ color: "rgba(255,255,255,0.3)" }}>Welcome to</p>
-            <h2 className="text-3xl font-extrabold mb-4 uppercase" style={{ color: accent }}>
-              {data.theme.welcomeTitle || data.server.name}
-            </h2>
-            <p className="text-sm leading-relaxed" style={{ color: "rgba(255,255,255,0.55)" }}>
-              {data.theme.welcomeText ||
-                `Welcome to the official ${data.server.name} Store. To begin shopping, select a category above.`}
-            </p>
-          </div>
+        <div className="rounded-2xl p-8 mb-4"
+          style={{ background: "#13161c", border: "1px solid rgba(255,255,255,0.07)" }}>
+          <p className="text-xs font-semibold uppercase tracking-widest mb-2"
+            style={{ color: "rgba(255,255,255,0.3)" }}>Welcome to</p>
+          <h2 className="text-3xl font-extrabold mb-4 uppercase" style={{ color: accent }}>
+            {data.theme.welcomeTitle || data.server.name}
+          </h2>
+          <p className="text-sm leading-relaxed" style={{ color: "rgba(255,255,255,0.55)" }}>
+            {data.theme.welcomeText ||
+              `Welcome to the official ${data.server.name} Store. To begin shopping, select a category above.`}
+          </p>
         </div>
       )}
       {/* ── Footer ────────────────────────────────────────── */}
