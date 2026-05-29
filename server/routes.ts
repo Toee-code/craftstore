@@ -1358,6 +1358,10 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
       preset = storage.getPresetById(theme.activePresetId) || null;
     }
 
+    // Get owner's Minecraft username for countdown banner skin
+    const ownerRow = storage.getUserById((server as any).ownerId) as any;
+    const ownerUsername = ownerRow?.username || null;
+
     res.json({
       server: {
         id: server.id,
@@ -1372,6 +1376,7 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
         bedrockEnabled: (server as any).bedrockEnabled || false,
         bedrockPrefix: (server as any).bedrockPrefix || "none",
         bedrockReplaceSpaces: (server as any).bedrockReplaceSpaces !== false,
+        ownerUsername,
       },
       products: productsList,
       theme,

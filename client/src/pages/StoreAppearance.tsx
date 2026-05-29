@@ -24,7 +24,7 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 import {
   LayoutGrid, List, Star, Plus, Trash2, Save, Eye, Loader2,
   Palette, Type, ImageIcon, Megaphone, Home, DollarSign,
-  ChevronDown, ChevronRight, MessageSquare, X, Globe, Server, Image, Layers
+  ChevronDown, ChevronRight, MessageSquare, X, Globe, Server, Image, Layers, Timer
 } from "lucide-react";
 import type { StoreTheme } from "@shared/schema";
 
@@ -61,6 +61,9 @@ interface ThemeForm {
   feeMode: string;
   welcomeTitle: string;
   welcomeText: string;
+  countdownTitle: string;
+  countdownSubtitle: string;
+  countdownEnd: string;
 }
 
 interface ServerInfoForm {
@@ -107,16 +110,17 @@ export default function StoreAppearance({ serverId }: Props) {
 
   const { register, handleSubmit, control, watch, setValue, reset } = useForm<ThemeForm>({
     defaultValues: {
-      layout: "grid", colorScheme: "dark", accentColor: "#22c55e",
+      layout: "echo", colorScheme: "dark", accentColor: "#22c55e",
       bannerUrl: "", startPage: "all", announcementText: "", feeMode: "absorb",
       welcomeTitle: "", welcomeText: "",
+      countdownTitle: "", countdownSubtitle: "", countdownEnd: "",
     },
   });
 
   useEffect(() => {
     if (!theme) return;
     reset({
-      layout: theme.layout || "grid",
+      layout: theme.layout || "echo",
       colorScheme: theme.colorScheme || "dark",
       accentColor: theme.accentColor || "#22c55e",
       bannerUrl: theme.bannerUrl || "",
@@ -125,6 +129,9 @@ export default function StoreAppearance({ serverId }: Props) {
       feeMode: theme.feeMode || "absorb",
       welcomeTitle: theme.welcomeTitle || "",
       welcomeText: theme.welcomeText || "",
+      countdownTitle: (theme as any).countdownTitle || "",
+      countdownSubtitle: (theme as any).countdownSubtitle || "",
+      countdownEnd: (theme as any).countdownEnd ? (theme as any).countdownEnd.slice(0, 16) : "",
     });
     try { setCategories(JSON.parse(theme.categories || "[]")); } catch { setCategories([]); }
     try { setSubcategories(JSON.parse(theme.subcategories || "{}")); } catch { setSubcategories({}); }
@@ -609,6 +616,45 @@ export default function StoreAppearance({ serverId }: Props) {
             <p className="text-xs text-muted-foreground">
               Shown as a styled welcome card on your storefront. Supports plain text only.
             </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* ── Countdown Banner ────────────────────────────────────────────── */}
+      <Card className="bg-card border-border/60">
+        <CardHeader className="pb-3">
+          <div className="flex items-center gap-2">
+            <Timer className="w-4 h-4 text-primary" />
+            <CardTitle className="text-base">Countdown Banner</CardTitle>
+          </div>
+          <CardDescription>
+            Shows a full-width countdown strip at the top of your store with your skin and a live timer. Leave the end date blank to hide it.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-1.5">
+            <Label className="flex items-center gap-1.5">
+              <Timer className="w-3.5 h-3.5" /> Countdown end date &amp; time
+            </Label>
+            <Input
+              type="datetime-local"
+              {...register("countdownEnd")}
+            />
+            <p className="text-xs text-muted-foreground">Set to a future date/time. The banner hides automatically when it expires.</p>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Banner title</Label>
+            <Input
+              placeholder="e.g. SEASON 2 LAUNCHES IN"
+              {...register("countdownTitle")}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Banner subtitle</Label>
+            <Input
+              placeholder="e.g. Get ready for the biggest update yet!"
+              {...register("countdownSubtitle")}
+            />
           </div>
         </CardContent>
       </Card>

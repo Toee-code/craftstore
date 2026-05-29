@@ -38,6 +38,7 @@ interface StoreData {
   server: {
     id: number; name: string; description: string | null; logoUrl: string | null;
     discordUrl: string | null; serverIp: string | null; bannerUrl?: string | null;
+    ownerUsername: string | null;
   };
   products: Product[];
   theme: {
@@ -45,6 +46,7 @@ interface StoreData {
     bannerUrl: string | null; startPage: string; announcementText: string | null;
     categories: string; subcategories: string; categoryImages: string; feeMode: string; activePresetId: number | null;
     welcomeTitle: string | null; welcomeText: string | null;
+    countdownTitle: string | null; countdownSubtitle: string | null; countdownEnd: string | null;
   };
   preset: StorePreset | null;
 }
@@ -940,6 +942,91 @@ function EchoCategoryCard({
         )}
       </div>
     </button>
+  );
+}
+
+// ─── Countdown Banner ────────────────────────────────────────────────────────
+function CountdownBanner({ title, subtitle, endDate, ownerUsername, accent }: {
+  title: string; subtitle: string; endDate: string;
+  ownerUsername: string | null; accent: string;
+}) {
+  const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, mins: 0, secs: 0, expired: false });
+
+  useEffect(() => {
+    const calc = () => {
+      const diff = new Date(endDate).getTime() - Date.now();
+      if (diff <= 0) { setTimeLeft({ days: 0, hours: 0, mins: 0, secs: 0, expired: true }); return; }
+      setTimeLeft({
+        days: Math.floor(diff / 86400000),
+        hours: Math.floor((diff % 86400000) / 3600000),
+        mins: Math.floor((diff % 3600000) / 60000),
+        secs: Math.floor((diff % 60000) / 1000),
+        expired: false,
+      });
+    };
+    calc();
+    const id = setInterval(calc, 1000);
+    return () => clearInterval(id);
+  }, [endDate]);
+
+  if (timeLeft.expired) return null;
+
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const skinUrl = ownerUsername ? `https://nmsr.nickac.dev/fullbody/${ownerUsername}` : null;
+
+  return (
+    <div
+      className="relative overflow-hidden flex items-center gap-4 px-6 py-0"
+      style={{
+        background: `linear-gradient(135deg, ${accent}cc 0%, ${accent}88 50%, ${accent}aa 100%)`,
+        minHeight: 80,
+      }}
+    >
+      {/* Subtle radial glow */}
+      <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.18)", pointerEvents: "none" }} />
+
+      {/* Owner skin — peeking up from bottom */}
+      {skinUrl && (
+        <div className="relative shrink-0" style={{ width: 56, height: 88, marginBottom: -8 }}>
+          <img
+            src={skinUrl}
+            alt={ownerUsername!}
+            style={{ width: 56, height: 88, objectFit: "contain", imageRendering: "pixelated", filter: "drop-shadow(0 4px 12px rgba(0,0,0,0.5))" }}
+            onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
+          />
+        </div>
+      )}
+
+      {/* Text block */}
+      <div className="flex-1 relative z-10">
+        <p className="text-[10px] font-extrabold uppercase tracking-widest mb-0.5" style={{ color: "rgba(0,0,0,0.55)" }}>LIMITED TIME</p>
+        <p className="font-extrabold text-lg leading-tight text-white" style={{ textShadow: "0 1px 4px rgba(0,0,0,0.3)" }}>{title}</p>
+        {subtitle && <p className="text-xs font-medium mt-0.5" style={{ color: "rgba(255,255,255,0.8)" }}>{subtitle}</p>}
+      </div>
+
+      {/* Countdown digits */}
+      <div className="flex items-center gap-2 relative z-10 shrink-0">
+        {[
+          { val: timeLeft.days, label: "Days" },
+          { val: timeLeft.hours, label: "Hours" },
+          { val: timeLeft.mins, label: "Mins" },
+          { val: timeLeft.secs, label: "Secs" },
+        ].map(({ val, label }, i) => (
+          <div key={label} className="flex items-center gap-2">
+            <div className="flex flex-col items-center">
+              <div
+                className="rounded-lg flex items-center justify-center font-extrabold text-white"
+                style={{ width: 48, height: 44, background: "rgba(0,0,0,0.4)", fontSize: 22, letterSpacing: -1, backdropFilter: "blur(4px)" }}
+              >
+                {pad(val)}
+              </div>
+              <span className="text-[9px] font-bold uppercase tracking-wider mt-1" style={{ color: "rgba(255,255,255,0.7)" }}>{label}</span>
+            </div>
+            {i < 3 && <span className="font-extrabold text-white text-lg" style={{ marginBottom: 12, opacity: 0.6 }}>:</span>}
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -2093,6 +2180,17 @@ function ThemedStore({ data }: { data: StoreData }) {
             <Megaphone className="w-3.5 h-3.5 shrink-0" />
             {data.theme.announcementText}
           </div>
+        )}
+
+        {/* Countdown banner */}
+        {data.theme.countdownTitle && data.theme.countdownEnd && (
+          <CountdownBanner
+            title={data.theme.countdownTitle}
+            subtitle={data.theme.countdownSubtitle || ""}
+            endDate={data.theme.countdownEnd}
+            ownerUsername={data.server.ownerUsername}
+            accent={accent}
+          />
         )}
 
         {/* Floating top-right: Donate + Login */}

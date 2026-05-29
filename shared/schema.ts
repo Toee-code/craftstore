@@ -135,6 +135,9 @@ export const storeThemes = sqliteTable("store_themes", {
   activePresetId: integer("active_preset_id"),           // NEW: purchased preset
   welcomeTitle: text("welcome_title"),                    // NEW: welcome section heading
   welcomeText: text("welcome_text"),                      // NEW: welcome section body
+  countdownTitle: text("countdown_title"),                // countdown banner heading
+  countdownSubtitle: text("countdown_subtitle"),          // countdown banner subtext
+  countdownEnd: text("countdown_end"),                    // ISO date string for timer
   updatedAt: text("updated_at").notNull().default(new Date().toISOString()),
 });
 
