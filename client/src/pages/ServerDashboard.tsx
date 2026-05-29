@@ -450,7 +450,7 @@ function ProductImagePicker({
 interface ProductForm {
   name: string; description: string; price: number;
   command: string; category: string; stock: number; imageUrl: string;
-  imageType: string; playerHeadName: string;
+  imageType: string; playerHeadName: string; enchanted: boolean;
 }
 interface MemberForm { minecraftUsername: string; email: string; balance: number; }
 
@@ -920,7 +920,7 @@ export default function ServerDashboard() {
   };
 
   // Add product
-  const productForm = useForm<ProductForm>({ defaultValues: { imageType: "upload", playerHeadName: "", stock: -1 } });
+  const productForm = useForm<ProductForm>({ defaultValues: { imageType: "upload", playerHeadName: "", stock: -1, enchanted: false } });
   const addProduct = useMutation({
     mutationFn: (data: ProductForm) =>
       apiRequest("POST", `/api/servers/${serverId}/products`, data).then(r => r.json()),
@@ -928,13 +928,13 @@ export default function ServerDashboard() {
       qc.invalidateQueries({ queryKey: ["/api/servers", serverId, "products"] });
       qc.invalidateQueries({ queryKey: ["/api/servers", serverId, "stats"] });
       setAddProductOpen(false);
-      productForm.reset({ imageType: "upload", playerHeadName: "", stock: -1 });
+      productForm.reset({ imageType: "upload", playerHeadName: "", stock: -1, enchanted: false });
       toast({ title: "Product added" });
     },
   });
 
   // Edit product
-  const editForm = useForm<ProductForm>({ defaultValues: { imageType: "upload", playerHeadName: "", stock: -1 } });
+  const editForm = useForm<ProductForm>({ defaultValues: { imageType: "upload", playerHeadName: "", stock: -1, enchanted: false } });
   const updateProduct = useMutation({
     mutationFn: (data: ProductForm & { id: number }) =>
       apiRequest("PATCH", `/api/products/${data.id}`, data).then(r => r.json()),
@@ -958,6 +958,7 @@ export default function ServerDashboard() {
       imageUrl: p.imageUrl ?? "",
       imageType: (p as any).imageType ?? "upload",
       playerHeadName: (p as any).playerHeadName ?? "",
+      enchanted: !!(p as any).enchanted,
     });
   };
 
@@ -1255,6 +1256,19 @@ export default function ServerDashboard() {
                       playerHeadName={productForm.watch("playerHeadName") || ""}
                       setPlayerHeadName={(v) => productForm.setValue("playerHeadName", v)}
                     />
+                    {/* Enchanted toggle */}
+                    <div className="flex items-center justify-between rounded-xl bg-muted/20 border border-border/40 px-4 py-3">
+                      <div>
+                        <p className="text-sm font-medium flex items-center gap-1.5"><Sparkles className="w-3.5 h-3.5 text-purple-400" /> Enchanted Item</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">Adds a Minecraft-style enchantment glint shimmer to the item image</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => productForm.setValue("enchanted", !productForm.watch("enchanted"))}
+                        className={`relative w-10 h-6 rounded-full transition-colors ${productForm.watch("enchanted") ? "bg-purple-500" : "bg-muted"}`}>
+                        <span className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform ${productForm.watch("enchanted") ? "translate-x-4" : ""}`} />
+                      </button>
+                    </div>
                     <Button type="submit" className="w-full bg-primary text-primary-foreground" disabled={addProduct.isPending}>
                       {addProduct.isPending ? "Adding…" : "Add product"}
                     </Button>
@@ -1310,6 +1324,19 @@ export default function ServerDashboard() {
                     playerHeadName={editForm.watch("playerHeadName") || ""}
                     setPlayerHeadName={(v) => editForm.setValue("playerHeadName", v)}
                   />
+                  {/* Enchanted toggle */}
+                  <div className="flex items-center justify-between rounded-xl bg-muted/20 border border-border/40 px-4 py-3">
+                    <div>
+                      <p className="text-sm font-medium flex items-center gap-1.5"><Sparkles className="w-3.5 h-3.5 text-purple-400" /> Enchanted Item</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">Adds a Minecraft-style enchantment glint shimmer to the item image</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => editForm.setValue("enchanted", !editForm.watch("enchanted"))}
+                      className={`relative w-10 h-6 rounded-full transition-colors ${editForm.watch("enchanted") ? "bg-purple-500" : "bg-muted"}`}>
+                      <span className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform ${editForm.watch("enchanted") ? "translate-x-4" : ""}`} />
+                    </button>
+                  </div>
                   <div className="flex gap-2">
                     <Button type="button" variant="outline" className="flex-1" onClick={() => setEditProduct(null)}>Cancel</Button>
                     <Button type="submit" className="flex-1 bg-primary text-primary-foreground" disabled={updateProduct.isPending}>
@@ -1336,26 +1363,33 @@ export default function ServerDashboard() {
                 const imgUrl = (p as any).imageType === "playerhead" && (p as any).playerHeadName
                   ? `https://nmsr.nickac.dev/head/${encodeURIComponent((p as any).playerHeadName)}`
                   : p.imageUrl;
+                const isEnchanted = !!(p as any).enchanted;
                 return (
                   <Card
                     key={p.id}
                     draggable
                     onDragStart={() => { dragProductId.current = p.id; }}
                     onDragEnd={() => { dragProductId.current = null; setDragOverCat(null); }}
-                    className="block-card bg-card border-border/60 flex flex-col cursor-grab active:cursor-grabbing active:opacity-60 transition-opacity"
+                    className="block-card bg-card border-border/60 flex flex-col cursor-grab active:cursor-grabbing active:opacity-60 transition-opacity relative"
                     data-testid={`card-product-${p.id}`}
                   >
                     {imgUrl ? (
-                      <div className="h-28 overflow-hidden rounded-t-xl flex items-center justify-center" style={{ background: "rgba(255,255,255,0.02)" }}>
+                      <div className="h-28 overflow-hidden rounded-t-xl flex items-center justify-center relative" style={{ background: "rgba(255,255,255,0.02)" }}>
                         <img src={imgUrl} alt={p.name}
                           className={(p as any).imageType === "playerhead" ? "h-24 object-contain" : "w-full h-full object-cover"}
                           style={(p as any).imageType === "playerhead" ? { imageRendering: "pixelated" } : {}}
                         />
+                        {isEnchanted && (
+                          <div className="enchant-glint" style={{ position: "absolute", inset: 0, pointerEvents: "none", borderRadius: "inherit" }} />
+                        )}
                       </div>
                     ) : (
                       <div className="h-28 rounded-t-xl flex items-center justify-center" style={{ background: "rgba(255,255,255,0.03)" }}>
                         <Package className="w-8 h-8 text-muted-foreground/30" />
                       </div>
+                    )}
+                    {isEnchanted && (
+                      <span className="absolute top-1.5 right-1.5 z-10 text-xs font-bold px-1.5 py-0.5 rounded-full" style={{ background: "rgba(120,60,255,0.85)", color: "#fff", fontSize: 10 }}>✨ Enchanted</span>
                     )}
                     <CardContent className="p-3 flex flex-col flex-1">
                       <div className="flex items-start justify-between mb-1">

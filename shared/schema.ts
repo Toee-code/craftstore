@@ -51,6 +51,7 @@ export const products = sqliteTable("products", {
   imageUrl: text("image_url"),
   imageType: text("image_type").default("custom"),  // "custom" | "playerhead"
   playerHeadName: text("player_head_name"),          // Minecraft username for head render
+  enchanted: integer("enchanted").default(0),          // 1 = show enchantment glint effect
   category: text("category"),
   subcategory: text("subcategory"),            // NEW: subcategory within a category
   command: text("command").notNull(),

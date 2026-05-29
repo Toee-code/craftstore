@@ -142,3 +142,24 @@
 .status-completed { @apply bg-green-500/15 text-green-400 border-green-500/20; }
 .status-pending { @apply bg-yellow-500/15 text-yellow-400 border-yellow-500/20; }
 .status-failed { @apply bg-red-500/15 text-red-400 border-red-500/20; }
+
+/* ── Enchantment Glint Effect ──────────────────────────────────────────────── */
+@keyframes enchantGlint {
+  0%   { background-position: -200% 0; opacity: 0.55; }
+  50%  { opacity: 0.75; }
+  100% { background-position: 200% 0; opacity: 0.55; }
+}
+
+.enchant-glint {
+  background: linear-gradient(
+    105deg,
+    transparent 20%,
+    rgba(120, 60, 255, 0.35) 35%,
+    rgba(80, 180, 255, 0.5)  50%,
+    rgba(190, 80, 255, 0.35) 65%,
+    transparent 80%
+  );
+  background-size: 200% 100%;
+  mix-blend-mode: screen;
+  animation: enchantGlint 2.2s ease-in-out infinite;
+}
