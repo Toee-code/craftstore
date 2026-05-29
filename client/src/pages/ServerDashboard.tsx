@@ -195,6 +195,84 @@ function EarningsSummary({ serverId }: { serverId: number }) {
   );
 }
 
+// ─── MinecraftItemBrowser ─────────────────────────────────────────────────────
+type McItem = { readable: string; id: string; texture: string };
+const MC_ITEMS_URL = "https://unpkg.com/minecraft-textures/dist/textures/json/1.21.json";
+let _mcItemsCache: McItem[] | null = null;
+let _mcItemsPromise: Promise<McItem[]> | null = null;
+function loadMcItems(): Promise<McItem[]> {
+  if (_mcItemsCache) return Promise.resolve(_mcItemsCache);
+  if (_mcItemsPromise) return _mcItemsPromise;
+  _mcItemsPromise = fetch(MC_ITEMS_URL)
+    .then(r => r.json())
+    .then(data => { _mcItemsCache = data.items || []; return _mcItemsCache!; });
+  return _mcItemsPromise;
+}
+
+function MinecraftItemBrowser({ onSelect }: { onSelect: (texture: string, name: string) => void }) {
+  const [items, setItems] = useState<McItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [selected, setSelected] = useState<string | null>(null);
+
+  useEffect(() => {
+    loadMcItems().then(its => { setItems(its); setLoading(false); });
+  }, []);
+
+  const filtered = search.trim()
+    ? items.filter(i => i.readable.toLowerCase().includes(search.toLowerCase()) || i.id.includes(search.toLowerCase()))
+    : items;
+
+  // Only render first 120 items unless searching (keeps it snappy)
+  const visible = filtered.slice(0, search.trim() ? 300 : 120);
+
+  return (
+    <div className="space-y-2">
+      <Input
+        placeholder="Search items e.g. Diamond Sword, Beacon…"
+        value={search}
+        onChange={e => setSearch(e.target.value)}
+        className="text-sm"
+      />
+      {loading ? (
+        <div className="flex items-center justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>
+      ) : (
+        <>
+          <div
+            className="grid gap-1 rounded-xl border border-border/60 bg-muted/10 p-2 overflow-y-auto"
+            style={{ gridTemplateColumns: "repeat(auto-fill, minmax(48px, 1fr))", maxHeight: 240 }}
+          >
+            {visible.map(item => (
+              <button
+                key={item.id}
+                type="button"
+                title={item.readable}
+                onClick={() => { setSelected(item.id); onSelect(item.texture, item.readable); }}
+                className={`aspect-square rounded-lg flex items-center justify-center transition-all hover:scale-110 ${
+                  selected === item.id ? "ring-2 ring-primary bg-primary/10" : "hover:bg-muted/60"
+                }`}
+              >
+                <img
+                  src={item.texture}
+                  alt={item.readable}
+                  className="w-8 h-8"
+                  style={{ imageRendering: "pixelated" }}
+                />
+              </button>
+            ))}
+          </div>
+          {!search.trim() && filtered.length > 120 && (
+            <p className="text-xs text-muted-foreground text-center">Showing 120 of {filtered.length} — search to filter</p>
+          )}
+          {search.trim() && filtered.length === 0 && (
+            <p className="text-xs text-muted-foreground text-center py-4">No items match "{search}"</p>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 // ─── ProductImagePicker ──────────────────────────────────────────────────────
 function ProductImagePicker({
   imageType, setImageType,
@@ -235,6 +313,7 @@ function ProductImagePicker({
   const tabs = [
     { key: "upload", label: "Upload" },
     { key: "playerhead", label: "Player Head" },
+    { key: "mcitem", label: "MC Item" },
     { key: "custom", label: "URL" },
   ];
 
@@ -251,7 +330,7 @@ function ProductImagePicker({
       <div className="flex rounded-lg overflow-hidden border border-border/60 bg-muted/30">
         {tabs.map(t => (
           <button key={t.key} type="button"
-            className={`flex-1 py-2 text-sm font-medium transition-all ${
+            className={`flex-1 py-2 text-xs font-medium transition-all ${
               imageType === t.key
                 ? "bg-primary text-primary-foreground shadow-sm"
                 : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
@@ -264,7 +343,6 @@ function ProductImagePicker({
 
       {imageType === "upload" && (
         <div className="space-y-2">
-          {/* Hidden real file input */}
           <input
             ref={fileInputRef}
             type="file"
@@ -326,6 +404,28 @@ function ProductImagePicker({
             />
             <p className="text-xs text-muted-foreground">Enter any Java username — their head appears on your store</p>
           </div>
+        </div>
+      )}
+
+      {imageType === "mcitem" && (
+        <div className="space-y-2">
+          {imageUrl && imageUrl.startsWith("data:image") && (
+            <div className="flex items-center gap-3 p-2.5 rounded-xl border border-primary/30 bg-primary/5">
+              <img src={imageUrl} alt="selected" className="w-10 h-10" style={{ imageRendering: "pixelated" }} />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-medium text-primary">Item selected</p>
+                <p className="text-xs text-muted-foreground truncate">{(imageUrl as any)._name || "Minecraft item"}</p>
+              </div>
+              <button type="button" onClick={() => setImageUrl("")}
+                className="text-xs text-muted-foreground hover:text-destructive">
+                <XCircle className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+          <MinecraftItemBrowser onSelect={(texture) => {
+            setImageUrl(texture);
+            setPreviewUrl(texture);
+          }} />
         </div>
       )}
 
