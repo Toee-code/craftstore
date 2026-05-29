@@ -959,57 +959,57 @@ function TopCustomersSidebar({ serverId, accent }: { serverId: number; accent: s
       style={{
         position: "fixed",
         top: "50%",
-        right: 20,
+        right: 24,
         transform: "translateY(-50%)",
-        width: 220,
+        width: 300,
         zIndex: 40,
-        background: "rgba(13,15,20,0.88)",
-        backdropFilter: "blur(16px)",
-        WebkitBackdropFilter: "blur(16px)",
-        border: "1px solid rgba(255,255,255,0.1)",
-        borderRadius: 20,
-        padding: "18px 16px",
-        boxShadow: "0 12px 50px rgba(0,0,0,0.7)",
+        background: "rgba(13,15,20,0.92)",
+        backdropFilter: "blur(20px)",
+        WebkitBackdropFilter: "blur(20px)",
+        border: "1px solid rgba(255,255,255,0.12)",
+        borderRadius: 24,
+        padding: "24px 20px",
+        boxShadow: "0 16px 60px rgba(0,0,0,0.8)",
         pointerEvents: "none",
       }}
     >
       {/* Header */}
-      <div className="flex items-center gap-2 mb-4">
-        <Trophy className="w-4 h-4 shrink-0" style={{ color: accent }} />
-        <span className="text-xs font-extrabold uppercase tracking-widest" style={{ color: accent }}>Top Customers</span>
+      <div className="flex items-center gap-2 mb-5">
+        <Trophy className="w-5 h-5 shrink-0" style={{ color: accent }} />
+        <span className="text-sm font-extrabold uppercase tracking-widest" style={{ color: accent }}>Top Customers</span>
       </div>
 
       {isLoading ? (
-        <div className="flex justify-center py-6">
-          <Loader2 className="w-5 h-5 animate-spin" style={{ color: accent }} />
+        <div className="flex justify-center py-10">
+          <Loader2 className="w-6 h-6 animate-spin" style={{ color: accent }} />
         </div>
       ) : top3.length === 0 ? (
-        <p className="text-xs text-center py-6" style={{ color: "rgba(255,255,255,0.3)" }}>No purchases yet</p>
+        <p className="text-sm text-center py-10" style={{ color: "rgba(255,255,255,0.3)" }}>No purchases yet</p>
       ) : (
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-5">
           {top3.map((entry, i) => (
-            <div key={entry.minecraftUsername} className="flex flex-col items-center gap-1.5">
+            <div key={entry.minecraftUsername} className="flex flex-col items-center gap-2">
               {/* Rank medal */}
-              <div style={{ fontSize: 20, lineHeight: 1 }}>{medals[i]}</div>
+              <div style={{ fontSize: 28, lineHeight: 1 }}>{medals[i]}</div>
               {/* Skin */}
-              <div className="relative" style={{ width: 72, height: 96 }}>
+              <div className="relative" style={{ width: 110, height: 148 }}>
                 <img
                   src={`https://nmsr.nickac.dev/fullbody/${entry.minecraftUsername}`}
                   alt={entry.minecraftUsername}
-                  style={{ width: 72, height: 96, objectFit: "contain", imageRendering: "pixelated", filter: i === 0 ? `drop-shadow(0 0 8px ${accent}90)` : "none" }}
+                  style={{ width: 110, height: 148, objectFit: "contain", imageRendering: "pixelated", filter: i === 0 ? `drop-shadow(0 0 12px ${accent}99)` : "drop-shadow(0 2px 6px rgba(0,0,0,0.5))" }}
                   onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
                 />
                 {i === 0 && (
-                  <div style={{ position: "absolute", inset: 0, borderRadius: 10, boxShadow: `0 0 24px ${accent}50`, pointerEvents: "none" }} />
+                  <div style={{ position: "absolute", inset: 0, borderRadius: 12, boxShadow: `0 0 32px ${accent}60`, pointerEvents: "none" }} />
                 )}
               </div>
               {/* Name */}
-              <p className="text-sm font-bold text-center truncate w-full" style={{ color: i === 0 ? "#fff" : "rgba(255,255,255,0.7)" }}>{entry.minecraftUsername}</p>
+              <p className="text-base font-bold text-center truncate w-full" style={{ color: i === 0 ? "#fff" : "rgba(255,255,255,0.75)" }}>{entry.minecraftUsername}</p>
               {/* Amount */}
-              <p className="text-sm font-extrabold" style={{ color: accent }}>£{entry.total.toFixed(2)}</p>
+              <p className="text-base font-extrabold" style={{ color: accent, textShadow: i === 0 ? `0 0 16px ${accent}80` : "none" }}>£{entry.total.toFixed(2)}</p>
               {/* Divider */}
               {i < 2 && top3[i + 1] && (
-                <div style={{ width: "80%", height: 1, background: "rgba(255,255,255,0.07)", marginTop: 4 }} />
+                <div style={{ width: "75%", height: 1, background: "rgba(255,255,255,0.08)", marginTop: 4 }} />
               )}
             </div>
           ))}
