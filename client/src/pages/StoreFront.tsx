@@ -62,14 +62,15 @@ function bedrockSkinName(username: string): string {
 
 function skinUrl(username: string, platform: "java" | "bedrock"): string {
   if (platform === "bedrock") {
-    return `https://skin.matdoes.dev/renders/body/${encodeURIComponent(bedrockSkinName(username))}?overlay=true`;
+    // Route through our server proxy which handles XUID lookup via GeyserMC
+    return `/api/bedrock/skin/${encodeURIComponent(bedrockSkinName(username))}`;
   }
   return `https://nmsr.nickac.dev/fullbody/${username}`;
 }
 
 function faceSkinUrl(username: string, platform: "java" | "bedrock"): string {
   if (platform === "bedrock") {
-    return `https://skin.matdoes.dev/renders/head/${encodeURIComponent(bedrockSkinName(username))}?overlay=true`;
+    return `/api/bedrock/skin/${encodeURIComponent(bedrockSkinName(username))}`;
   }
   return `https://nmsr.nickac.dev/face/${username}`;
 }
@@ -1020,7 +1021,7 @@ function EchoLayout({
                 {playerDropdownOpen && (
                   <div className="absolute right-0 top-full mt-2 rounded-xl overflow-hidden z-50"
                     style={{ background: "#1a1d24", border: "1px solid rgba(255,255,255,0.1)", minWidth: 160, boxShadow: "0 8px 32px rgba(0,0,0,0.5)" }}>
-                    <a href={`#/store/${data.server.id}/profile`}
+                    <a href={`/store/${data.server.id}/profile`}
                       onClick={() => setPlayerDropdownOpen(false)}
                       className="flex items-center gap-2 px-4 py-3 text-sm font-medium hover:bg-white/5 transition-colors"
                       style={{ color: "rgba(255,255,255,0.8)" }}>
@@ -1449,7 +1450,7 @@ function ThemedStore({ data }: { data: StoreData }) {
                 <LogOut className="w-3.5 h-3.5" style={{ color: "rgba(255,255,255,0.5)" }} />
               </button>
             </div>
-            <a href={`#/store/${data.server.id}/profile`}
+            <a href={`/store/${data.server.id}/profile`}
               className="w-full flex items-center justify-center gap-1.5 rounded-xl px-2 py-1.5 text-xs font-bold transition-all hover:opacity-80"
               style={{ background: accent + "20", color: accent, border: `1px solid ${accent}30` }}
               data-testid="link-my-profile">

@@ -1366,6 +1366,33 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
     }
   });
 
+  // Bedrock skin proxy — looks up XUID via GeyserMC then fetches skin render
+  app.get("/api/bedrock/skin/:gamertag", async (req, res) => {
+    try {
+      const gamertag = req.params.gamertag.replace(/^[._]/, ""); // strip floodgate prefix
+      // Step 1: get XUID from GeyserMC
+      const xuidRes = await fetch(`https://api.geysermc.org/v2/xbox/xuid/${encodeURIComponent(gamertag)}`);
+      if (!xuidRes.ok) {
+        // Fallback: redirect to a generic bedrock steve
+        return res.redirect("https://nmsr.nickac.dev/fullbody/MHF_Steve");
+      }
+      const { xuid } = await xuidRes.json() as { xuid: number };
+      // Step 2: get skin data from GeyserMC
+      const skinRes = await fetch(`https://api.geysermc.org/v2/skin/${xuid}`);
+      if (!skinRes.ok) return res.redirect("https://nmsr.nickac.dev/fullbody/MHF_Steve");
+      const skinData = await skinRes.json() as any;
+      // skinData.texture_id is a Mineskin ID - we can build a render URL from it
+      // Or use the hash directly from skinData.value (base64 texture)
+      if (skinData.texture_id) {
+        // Redirect to mineskin render or use skin.matdoes.dev with xuid
+        return res.redirect(`https://skin.matdoes.dev/renders/body/${xuid}?overlay=true`);
+      }
+      res.redirect("https://nmsr.nickac.dev/fullbody/MHF_Steve");
+    } catch (e: any) {
+      res.redirect("https://nmsr.nickac.dev/fullbody/MHF_Steve");
+    }
+  });
+
   app.get("/api/admin/stats", requireAdmin, (req, res) => {
     try { res.json(storage.getAdminStats()); }
     catch (e: any) { res.status(500).json({ error: e.message }); }
