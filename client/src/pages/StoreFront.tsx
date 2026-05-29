@@ -317,7 +317,7 @@ function LeaderboardPanel({ serverId, accent }: { serverId: number; accent: stri
 }
 
 // ─── Member Auth Modal ────────────────────────────────────────────────────────
-function MemberAuthModal({ serverId, accent, onClose, onLogin, bedrockEnabled, bedrockPrefix }: {
+function MemberAuthModal({ serverId, accent, onClose, onLogin, bedrockEnabled, bedrockPrefix, bedrockReplaceSpaces }: {
   serverId: number; accent: string;
   onClose: () => void; onLogin: (session: MemberSession) => void;
   bedrockEnabled?: boolean; bedrockPrefix?: string; bedrockReplaceSpaces?: boolean;
