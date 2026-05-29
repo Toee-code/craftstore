@@ -1261,6 +1261,18 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
     next();
   }
 
+  // Proxy Mojang UUID lookup — avoids CORS issues from browser
+  app.get("/api/minecraft/uuid/:username", async (req, res) => {
+    try {
+      const r = await fetch(`https://api.mojang.com/users/profiles/minecraft/${req.params.username}`);
+      if (!r.ok) return res.status(404).json({ error: "Player not found" });
+      const data = await r.json() as { id: string; name: string };
+      res.json(data);
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   app.get("/api/admin/stats", requireAdmin, (req, res) => {
     try { res.json(storage.getAdminStats()); }
     catch (e: any) { res.status(500).json({ error: e.message }); }

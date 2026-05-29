@@ -96,7 +96,7 @@ function SkinPreview({ username }: { username: string }) {
     setSkinUrl(null);
     const timer = setTimeout(async () => {
       try {
-        const r = await fetch(`https://api.mojang.com/users/profiles/minecraft/${username}`);
+        const r = await fetch(`/api/minecraft/uuid/${username}`);
         if (!r.ok) throw new Error("not found");
         const data = await r.json();
         setSkinUrl(`https://mc-heads.net/body/${data.id}/64`);
