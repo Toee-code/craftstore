@@ -122,31 +122,23 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
       const token = crypto.randomBytes(32).toString("hex");
       const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
       storage.createOwnerSession(Number(userId), token, expiresAt);
-      // Set HttpOnly cookie — 30 days
-      res.cookie("cs_owner_token", token, {
-        httpOnly: true,
-        secure: true,  // always secure — Render is always HTTPS
-        sameSite: "none",  // needed for cross-origin proxy setup
-        maxAge: 30 * 24 * 60 * 60 * 1000,
-        path: "/",
-      });
       const { passwordHash, ...safeUser } = user;
-      res.json({ ok: true, user: safeUser });
+      // Return token to frontend — stored in localStorage, sent as x-session-token header
+      res.json({ ok: true, token, user: safeUser });
     } catch (e: any) {
       res.status(500).json({ error: e.message });
     }
   });
 
-  // Restore session from cookie (called on page load)
+  // Restore session — token sent via x-session-token header (stored in localStorage)
   app.get("/api/auth/session", (req, res) => {
     try {
-      const token = req.cookies?.["cs_owner_token"];
+      const token = req.headers["x-session-token"] as string;
       if (!token) return res.status(401).json({ error: "No session" });
       const session = storage.getOwnerSession(token);
       if (!session) return res.status(401).json({ error: "Session not found" });
       if (new Date(session.expiresAt) < new Date()) {
         storage.deleteOwnerSession(token);
-        res.clearCookie("cs_owner_token", { path: "/", secure: true, sameSite: "none" });
         return res.status(401).json({ error: "Session expired" });
       }
       const user = storage.getUserById(session.userId);
@@ -161,9 +153,8 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
   // Delete session (logout)
   app.delete("/api/auth/session", (req, res) => {
     try {
-      const token = req.cookies?.["cs_owner_token"];
+      const token = req.headers["x-session-token"] as string;
       if (token) storage.deleteOwnerSession(token);
-      res.clearCookie("cs_owner_token", { path: "/", secure: true, sameSite: "none" });
       res.json({ ok: true });
     } catch (e: any) {
       res.status(500).json({ error: e.message });

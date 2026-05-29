@@ -15,40 +15,59 @@ interface AuthState {
   hydrate: () => Promise<void>;
 }
 
-const LS_KEY = "cs_uid";
+const LS_KEY = "cs_token";
 
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   hydrated: false,
 
   setUser: (user) => {
-    if (user) {
-      try { localStorage.setItem(LS_KEY, String(user.id)); } catch {}
-    }
     set({ user });
+    // Token is saved separately after login via saveToken()
   },
 
   logout: () => {
-    try { localStorage.removeItem(LS_KEY); } catch {}
+    try {
+      const token = localStorage.getItem(LS_KEY);
+      if (token) fetch('/api/auth/session', { method: 'DELETE', headers: { 'x-session-token': token } });
+      localStorage.removeItem(LS_KEY);
+    } catch {}
     set({ user: null });
   },
 
-  // Called once on app mount — silently restores session from localStorage
+  // Called once on app mount — silently restores session from localStorage token
   hydrate: async () => {
     if (get().hydrated) return;
     try {
-      const uid = localStorage.getItem(LS_KEY);
-      if (uid) {
-        const res = await fetch(`/api/auth/me/${uid}`);
+      const token = localStorage.getItem(LS_KEY);
+      if (token) {
+        const res = await fetch('/api/auth/session', {
+          headers: { 'x-session-token': token }
+        });
         if (res.ok) {
-          const user = await res.json();
-          set({ user, hydrated: true });
+          const data = await res.json();
+          set({ user: data.user, hydrated: true });
           return;
         }
-        // Stale entry — clear it
+        // Token invalid/expired
         localStorage.removeItem(LS_KEY);
       }
     } catch {}
     set({ hydrated: true });
   },
 }));
+
+// Called from Login.tsx after successful login to persist the session
+export async function saveSession(userId: number) {
+  try {
+    const res = await fetch('/api/auth/session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      localStorage.setItem(LS_KEY, data.token);
+    }
+  } catch {}
+}

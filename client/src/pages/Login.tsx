@@ -3,7 +3,7 @@ import { Link, useLocation } from "wouter";
 import { useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { apiRequest } from "@/lib/queryClient";
-import { useAuthStore } from "@/lib/auth";
+import { useAuthStore, saveSession } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,7 +22,8 @@ export default function Login() {
     mutationFn: (data: LoginForm) => apiRequest("POST", "/api/auth/login", data),
     onSuccess: async (res) => {
       const user = await res.json();
-      setUser(user); // automatically saves a 30-day cookie
+      setUser(user);
+      await saveSession(user.id); // creates server-side token, stores in localStorage
       navigate("/dashboard");
     },
     onError: async (err: any) => {
