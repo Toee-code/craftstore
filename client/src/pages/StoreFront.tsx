@@ -985,19 +985,36 @@ function EchoLayout({
           {/* Right: Login CTA / Player Avatar — skin peeks above bar like EchoSMP */}
           <div className="relative shrink-0 ml-4" style={{ height: 56 }}>
             {memberSession ? (
-              <div className="flex items-center gap-2 h-full px-4 rounded-xl"
-                style={{ background: accent, minWidth: 140 }}>
-                {/* Skin overflowing above */}
-                <div className="absolute bottom-0 left-2" style={{ width: 48, height: 80, pointerEvents: "none" }}>
-                  <img
-                    src={`https://nmsr.nickac.dev/fullbody/${memberSession.minecraftUsername}`}
-                    alt={memberSession.minecraftUsername}
-                    style={{ width: "100%", height: "100%", objectFit: "contain", objectPosition: "bottom" }}
-                  />
+              <div className="relative group">
+                <div className="flex items-center gap-2 h-full px-4 rounded-xl cursor-pointer"
+                  style={{ background: accent, minWidth: 140 }}>
+                  {/* Skin overflowing above */}
+                  <div className="absolute bottom-0 left-2" style={{ width: 48, height: 80, pointerEvents: "none" }}>
+                    <img
+                      src={`https://nmsr.nickac.dev/fullbody/${memberSession.minecraftUsername}`}
+                      alt={memberSession.minecraftUsername}
+                      style={{ width: "100%", height: "100%", objectFit: "contain", objectPosition: "bottom" }}
+                    />
+                  </div>
+                  <div className="flex flex-col min-w-0 ml-12">
+                    <span className="text-sm font-extrabold leading-none text-white truncate">{memberSession.minecraftUsername}</span>
+                    <span className="text-xs mt-0.5" style={{ color: "rgba(0,0,0,0.5)" }}>Logged in ▾</span>
+                  </div>
                 </div>
-                <div className="flex flex-col min-w-0 ml-12">
-                  <span className="text-sm font-extrabold leading-none text-white truncate">{memberSession.minecraftUsername}</span>
-                  <span className="text-xs mt-0.5" style={{ color: "rgba(0,0,0,0.5)" }}>Logged in</span>
+                {/* Dropdown */}
+                <div className="absolute right-0 top-full mt-2 rounded-xl overflow-hidden opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition-all z-50"
+                  style={{ background: "#1a1d24", border: "1px solid rgba(255,255,255,0.1)", minWidth: 160 }}>
+                  <a href={`#/store/${data.server.id}/profile`}
+                    className="flex items-center gap-2 px-4 py-3 text-sm font-medium hover:bg-white/5 transition-colors"
+                    style={{ color: "rgba(255,255,255,0.8)" }}>
+                    <User className="w-4 h-4" /> My Profile
+                  </a>
+                  <button
+                    onClick={() => setMemberSession(null)}
+                    className="w-full flex items-center gap-2 px-4 py-3 text-sm font-medium hover:bg-white/5 transition-colors"
+                    style={{ color: "#f87171", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+                    <LogOut className="w-4 h-4" /> Log Out
+                  </button>
                 </div>
               </div>
             ) : (
