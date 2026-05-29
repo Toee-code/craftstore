@@ -104,7 +104,7 @@ function SkinPreview({ username }: { username: string }) {
 
   return (
     <div className="flex flex-col items-center py-2 gap-2">
-      <div className="relative w-16 h-20 rounded-xl overflow-hidden flex items-center justify-center"
+      <div className="relative w-24 h-32 rounded-xl overflow-hidden flex items-center justify-center"
         style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }}>
         {loading && <Loader2 className="w-5 h-5 animate-spin" style={{ color: "rgba(255,255,255,0.3)" }} />}
         {!loading && skinUrl && (
@@ -895,7 +895,7 @@ function EchoLayout({
         )}
 
         {/* Sub-bar: logo+name left, Login right (with MC skin peeking out) */}
-        <div className="flex items-center px-5 py-3 relative overflow-visible"
+        <div className="flex items-center px-5 py-3 relative overflow-visible" style={{ overflow: "visible" }}
           style={{ background: "#13161c", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
 
           {/* Left: logo pill + server name */}
@@ -912,34 +912,42 @@ function EchoLayout({
             </div>
           </div>
 
-          {/* Right: Login CTA / Player Avatar */}
-          <div className="relative shrink-0 ml-4">
+          {/* Right: Login CTA / Player Avatar — skin peeks above bar like EchoSMP */}
+          <div className="relative shrink-0 ml-4" style={{ height: 56 }}>
             {memberSession ? (
-              <div className="flex items-center gap-3 px-4 py-2 rounded-xl"
-                style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.1)" }}>
-                <div className="relative w-10 h-10 rounded-lg overflow-hidden shrink-0"
-                  style={{ background: "rgba(255,255,255,0.05)" }}>
+              <div className="flex items-center gap-2 h-full px-4 rounded-xl"
+                style={{ background: accent, minWidth: 140 }}>
+                {/* Skin overflowing above */}
+                <div className="absolute bottom-0 left-2" style={{ width: 48, height: 80, pointerEvents: "none" }}>
                   <img
                     src={`https://nmsr.nickac.dev/fullbody/${memberSession.minecraftUsername}`}
                     alt={memberSession.minecraftUsername}
-                    className="h-full object-contain mx-auto"
+                    style={{ width: "100%", height: "100%", objectFit: "contain", objectPosition: "bottom" }}
                   />
                 </div>
-                <div className="flex flex-col min-w-0">
+                <div className="flex flex-col min-w-0 ml-12">
                   <span className="text-sm font-extrabold leading-none text-white truncate">{memberSession.minecraftUsername}</span>
-                  <span className="text-xs mt-0.5" style={{ color: "rgba(255,255,255,0.45)" }}>Logged in</span>
+                  <span className="text-xs mt-0.5" style={{ color: "rgba(0,0,0,0.5)" }}>Logged in</span>
                 </div>
               </div>
             ) : (
               <button
                 onClick={onLogin}
-                className="flex flex-col items-start px-6 py-2.5 rounded-xl font-bold text-white transition-all hover:brightness-110"
-                style={{ background: accent, minWidth: 100 }}
+                className="relative flex items-center h-full rounded-xl font-bold text-white transition-all hover:brightness-110 overflow-visible"
+                style={{ background: accent, minWidth: 160, paddingLeft: 16, paddingRight: 20 }}
                 data-testid="echo-subbar-login">
-                <span className="text-sm font-extrabold leading-none">Login</span>
-                <span className="text-xs font-normal mt-0.5" style={{ color: "rgba(255,255,255,0.75)" }}>
-                  to start shopping
-                </span>
+                {/* Ghost skin silhouette peeking up */}
+                <div className="absolute bottom-0 left-1" style={{ width: 52, height: 84, opacity: 0.35, pointerEvents: "none" }}>
+                  <img
+                    src="https://nmsr.nickac.dev/fullbody/MHF_Steve"
+                    alt=""
+                    style={{ width: "100%", height: "100%", objectFit: "contain", objectPosition: "bottom" }}
+                  />
+                </div>
+                <div className="flex flex-col items-start ml-10">
+                  <span className="text-sm font-extrabold leading-none">Login</span>
+                  <span className="text-xs font-normal mt-0.5" style={{ color: "rgba(255,255,255,0.75)" }}>to start shopping</span>
+                </div>
               </button>
             )}
           </div>
