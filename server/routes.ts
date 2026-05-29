@@ -67,6 +67,28 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
 // Health check — used by Railway and monitoring
   app.get("/api/health", (_req, res) => res.json({ status: "ok" }));
 
+  // Apple Pay domain verification
+  app.get("/.well-known/apple-developer-merchantid-domain-association", async (_req, res) => {
+    try {
+      if (!process.env.STRIPE_SECRET_KEY) {
+        return res.status(404).send("Stripe not configured");
+      }
+      const response = await fetch(
+        "https://api.stripe.com/v1/apple_pay/domains",
+        { headers: { Authorization: `Bearer ${process.env.STRIPE_SECRET_KEY}` } }
+      );
+      // Serve the static Apple Pay domain association file from Stripe CDN
+      const fileRes = await fetch(
+        "https://stripe.com/.well-known/apple-developer-merchantid-domain-association"
+      );
+      const text = await fileRes.text();
+      res.setHeader("Content-Type", "application/octet-stream");
+      res.send(text);
+    } catch (e: any) {
+      res.status(500).send(e.message);
+    }
+  });
+
 
   // ── Auth ─────────────────────────────────────────────────────────────────
   app.post("/api/auth/register", (req, res) => {
