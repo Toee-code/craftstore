@@ -24,7 +24,7 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 import {
   LayoutGrid, List, Star, Plus, Trash2, Save, Eye, Loader2,
   Palette, Type, ImageIcon, Megaphone, Home, DollarSign,
-  ChevronDown, ChevronRight, MessageSquare, X, Globe, Server, Image
+  ChevronDown, ChevronRight, MessageSquare, X, Globe, Server, Image, Layers
 } from "lucide-react";
 import type { StoreTheme } from "@shared/schema";
 
@@ -44,9 +44,11 @@ export const COLOR_SCHEMES: {
 ];
 
 const LAYOUTS = [
-  { id: "grid",     label: "Grid",     Icon: LayoutGrid, desc: "3-column card grid — most popular" },
-  { id: "list",     label: "List",     Icon: List,       desc: "Full-width rows with detail" },
-  { id: "featured", label: "Featured", Icon: Star,       desc: "Hero banner + grid below" },
+  { id: "grid",     label: "Grid",       Icon: LayoutGrid, desc: "3-column card grid — most popular" },
+  { id: "list",     label: "List",       Icon: List,       desc: "Full-width rows with detail" },
+  { id: "featured", label: "Featured",   Icon: Star,       desc: "Hero banner + grid below" },
+  { id: "donut",    label: "DonutSMP",   Icon: Layers,     desc: "Dark tiled cards + featured banner" },
+  { id: "echo",     label: "EchoSMP",    Icon: Star,       desc: "Hero banner + category cards + featured grid" },
 ];
 
 interface ThemeForm {

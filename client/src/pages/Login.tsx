@@ -23,6 +23,10 @@ export default function Login() {
     onSuccess: async (res) => {
       const user = await res.json();
       setUser(user);
+      // Create a persistent session token (30-day cookie)
+      try {
+        await apiRequest("POST", "/api/auth/session", { userId: user.id });
+      } catch {}
       navigate("/dashboard");
     },
     onError: async (err: any) => {

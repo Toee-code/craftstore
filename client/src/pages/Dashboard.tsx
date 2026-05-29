@@ -53,11 +53,11 @@ function NavBar({ onLogout }: { onLogout: () => void }) {
 
 export default function Dashboard() {
   const [, navigate] = useLocation();
-  const { user, setUser } = useAuthStore();
+  const { user, hydrated, logout: authLogout } = useAuthStore();
 
   useEffect(() => {
-    if (!user) navigate("/login");
-  }, [user]);
+    if (hydrated && !user) navigate("/login");
+  }, [user, hydrated]);
 
   const { data: myServers = [], isLoading } = useQuery<ServerType[]>({
     queryKey: ["/api/servers", user?.id],
@@ -65,7 +65,7 @@ export default function Dashboard() {
     enabled: !!user,
   });
 
-  const logout = () => { setUser(null); navigate("/"); };
+  const logout = () => { authLogout().then(() => navigate("/")); };
 
   if (!user) return null;
 

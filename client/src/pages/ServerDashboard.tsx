@@ -18,11 +18,182 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   ArrowLeft, Plus, Trash2, ExternalLink, Package, Users, ShoppingCart,
   BarChart3, Terminal, Copy, Edit3, TrendingUp, DollarSign, Paintbrush, Sparkles,
-  ChevronRight, Loader2, Gift, Globe, CheckCircle2
+  ChevronRight, Loader2, Gift, Globe, CheckCircle2, CreditCard, XCircle, AlertCircle
 } from "lucide-react";
 import StoreAppearance from "./StoreAppearance";
 import StorePresets from "./StorePresets";
 import type { Product, Member, Order, Server } from "@shared/schema";
+
+// ─── Stripe Connect Panel ────────────────────────────────────────────────────
+function StripeConnectPanel({ serverId, server }: { serverId: number; server: any }) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const { data: connectData, isLoading } = useQuery<{ status: string; accountId: string | null }>({
+    queryKey: ["/api/connect/status", serverId],
+    queryFn: () => apiRequest("GET", `/api/connect/status/${serverId}`).then(r => r.json()),
+    refetchInterval: 8000,
+  });
+
+  const onboardMutation = useMutation({
+    mutationFn: () => {
+      if (!server?.ownerId) throw new Error("Server not loaded yet, please try again");
+      return apiRequest("POST", "/api/connect/onboard", { serverId, ownerId: server.ownerId }).then(r => r.json());
+    },
+    onSuccess: (data) => {
+      if (data.demoMode) {
+        toast({ title: "Demo mode", description: "Stripe Connect simulated. Add STRIPE_SECRET_KEY on Render for live payments." });
+        queryClient.invalidateQueries({ queryKey: ["/api/connect/status", serverId] });
+      } else if (data.url) {
+        window.open(data.url, "_blank");
+      }
+    },
+    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const disconnectMutation = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/connect/disconnect", { serverId }).then(r => r.json()),
+    onSuccess: () => {
+      toast({ title: "Disconnected", description: "Stripe account unlinked from this server." });
+      queryClient.invalidateQueries({ queryKey: ["/api/connect/status", serverId] });
+    },
+  });
+
+  const status = connectData?.status || "not_connected";
+
+  const statusBadge = {
+    active: <Badge className="bg-green-500/15 text-green-400 border-green-500/30 gap-1"><CheckCircle2 className="w-3 h-3" /> Connected</Badge>,
+    pending: <Badge className="bg-yellow-500/15 text-yellow-400 border-yellow-500/30 gap-1"><Loader2 className="w-3 h-3 animate-spin" /> Pending</Badge>,
+    not_connected: <Badge className="bg-muted text-muted-foreground gap-1"><XCircle className="w-3 h-3" /> Not Connected</Badge>,
+  }[status] ?? null;
+
+  return (
+    <div className="max-w-xl space-y-6">
+      {/* Header */}
+      <Card className="bg-card border-border/60">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-base flex items-center gap-2">
+                <CreditCard className="w-4 h-4" /> Stripe Connect
+              </CardTitle>
+              <CardDescription className="mt-1">
+                Connect your Stripe account so members' top-ups go directly to you — CraftStore automatically keeps 20%.
+              </CardDescription>
+            </div>
+            {!isLoading && statusBadge}
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {isLoading ? (
+            <div className="flex items-center gap-2 text-muted-foreground text-sm"><Loader2 className="w-4 h-4 animate-spin" /> Checking status…</div>
+          ) : status === "active" ? (
+            <div className="space-y-4">
+              <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-4">
+                <p className="text-sm font-medium text-green-400 flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4" /> Payments are live
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Every player top-up is automatically split: <strong className="text-foreground">80% to you</strong>, 20% platform fee to CraftStore.
+                </p>
+                {connectData?.accountId && (
+                  <p className="text-xs text-muted-foreground mt-1 font-mono">Account: {connectData.accountId}</p>
+                )}
+              </div>
+              <Button
+                variant="outline" size="sm"
+                onClick={() => disconnectMutation.mutate()}
+                disabled={disconnectMutation.isPending}
+                className="text-destructive border-destructive/40 hover:bg-destructive/10"
+                data-testid="button-disconnect-stripe"
+              >
+                {disconnectMutation.isPending ? <Loader2 className="w-3.5 h-3.5 mr-2 animate-spin" /> : <XCircle className="w-3.5 h-3.5 mr-2" />}
+                Disconnect Stripe Account
+              </Button>
+            </div>
+          ) : status === "pending" ? (
+            <div className="space-y-4">
+              <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4">
+                <p className="text-sm font-medium text-yellow-400 flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4" /> Onboarding in progress
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Finish setting up your Stripe account to start receiving payments. Once approved, this page will update automatically.
+                </p>
+              </div>
+              <Button
+                size="sm" onClick={() => onboardMutation.mutate()}
+                disabled={onboardMutation.isPending}
+                data-testid="button-resume-stripe"
+              >
+                {onboardMutation.isPending ? <Loader2 className="w-3.5 h-3.5 mr-2 animate-spin" /> : <CreditCard className="w-3.5 h-3.5 mr-2" />}
+                Resume Stripe Setup
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="bg-muted/40 rounded-lg p-4 text-sm text-muted-foreground space-y-2">
+                <p className="font-medium text-foreground">How it works</p>
+                <ol className="list-decimal list-inside space-y-1 text-xs">
+                  <li>Click Connect below — you'll be taken to Stripe to set up a free Express account (takes ~2 mins)</li>
+                  <li>Once approved, member top-ups automatically go to your Stripe account</li>
+                  <li>CraftStore keeps 20% as a platform fee — no manual invoicing needed</li>
+                </ol>
+              </div>
+              <Button
+                onClick={() => onboardMutation.mutate()}
+                disabled={onboardMutation.isPending}
+                className="gap-2"
+                data-testid="button-connect-stripe"
+              >
+                {onboardMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <CreditCard className="w-4 h-4" />}
+                Connect with Stripe
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Earnings summary card */}
+      {status === "active" && (
+        <Card className="bg-card border-border/60">
+          <CardHeader><CardTitle className="text-base">Your Earnings</CardTitle></CardHeader>
+          <CardContent>
+            <EarningsSummary serverId={serverId} />
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
+
+function EarningsSummary({ serverId }: { serverId: number }) {
+  const { data: orders } = useQuery<any[]>({
+    queryKey: ["/api/servers", serverId, "orders"],
+    queryFn: () => apiRequest("GET", `/api/servers/${serverId}/orders`).then(r => r.json()),
+  });
+  if (!orders) return <div className="text-sm text-muted-foreground">Loading…</div>;
+  const completed = orders.filter(o => o.status === "completed");
+  const gross = completed.reduce((s: number, o: any) => s + o.amount, 0);
+  const fees = completed.reduce((s: number, o: any) => s + (o.platformFee || gross * 0.2), 0);
+  const net = gross - fees;
+  return (
+    <div className="grid grid-cols-3 gap-4">
+      <div className="text-center">
+        <p className="text-xl font-bold">£{gross.toFixed(2)}</p>
+        <p className="text-xs text-muted-foreground mt-0.5">Gross Revenue</p>
+      </div>
+      <div className="text-center">
+        <p className="text-xl font-bold text-red-400">-£{fees.toFixed(2)}</p>
+        <p className="text-xs text-muted-foreground mt-0.5">Platform Fee (20%)</p>
+      </div>
+      <div className="text-center">
+        <p className="text-xl font-bold text-green-400">£{net.toFixed(2)}</p>
+        <p className="text-xs text-muted-foreground mt-0.5">Your Payout</p>
+      </div>
+    </div>
+  );
+}
 
 interface ProductForm {
   name: string; description: string; price: number;
@@ -155,184 +326,94 @@ function StatCard({ icon: Icon, label, value, sub }: any) {
   );
 }
 
-// ─── Domain Tab ──────────────────────────────────────────────────────────────
-function DomainTab({ serverId }: { serverId: number; server?: Server }) {
-  const { user } = useAuthStore();
+// ─── Domain Tab ────────────────────────────────────────────────────────────────────
+function nameToSlug(name: string): string {
+  return name.toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .trim()
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-");
+}
+
+function DomainTab({ server }: { serverId: number; server?: any }) {
+  const ROOT_DOMAIN = "craftstore.org.uk";
+  const slug = server?.name ? nameToSlug(server.name) : "";
+  const autoUrl = slug ? `https://${slug}.${ROOT_DOMAIN}` : null;
   const { toast } = useToast();
-  const qc = useQueryClient();
-  const [customDomain, setCustomDomain] = useState("");
-  const [purchasing, setPurchasing] = useState(false);
-
-  // Own query so it re-fetches independently after activation
-  const { data: serverData, refetch } = useQuery<any>({
-    queryKey: ["/api/servers", serverId, "domain-tab"],
-    queryFn: () => apiRequest("GET", `/api/servers/${serverId}`).then(r => r.json()),
-  });
-
-  // domainPlanActive can be true (boolean) or 1 (integer from SQLite) — normalise
-  const domainActive = serverData ? (serverData.domainPlanActive === true || serverData.domainPlanActive === 1) : false;
-  const currentDomain = serverData?.customDomain || "";
-  const slugDomain = serverData?.slugDomain || null;
-
-  useEffect(() => {
-    if (currentDomain) setCustomDomain(currentDomain);
-  }, [currentDomain]);
-
-  const saveDomainMutation = useMutation({
-    mutationFn: () =>
-      apiRequest("PATCH", `/api/servers/${serverId}/domain`, { customDomain }).then(r => r.json()),
-    onSuccess: () => {
-      refetch();
-      qc.invalidateQueries({ queryKey: ["/api/servers", serverId] });
-      toast({ title: "Domain saved", description: "Your custom domain has been updated." });
-    },
-    onError: () => toast({ title: "Failed to save", variant: "destructive" }),
-  });
-
-  const startCheckout = async () => {
-    if (!user) return;
-    setPurchasing(true);
-    try {
-      const res = await apiRequest("POST", "/api/stripe/domain-checkout", {
-        ownerId: user.id, serverId,
-      }).then(r => r.json());
-      if (res.url) {
-        window.location.href = res.url;
-      } else if (res.demoMode) {
-        // Demo: auto-confirm then re-fetch
-        await apiRequest("POST", "/api/stripe/domain-confirm", { sessionId: res.sessionId });
-        await refetch();
-        qc.invalidateQueries({ queryKey: ["/api/servers", serverId] });
-        toast({ title: "Domain plan activated", description: "Set your custom domain below." });
-      }
-    } catch {
-      toast({ title: "Checkout failed", variant: "destructive" });
-    } finally { setPurchasing(false); }
-  };
 
   return (
     <div className="max-w-xl space-y-6">
       <div>
         <h2 className="font-semibold">Your Store Domain</h2>
         <p className="text-muted-foreground text-sm mt-1">
-          Every store gets a free subdomain. Upgrade for a fully custom domain.
+          Your store automatically gets a free subdomain based on your server name.
         </p>
       </div>
 
-      {/* Free slug domain — always active */}
-      {slugDomain && (
-        <Card className="bg-primary/5 border-primary/30">
-          <CardContent className="pt-5 space-y-2">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                <CheckCircle2 className="w-5 h-5 text-primary" />
-              </div>
-              <div>
-                <p className="font-semibold text-sm">Free Domain — Always Active</p>
-                <p className="text-xs text-muted-foreground mt-0.5">Your store is available at this address right now.</p>
-              </div>
-            </div>
-            <div className="rounded-lg bg-background/60 border border-primary/20 px-4 py-2.5 flex items-center gap-2">
-              <Globe className="w-4 h-4 text-primary shrink-0" />
-              <span className="font-mono text-sm text-primary">{slugDomain}</span>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Plan status */}
-      <Card className="bg-card border-border/60">
-        <CardContent className="pt-5 space-y-4">
+      <Card className="bg-primary/5 border-primary/30">
+        <CardContent className="pt-5 space-y-3">
           <div className="flex items-center gap-3">
-            {domainActive ? (
-              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                <CheckCircle2 className="w-5 h-5 text-primary" />
-              </div>
-            ) : (
-              <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
-                <Globe className="w-5 h-5 text-muted-foreground" />
-              </div>
-            )}
+            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+              <CheckCircle2 className="w-5 h-5 text-primary" />
+            </div>
             <div>
-              <p className="font-semibold text-sm">{domainActive ? "Domain Plan Active" : "Domain Plan"}</p>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                {domainActive ? "Your plan is active — set your domain below." : "£4.99/month · Host at your own domain"}
-              </p>
+              <p className="font-semibold text-sm">Free Subdomain — Always Active</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Automatically generated from your server name</p>
             </div>
-            {!domainActive && (
-              <Button
-                size="sm"
-                className="ml-auto"
-                onClick={startCheckout}
-                disabled={purchasing}
-                data-testid="button-buy-domain-plan"
-              >
-                {purchasing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <><Globe className="w-3.5 h-3.5 mr-1.5" />Buy Plan</>}
-              </Button>
-            )}
           </div>
-
-          {/* Domain input — only shown once plan is active */}
-          {domainActive && (
-            <div className="space-y-3 pt-2 border-t border-border/40">
-              <div>
-                <Label className="text-sm">Your Custom Domain</Label>
-                <div className="flex gap-2 mt-1.5">
-                  <Input
-                    value={customDomain}
-                    onChange={e => setCustomDomain(e.target.value)}
-                    placeholder="shop.yourserver.net"
-                    className="font-mono text-sm"
-                    data-testid="input-custom-domain"
-                  />
-                  <Button
-                    size="sm"
-                    onClick={() => saveDomainMutation.mutate()}
-                    disabled={saveDomainMutation.isPending || !customDomain.trim()}
-                    data-testid="button-save-domain"
-                  >
-                    {saveDomainMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Save"}
-                  </Button>
-                </div>
-              </div>
-              {/* CNAME instructions */}
-              <div className="rounded-lg bg-muted/30 p-4 text-xs space-y-2">
-                <p className="font-semibold text-foreground">DNS Setup Instructions</p>
-                <p className="text-muted-foreground">Add a CNAME record in your DNS provider pointing to CraftStore:</p>
-                <div className="font-mono bg-background rounded p-2 space-y-1 text-foreground">
-                  <p><span className="text-primary">Type:</span> CNAME</p>
-                  <p><span className="text-primary">Name:</span> {customDomain.split(".")[0] || "shop"}</p>
-                  <p><span className="text-primary">Value:</span> stores.craftstore.dev</p>
-                  <p><span className="text-primary">TTL:</span> 3600</p>
-                </div>
-                <p className="text-muted-foreground">DNS changes can take up to 24 hours to propagate.</p>
-              </div>
+          {autoUrl ? (
+            <div className="rounded-lg bg-background/60 border border-primary/20 px-4 py-3 flex items-center gap-2">
+              <Globe className="w-4 h-4 text-primary shrink-0" />
+              <span className="font-mono text-sm text-primary flex-1">{autoUrl}</span>
+              <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => { navigator.clipboard.writeText(autoUrl); toast({ title: "Copied!" }); }}>
+                Copy
+              </Button>
             </div>
+          ) : (
+            <p className="text-xs text-muted-foreground">Loading…</p>
           )}
+          <p className="text-xs text-muted-foreground">
+            Make sure your DNS has a wildcard CNAME: <span className="font-mono text-foreground">* → craftstore-s1xb.onrender.com</span>
+          </p>
         </CardContent>
       </Card>
+    </div>
+  );
+}
 
-      {/* What you get */}
-      {!domainActive && (
-        <Card className="bg-card border-border/60">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm">What's included</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {[
-              "Your store at your own domain (e.g. shop.yourserver.net)",
-              "SSL certificate automatically provisioned",
-              "Custom domain shown to players instead of craftstore.dev",
-              "Cancel anytime from your dashboard",
-            ].map(f => (
-              <div key={f} className="flex items-start gap-2 text-sm">
-                <CheckCircle2 className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-                <span className="text-muted-foreground">{f}</span>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      )}
+
+function WebhookSecretEditor({ serverId, currentSecret }: { serverId: number; currentSecret: string }) {
+  const [secret, setSecret] = useState(currentSecret);
+  const [saved, setSaved] = useState(false);
+  const queryClient = useQueryClient();
+
+  const saveMutation = useMutation({
+    mutationFn: () => apiRequest("PATCH", `/api/servers/${serverId}`, { webhookSecret: secret }).then(r => r.json()),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/servers", serverId] });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    },
+  });
+
+  return (
+    <div>
+      <Label>Webhook Secret</Label>
+      <div className="flex gap-2 mt-1.5">
+        <Input
+          value={secret}
+          onChange={e => setSecret(e.target.value)}
+          placeholder="Enter a secret key e.g. mysecret123"
+          className="font-mono text-xs"
+        />
+        <Button size="sm" variant="outline" onClick={() => { navigator.clipboard.writeText(secret); }}>
+          <Copy className="w-3.5 h-3.5" />
+        </Button>
+        <Button size="sm" onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
+          {saved ? "Saved!" : saveMutation.isPending ? "Saving..." : "Save"}
+        </Button>
+      </div>
+      <p className="text-xs text-muted-foreground mt-1.5">Set a secret, put it in your plugin config.yml, and CraftStore will send it with every webhook so your plugin can verify it.</p>
     </div>
   );
 }
@@ -427,7 +508,7 @@ export default function ServerDashboard() {
               <Button variant="ghost" size="icon" className="h-8 w-8"><ArrowLeft className="w-4 h-4" /></Button>
             </Link>
             <div>
-              <span className="font-bold text-sm">{server?.name || "Loading…"}</span>
+              <span className="font-bold text-sm">{server?.name ?? ""}</span>
               <span className="text-muted-foreground text-xs ml-2">Server Dashboard</span>
             </div>
           </div>
@@ -478,6 +559,9 @@ export default function ServerDashboard() {
             </TabsTrigger>
             <TabsTrigger value="domain" data-testid="tab-domain" className="gap-1.5">
               <Globe className="w-3.5 h-3.5" /> Domain
+            </TabsTrigger>
+            <TabsTrigger value="payments" data-testid="tab-payments" className="gap-1.5">
+              <CreditCard className="w-3.5 h-3.5" /> Payments
             </TabsTrigger>
             <TabsTrigger value="settings" data-testid="tab-settings">Settings</TabsTrigger>
           </TabsList>
@@ -747,24 +831,17 @@ export default function ServerDashboard() {
           </TabsContent>
 
           {/* Settings Tab */}
+          {/* Payments / Stripe Connect Tab */}
+          <TabsContent value="payments">
+            <StripeConnectPanel serverId={Number(id)} server={server} />
+          </TabsContent>
+
           <TabsContent value="settings">
             <div className="max-w-xl space-y-6">
               <Card className="bg-card border-border/60">
                 <CardHeader><CardTitle className="text-base">Webhook Configuration</CardTitle></CardHeader>
                 <CardContent className="space-y-4">
-                  <div>
-                    <Label>Webhook Secret</Label>
-                    <div className="flex gap-2 mt-1.5">
-                      <Input value={server?.webhookSecret || ""} readOnly className="font-mono text-xs" />
-                      <Button
-                        size="sm" variant="outline"
-                        onClick={() => { navigator.clipboard.writeText(server?.webhookSecret || ""); toast({ title: "Copied!" }); }}
-                      >
-                        <Copy className="w-3.5 h-3.5" />
-                      </Button>
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-1.5">Use this to verify webhook deliveries in your plugin (check the X-CraftStore-Secret header).</p>
-                  </div>
+                  <WebhookSecretEditor serverId={Number(id)} currentSecret={server?.webhookSecret || ""} />
                   <div className="bg-muted/30 rounded-lg p-4 text-xs font-mono text-muted-foreground space-y-1">
                     <p className="text-primary font-semibold mb-2">Example webhook payload:</p>
                     <p>{"{"}</p>

@@ -29,6 +29,8 @@ export const servers = sqliteTable("servers", {
   serverIp: text("server_ip"),                                      // NEW: Minecraft server IP
   customDomain: text("custom_domain"),                              // NEW: custom domain (paid)
   domainPlanActive: integer("domain_plan_active", { mode: "boolean" }).default(false), // NEW
+  stripeAccountId: text("stripe_account_id"),         // Stripe Connect account ID
+  stripeConnectStatus: text("stripe_connect_status").default("not_connected"), // "not_connected" | "pending" | "active"
   createdAt: text("created_at").notNull().default(new Date().toISOString()),
 });
 
@@ -216,3 +218,15 @@ export const giftOrders = sqliteTable("gift_orders", {
 export const insertGiftOrderSchema = createInsertSchema(giftOrders).omit({ id: true, createdAt: true });
 export type InsertGiftOrder = z.infer<typeof insertGiftOrderSchema>;
 export type GiftOrder = typeof giftOrders.$inferSelect;
+
+// ─── Owner Sessions ───────────────────────────────────────────────────────────
+// Persistent login tokens for server owners — stored server-side, token sent via cookie
+export const ownerSessions = sqliteTable("owner_sessions", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: integer("user_id").notNull(),
+  token: text("token").notNull().unique(),
+  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+  expiresAt: text("expires_at").notNull(),
+});
+
+export type OwnerSession = typeof ownerSessions.$inferSelect;

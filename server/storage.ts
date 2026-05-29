@@ -3,7 +3,7 @@ import Database from "better-sqlite3";
 import { eq, and, desc, sql, gte } from "drizzle-orm";
 import {
   users, servers, products, members, orders, notifications, storeThemes, storePresets, presetPurchases,
-  checkoutSessions, memberAccounts, giftOrders,
+  checkoutSessions, memberAccounts, giftOrders, ownerSessions,
   type User, type InsertUser,
   type Server, type InsertServer,
   type Product, type InsertProduct,
@@ -16,6 +16,7 @@ import {
   type CheckoutSession, type InsertCheckoutSession,
   type MemberAccount, type InsertMemberAccount,
   type GiftOrder, type InsertGiftOrder,
+  type OwnerSession,
 } from "@shared/schema";
 
 // Use /data volume on Railway (persistent), fallback to local file
@@ -167,6 +168,9 @@ const alterStatements = [
   "ALTER TABLE servers ADD COLUMN server_ip TEXT",
   "ALTER TABLE servers ADD COLUMN custom_domain TEXT",
   "ALTER TABLE servers ADD COLUMN domain_plan_active INTEGER DEFAULT 0",
+  // v5 — Stripe Connect
+  "ALTER TABLE servers ADD COLUMN stripe_account_id TEXT",
+  "ALTER TABLE servers ADD COLUMN stripe_connect_status TEXT DEFAULT 'not_connected'",
 ];
 for (const stmt of alterStatements) {
   try { sqlite.exec(stmt); } catch { /* column already exists */ }
@@ -181,6 +185,37 @@ sqlite.exec(`
     server_id INTEGER NOT NULL,
     status TEXT NOT NULL DEFAULT 'pending',
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+`);
+
+// Subdomain claims table
+sqlite.exec(`
+  CREATE TABLE IF NOT EXISTS subdomain_claims (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    server_id INTEGER NOT NULL UNIQUE,
+    subdomain TEXT NOT NULL UNIQUE,
+    claimed_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+`);
+
+// Device tokens table
+sqlite.exec(`
+  CREATE TABLE IF NOT EXISTS device_tokens (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    owner_id INTEGER NOT NULL,
+    token TEXT NOT NULL UNIQUE,
+    platform TEXT NOT NULL DEFAULT 'expo',
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+`);
+
+sqlite.exec(`
+  CREATE TABLE IF NOT EXISTS owner_sessions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    token TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    expires_at TEXT NOT NULL
   );
 `);
 
@@ -208,6 +243,7 @@ export interface IStorage {
   getUserByUsername(username: string): User | undefined;
   // Servers
   createServer(data: InsertServer): Server;
+  getAllServers(): any[];
   getServersByOwner(ownerId: number): Server[];
   getServerById(id: number): Server | undefined;
   updateServer(id: number, data: Partial<InsertServer>): Server | undefined;
@@ -261,6 +297,18 @@ export interface IStorage {
   getDomainCheckout(stripeSessionId: string): { id: number; stripeSessionId: string; ownerId: number; serverId: number; status: string } | undefined;
   activateDomainPlan(serverId: number, customDomain?: string): void;
   // Admin
+  // Subdomain claims
+  claimSubdomain(serverId: number, subdomain: string): { success: boolean; error?: string };
+  revokeSubdomain(serverId: number): void;
+  getSubdomainByServer(serverId: number): string | null;
+  getServerBySubdomain(subdomain: string): any | null;
+  getAllSubdomainClaims(): any[];
+
+  // Push notifications
+  registerDeviceToken(ownerId: number, token: string, platform: string): void;
+  getDeviceTokensForOwner(ownerId: number): string[];
+  getDeviceTokensForServer(serverId: number): string[];
+
   getAdminStats(): {
     totalServers: number;
     totalOwners: number;
@@ -271,6 +319,12 @@ export interface IStorage {
     activeDomainPlans: number;
   };
   getAdminServers(): any[];
+  getAuditLog(limit?: number): any[];
+  // Owner sessions (persistent login)
+  createOwnerSession(userId: number, token: string, expiresAt: string): OwnerSession;
+  getOwnerSession(token: string): OwnerSession | undefined;
+  deleteOwnerSession(token: string): void;
+  deleteExpiredOwnerSessions(): void;
 }
 
 export const storage: IStorage = {
@@ -304,8 +358,13 @@ export const storage: IStorage = {
       serverIp: row.server_ip || null,
       customDomain: row.custom_domain || null,
       domainPlanActive: row.domain_plan_active === 1,
+      stripeAccountId: row.stripe_account_id || null,
+      stripeConnectStatus: row.stripe_connect_status || 'not_connected',
       createdAt: row.created_at,
     } as any;
+  },
+  getAllServers() {
+    return sqlite.prepare(`SELECT * FROM servers`).all() as any[];
   },
   getServersByOwner(ownerId) {
     const rows = sqlite.prepare(`SELECT * FROM servers WHERE owner_id = ?`).all(ownerId) as any[];
@@ -317,6 +376,8 @@ export const storage: IStorage = {
       serverIp: row.server_ip || null,
       customDomain: row.custom_domain || null,
       domainPlanActive: row.domain_plan_active === 1,
+      stripeAccountId: row.stripe_account_id || null,
+      stripeConnectStatus: row.stripe_connect_status || 'not_connected',
       createdAt: row.created_at,
     } as any));
   },
@@ -327,6 +388,7 @@ export const storage: IStorage = {
       logoUrl: 'logo_url', description: 'description',
       discordUrl: 'discord_url', serverIp: 'server_ip',
       customDomain: 'custom_domain', domainPlanActive: 'domain_plan_active',
+      stripeAccountId: 'stripe_account_id', stripeConnectStatus: 'stripe_connect_status',
     };
     const entries = Object.entries(data).filter(([k]) => fieldMap[k] !== undefined);
     if (entries.length === 0) return storage.getServerById(id);
@@ -516,6 +578,17 @@ export const storage: IStorage = {
     `).all(serverId) as GiftOrder[];
   },
 
+  getGiftsReceivedByUsername(serverId: number, username: string) {
+    return sqlite.prepare(`
+      SELECT g.*, o.amount, o.created_at as order_date, p.name as product_name
+      FROM gift_orders g
+      JOIN orders o ON o.id = g.order_id
+      LEFT JOIN products p ON p.id = o.product_id
+      WHERE o.server_id = ? AND g.recipient_username = ?
+      ORDER BY g.created_at DESC
+    `).all(serverId, username) as any[];
+  },
+
   // ── Domain Checkout ────────────────────────────────────────────────────────
   createDomainCheckout(stripeSessionId, ownerId, serverId) {
     sqlite.prepare(`INSERT INTO domain_checkout_sessions (stripe_session_id, owner_id, server_id) VALUES (?,?,?)`)
@@ -542,7 +615,85 @@ export const storage: IStorage = {
     }
   },
 
-  // ── Admin ───────────────────────────────────────────────────────────────
+  // ── Subdomain ────────────────────────────────────────────────────────────
+  claimSubdomain(serverId, subdomain) {
+    // Ensure table exists (safe on live DB that was created before this migration)
+    sqlite.exec(`CREATE TABLE IF NOT EXISTS subdomain_claims (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      server_id INTEGER NOT NULL UNIQUE,
+      subdomain TEXT NOT NULL UNIQUE,
+      claimed_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )`);
+    // Validate: lowercase alphanumeric + hyphens only, 3-32 chars
+    if (!/^[a-z0-9][a-z0-9-]{0,30}[a-z0-9]$/.test(subdomain) && !/^[a-z0-9]{3,32}$/.test(subdomain)) {
+      return { success: false, error: 'Subdomain must be 3-32 lowercase letters, numbers, or hyphens.' };
+    }
+    // Check not taken by another server
+    const existing = sqlite.prepare(
+      'SELECT server_id FROM subdomain_claims WHERE subdomain = ? AND server_id != ?'
+    ).get(subdomain, serverId) as any;
+    if (existing) return { success: false, error: 'That subdomain is already taken.' };
+    sqlite.prepare(
+      "INSERT INTO subdomain_claims (server_id, subdomain) VALUES (?, ?) ON CONFLICT(server_id) DO UPDATE SET subdomain = excluded.subdomain, claimed_at = datetime('now')"
+    ).run(serverId, subdomain);
+    return { success: true };
+  },
+
+  revokeSubdomain(serverId) {
+    try { sqlite.exec(`CREATE TABLE IF NOT EXISTS subdomain_claims (id INTEGER PRIMARY KEY AUTOINCREMENT, server_id INTEGER NOT NULL UNIQUE, subdomain TEXT NOT NULL UNIQUE, claimed_at TEXT NOT NULL DEFAULT (datetime('now')))`); } catch {}
+    sqlite.prepare('DELETE FROM subdomain_claims WHERE server_id = ?').run(serverId);
+  },
+
+  getSubdomainByServer(serverId) {
+    try { sqlite.exec(`CREATE TABLE IF NOT EXISTS subdomain_claims (id INTEGER PRIMARY KEY AUTOINCREMENT, server_id INTEGER NOT NULL UNIQUE, subdomain TEXT NOT NULL UNIQUE, claimed_at TEXT NOT NULL DEFAULT (datetime('now')))`); } catch {}
+    const row = sqlite.prepare('SELECT subdomain FROM subdomain_claims WHERE server_id = ?').get(serverId) as any;
+    return row ? row.subdomain : null;
+  },
+
+  getServerBySubdomain(subdomain) {
+    const row = sqlite.prepare(`
+      SELECT s.*, sc.subdomain FROM servers s
+      JOIN subdomain_claims sc ON sc.server_id = s.id
+      WHERE sc.subdomain = ?
+    `).get(subdomain) as any;
+    return row || null;
+  },
+
+  getAllSubdomainClaims() {
+    try { sqlite.exec(`CREATE TABLE IF NOT EXISTS subdomain_claims (id INTEGER PRIMARY KEY AUTOINCREMENT, server_id INTEGER NOT NULL UNIQUE, subdomain TEXT NOT NULL UNIQUE, claimed_at TEXT NOT NULL DEFAULT (datetime('now')))`); } catch {}
+    return sqlite.prepare(`
+      SELECT sc.id, sc.subdomain, sc.claimed_at, sc.server_id,
+             s.name as server_name, s.logo_url,
+             u.username as owner_name, u.email as owner_email
+      FROM subdomain_claims sc
+      JOIN servers s ON s.id = sc.server_id
+      JOIN users u ON u.id = s.owner_id
+      ORDER BY sc.claimed_at DESC
+    `).all() as any[];
+  },
+
+  registerDeviceToken(ownerId, token, platform = 'expo') {
+    sqlite.prepare(
+      'INSERT OR REPLACE INTO device_tokens (owner_id, token, platform) VALUES (?, ?, ?)'
+    ).run(ownerId, token, platform);
+  },
+
+  getDeviceTokensForOwner(ownerId) {
+    const rows = sqlite.prepare(
+      'SELECT token FROM device_tokens WHERE owner_id = ?'
+    ).all(ownerId) as { token: string }[];
+    return rows.map(r => r.token);
+  },
+
+  getDeviceTokensForServer(serverId) {
+    const rows = sqlite.prepare(`
+      SELECT dt.token FROM device_tokens dt
+      JOIN servers s ON s.owner_id = dt.owner_id
+      WHERE s.id = ?
+    `).all(serverId) as { token: string }[];
+    return rows.map(r => r.token);
+  },
+
   getAdminStats() {
     const totalServers = (sqlite.prepare(`SELECT COUNT(*) as n FROM servers`).get() as any).n;
     const totalOwners = (sqlite.prepare(`SELECT COUNT(DISTINCT owner_id) as n FROM servers`).get() as any).n;
@@ -589,5 +740,107 @@ export const storage: IStorage = {
       ) pp ON pp.server_id=s.id
       ORDER BY s.id DESC
     `).all() as any[];
+  },
+
+  getAuditLog(limit = 200) {
+    // Completed orders
+    const orders = sqlite.prepare(`
+      SELECT
+        'order' as event_type,
+        o.id as event_id,
+        o.created_at,
+        s.name as server_name,
+        u.username as owner_name,
+        u.email as owner_email,
+        o.minecraft_username as detail1,
+        pr.name as detail2,
+        o.amount as amount,
+        o.platform_fee as platform_fee,
+        o.status as status
+      FROM orders o
+      JOIN servers s ON s.id = o.server_id
+      JOIN users u ON u.id = s.owner_id
+      LEFT JOIN products pr ON pr.id = o.product_id
+      WHERE o.status = 'completed'
+    `).all() as any[];
+
+    // Preset purchases
+    const presets = sqlite.prepare(`
+      SELECT
+        'preset_purchase' as event_type,
+        pp.id as event_id,
+        pp.purchased_at as created_at,
+        s.name as server_name,
+        u.username as owner_name,
+        u.email as owner_email,
+        sp.name as detail1,
+        NULL as detail2,
+        sp.price as amount,
+        NULL as platform_fee,
+        'completed' as status
+      FROM preset_purchases pp
+      JOIN users u ON u.id = pp.owner_id
+      LEFT JOIN servers s ON s.id = pp.server_id
+      JOIN store_presets sp ON sp.id = pp.preset_id
+    `).all() as any[];
+
+    // Domain activations
+    const domains = sqlite.prepare(`
+      SELECT
+        'domain_activation' as event_type,
+        dcs.id as event_id,
+        dcs.created_at,
+        s.name as server_name,
+        u.username as owner_name,
+        u.email as owner_email,
+        s.custom_domain as detail1,
+        NULL as detail2,
+        4.99 as amount,
+        NULL as platform_fee,
+        dcs.status as status
+      FROM domain_checkout_sessions dcs
+      JOIN servers s ON s.id = dcs.server_id
+      JOIN users u ON u.id = dcs.owner_id
+      WHERE dcs.status = 'completed'
+    `).all() as any[];
+
+    // Gift orders
+    const gifts = sqlite.prepare(`
+      SELECT
+        'gift' as event_type,
+        g.id as event_id,
+        g.created_at,
+        s.name as server_name,
+        u.username as owner_name,
+        u.email as owner_email,
+        g.sender_username as detail1,
+        g.recipient_username as detail2,
+        o.amount as amount,
+        o.platform_fee as platform_fee,
+        'completed' as status
+      FROM gift_orders g
+      JOIN orders o ON o.id = g.order_id
+      JOIN servers s ON s.id = o.server_id
+      JOIN users u ON u.id = s.owner_id
+    `).all() as any[];
+
+    // Merge and sort by date desc
+    const all = [...orders, ...presets, ...domains, ...gifts];
+    all.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    return all.slice(0, limit);
+  },
+
+  // ── Owner Sessions ─────────────────────────────────────────────────────────
+  createOwnerSession(userId, token, expiresAt) {
+    return db.insert(ownerSessions).values({ userId, token, expiresAt }).returning().get();
+  },
+  getOwnerSession(token) {
+    return db.select().from(ownerSessions).where(eq(ownerSessions.token, token)).get();
+  },
+  deleteOwnerSession(token) {
+    db.delete(ownerSessions).where(eq(ownerSessions.token, token)).run();
+  },
+  deleteExpiredOwnerSessions() {
+    db.delete(ownerSessions).where(sql`expires_at < ${new Date().toISOString()}`).run();
   },
 };

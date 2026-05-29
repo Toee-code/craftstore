@@ -32,12 +32,39 @@ function slugDomain(serverName: string): string {
 
 // Admin secret (env var or hardcoded dev fallback)
 const ADMIN_SECRET = process.env.ADMIN_SECRET || "craftstore_admin_2024";
+const ROOT_DOMAIN = process.env.ROOT_DOMAIN || "craftstore.org.uk";
 
 // Platform fee rate: 20%
 const PLATFORM_FEE_RATE = 0.2;
 
 export async function registerRoutes(httpServer: HttpServer, app: Express) {
-  // Health check — used by Railway and monitoring
+  // ── Expo Push Notification helper ────────────────────────────────────────────
+async function sendPushNotifications(tokens: string[], title: string, body: string, data?: object) {
+  if (!tokens || tokens.length === 0) return;
+  const messages = tokens
+    .filter(t => t && t.startsWith('ExponentPushToken['))
+    .map(token => ({
+      to: token,
+      sound: 'default' as const,
+      title,
+      body,
+      data: data || {},
+      priority: 'high' as const,
+    }));
+  if (messages.length === 0) return;
+  try {
+    await fetch('https://exp.host/--/api/v2/push/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify(messages),
+    });
+  } catch (e) {
+    console.error('[push] Failed to send notifications:', e);
+  }
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Health check — used by Railway and monitoring
   app.get("/api/health", (_req, res) => res.json({ status: "ok" }));
 
 
@@ -79,6 +106,68 @@ export async function registerRoutes(httpServer: HttpServer, app: Express) {
     if (!user) return res.status(404).json({ error: "Not found" });
     const { passwordHash, ...safeUser } = user;
     res.json(safeUser);
+  });
+
+  // ── Persistent Owner Sessions ────────────────────────────────────────────
+  // Create a session token after login (called from frontend after successful login)
+  app.post("/api/auth/session", (req, res) => {
+    try {
+      const { userId } = req.body;
+      if (!userId) return res.status(400).json({ error: "userId required" });
+      const user = storage.getUserById(Number(userId));
+      if (!user) return res.status(404).json({ error: "User not found" });
+      // Clean up expired sessions periodically
+      storage.deleteExpiredOwnerSessions();
+      // 30-day expiry
+      const token = crypto.randomBytes(32).toString("hex");
+      const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+      storage.createOwnerSession(Number(userId), token, expiresAt);
+      // Set HttpOnly cookie — 30 days
+      res.cookie("cs_owner_token", token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        maxAge: 30 * 24 * 60 * 60 * 1000,
+        path: "/",
+      });
+      const { passwordHash, ...safeUser } = user;
+      res.json({ ok: true, user: safeUser });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // Restore session from cookie (called on page load)
+  app.get("/api/auth/session", (req, res) => {
+    try {
+      const token = req.cookies?.["cs_owner_token"];
+      if (!token) return res.status(401).json({ error: "No session" });
+      const session = storage.getOwnerSession(token);
+      if (!session) return res.status(401).json({ error: "Session not found" });
+      if (new Date(session.expiresAt) < new Date()) {
+        storage.deleteOwnerSession(token);
+        res.clearCookie("cs_owner_token");
+        return res.status(401).json({ error: "Session expired" });
+      }
+      const user = storage.getUserById(session.userId);
+      if (!user) return res.status(401).json({ error: "User not found" });
+      const { passwordHash, ...safeUser } = user;
+      res.json({ ok: true, user: safeUser });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // Delete session (logout)
+  app.delete("/api/auth/session", (req, res) => {
+    try {
+      const token = req.cookies?.["cs_owner_token"];
+      if (token) storage.deleteOwnerSession(token);
+      res.clearCookie("cs_owner_token", { path: "/" });
+      res.json({ ok: true });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
   });
 
   // ── Servers ───────────────────────────────────────────────────────────────
@@ -239,9 +328,14 @@ export async function registerRoutes(httpServer: HttpServer, app: Express) {
         ? Math.round((basePrice + platformFee) * 100) / 100
         : basePrice;
 
-      // Check member balance
-      const member = storage.getMemberByUsername(Number(serverId), minecraftUsername);
-      if (!member) return res.status(404).json({ error: "Player not found in this server" });
+      // Check member balance — auto-create member record if they have a valid account
+      let member = storage.getMemberByUsername(Number(serverId), minecraftUsername);
+      if (!member) {
+        const account = storage.getMemberAccount(Number(serverId), minecraftUsername);
+        if (!account) return res.status(404).json({ error: "Player not found in this server" });
+        // Auto-create member record for this server
+        member = storage.createMember({ serverId: Number(serverId), minecraftUsername, balance: 0, totalSpent: 0 });
+      }
       if (member.balance < playerPrice) return res.status(402).json({ error: "Insufficient balance" });
 
       // Deduct balance
@@ -260,7 +354,22 @@ export async function registerRoutes(httpServer: HttpServer, app: Express) {
         webhookDelivered: false,
       });
 
-      // Fire webhook if configured
+      // Fire push notification to server owner
+    try {
+      const tokens = storage.getDeviceTokensForServer(Number(serverId));
+      if (tokens.length > 0) {
+        await sendPushNotifications(
+          tokens,
+          '💰 New Purchase!',
+          `${minecraftUsername} bought ${product.name} for £${playerPrice.toFixed(2)}`,
+          { serverId, orderId: order.id, productName: product.name, minecraftUsername }
+        );
+      }
+    } catch (pushErr) {
+      console.error('[push] notification error:', pushErr);
+    }
+
+    // Fire webhook if configured
       if (server.webhookUrl) {
         const command = product.command.replace("{player}", minecraftUsername);
         const payload = {
@@ -457,6 +566,190 @@ export async function registerRoutes(httpServer: HttpServer, app: Express) {
     }
   });
 
+  // ── Direct product purchase via Stripe Checkout ────────────────────────────
+  app.post("/api/stripe/product-checkout", async (req, res) => {
+    try {
+      const { productId, serverId, minecraftUsername } = req.body;
+      if (!productId || !serverId || !minecraftUsername) {
+        return res.status(400).json({ error: "productId, serverId and minecraftUsername required" });
+      }
+
+      const product = storage.getProductById(Number(productId));
+      if (!product || !product.active) return res.status(404).json({ error: "Product not found" });
+
+      const server = storage.getServerById(Number(serverId));
+      if (!server) return res.status(404).json({ error: "Server not found" });
+
+      const theme = storage.getStoreTheme(Number(serverId));
+      const feeMode = theme?.feeMode || "absorb";
+      const basePrice = product.price;
+      const platformFee = Math.round(basePrice * PLATFORM_FEE_RATE * 100) / 100;
+      const playerPrice = feeMode === "passthrough"
+        ? Math.round((basePrice + platformFee) * 100) / 100
+        : basePrice;
+
+      const baseUrl = getBaseUrl(req);
+
+      // Demo mode — no Stripe key
+      if (!stripe) {
+        let member = storage.getMemberByUsername(Number(serverId), minecraftUsername);
+        if (!member) member = storage.createMember({ serverId: Number(serverId), minecraftUsername, balance: 0, totalSpent: 0 });
+        const order = storage.createOrder({ serverId: Number(serverId), productId: Number(productId), memberId: member.id, minecraftUsername, amount: playerPrice, platformFee, status: "completed", webhookDelivered: false });
+        storage.updateMemberTotalSpent(member.id, playerPrice);
+        if (server.webhookUrl) {
+          const command = product.command.replace("%player%", minecraftUsername).replace("{player}", minecraftUsername);
+          try {
+            await fetch(server.webhookUrl, { method: "POST", headers: { "Content-Type": "application/json", "X-CraftStore-Secret": server.webhookSecret || "" }, body: JSON.stringify({ event: "purchase", orderId: order.id, minecraftUsername, command, product: { id: product.id, name: product.name }, productName: product.name, secret: server.webhookSecret }) });
+            storage.updateOrderStatus(order.id, "completed", true);
+          } catch { storage.updateOrderStatus(order.id, "failed", false); }
+        }
+        return res.json({ success: true, demoMode: true, orderId: order.id });
+      }
+
+      // Real Stripe — create checkout session
+      const sessionParams: any = {
+        payment_method_types: ["card"],
+        mode: "payment",
+        line_items: [{
+          price_data: {
+            currency: "gbp",
+            product_data: {
+              name: product.name,
+              description: product.description || `Purchase from ${server.name}`,
+            },
+            unit_amount: Math.round(playerPrice * 100),
+          },
+          quantity: 1,
+        }],
+        metadata: {
+          type: "product_purchase",
+          productId: String(productId),
+          serverId: String(serverId),
+          minecraftUsername,
+        },
+        success_url: `${baseUrl}/#/store/${serverId}?purchase=success&session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${baseUrl}/#/store/${serverId}`,
+      };
+
+      // If server has Stripe Connect, route payment to them with platform fee
+      if (server.stripeAccountId && server.stripeConnectStatus === "active") {
+        sessionParams.payment_intent_data = {
+          application_fee_amount: Math.round(platformFee * 100),
+          transfer_data: { destination: server.stripeAccountId },
+        };
+      }
+
+      const session = await stripe.checkout.sessions.create(sessionParams);
+
+      // Store pending direct purchase session
+      storage.createCheckoutSession({
+        stripeSessionId: session.id,
+        ownerId: server.ownerId,
+        presetId: 0, // not a preset
+        serverId: Number(serverId),
+        status: "pending",
+        metadata: JSON.stringify({ type: "product_purchase", productId, minecraftUsername }),
+      } as any);
+
+      res.json({ url: session.url, sessionId: session.id });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // Confirm direct product purchase after Stripe success
+  app.post("/api/stripe/product-confirm", async (req, res) => {
+    try {
+      const { sessionId } = req.body;
+      if (!sessionId) return res.status(400).json({ error: "sessionId required" });
+
+      if (stripe) {
+        const stripeSession = await stripe.checkout.sessions.retrieve(sessionId);
+        if (stripeSession.payment_status !== "paid") {
+          return res.status(402).json({ error: "Payment not completed" });
+        }
+        const meta = stripeSession.metadata || {};
+        if (meta.type !== "product_purchase") return res.status(400).json({ error: "Wrong session type" });
+
+        const { productId, serverId, minecraftUsername } = meta;
+        const product = storage.getProductById(Number(productId));
+        const server = storage.getServerById(Number(serverId));
+        if (!product || !server) return res.status(404).json({ error: "Product or server not found" });
+
+        const theme = storage.getStoreTheme(Number(serverId));
+        const feeMode = theme?.feeMode || "absorb";
+        const basePrice = product.price;
+        const platformFee = Math.round(basePrice * PLATFORM_FEE_RATE * 100) / 100;
+        const playerPrice = feeMode === "passthrough"
+          ? Math.round((basePrice + platformFee) * 100) / 100
+          : basePrice;
+
+        let member = storage.getMemberByUsername(Number(serverId), minecraftUsername);
+        if (!member) member = storage.createMember({ serverId: Number(serverId), minecraftUsername, balance: 0, totalSpent: 0 });
+
+        const order = storage.createOrder({
+          serverId: Number(serverId),
+          productId: Number(productId),
+          memberId: member.id,
+          minecraftUsername,
+          amount: playerPrice,
+          platformFee,
+          status: "pending",
+          webhookDelivered: false,
+        });
+        storage.updateMemberTotalSpent(member.id, playerPrice);
+
+        // Fire webhook to Minecraft server
+        if (server.webhookUrl) {
+          const command = product.command.replace("%player%", minecraftUsername).replace("{player}", minecraftUsername);
+          try {
+            const wResp = await fetch(server.webhookUrl, {
+              method: "POST",
+              headers: { "Content-Type": "application/json", "X-CraftStore-Secret": server.webhookSecret || "" },
+              body: JSON.stringify({ event: "purchase", orderId: order.id, minecraftUsername, command, product: { id: product.id, name: product.name }, productName: product.name, secret: server.webhookSecret }),
+            });
+            storage.updateOrderStatus(order.id, wResp.ok ? "completed" : "failed", wResp.ok);
+          } catch {
+            storage.updateOrderStatus(order.id, "failed", false);
+          }
+        } else {
+          storage.updateOrderStatus(order.id, "completed", false);
+        }
+
+        // Send push notification to server owner
+        try {
+          const tokens = storage.getDeviceTokensForServer(Number(serverId));
+          if (tokens.length > 0) {
+            await sendPushNotifications(
+              tokens,
+              '💰 New Purchase!',
+              `${minecraftUsername} bought ${product.name} for £${playerPrice.toFixed(2)}`,
+              { serverId, orderId: order.id, productName: product.name, minecraftUsername }
+            );
+          }
+        } catch (pushErr) {
+          console.error('[push] notification error:', pushErr);
+        }
+
+        // Notify server owner in-app
+        const owner = storage.getUserById(server.ownerId);
+        if (owner) {
+          storage.createNotification({
+            userId: owner.id,
+            message: `${minecraftUsername} purchased ${product.name} on ${server.name} (£${playerPrice.toFixed(2)}) via direct payment`,
+            read: false,
+          });
+        }
+
+        return res.json({ success: true, orderId: order.id });
+      }
+
+      res.json({ success: true });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   // Verify & complete a checkout session (called from success page)
   app.post("/api/stripe/confirm", async (req, res) => {
     try {
@@ -535,15 +828,92 @@ export async function registerRoutes(httpServer: HttpServer, app: Express) {
     }
     if (event.type === "checkout.session.completed") {
       const session = event.data.object as Stripe.Checkout.Session;
-      const dbSession = storage.getCheckoutSession(session.id);
-      if (dbSession && dbSession.status !== "completed") {
-        storage.updateCheckoutSessionStatus(session.id, "completed");
-        if (!storage.hasOwnerPurchasedPreset(dbSession.ownerId, dbSession.presetId)) {
-          storage.purchasePreset({ ownerId: dbSession.ownerId, presetId: dbSession.presetId, serverId: dbSession.serverId });
+      // Balance top-up
+      if (session.metadata?.type === "balance_topup") {
+        const { serverId, minecraftUsername, amount } = session.metadata;
+        const member = storage.getMemberByUsername(Number(serverId), minecraftUsername);
+        if (member) storage.updateMemberBalance(member.id, (member.balance ?? 0) + Number(amount));
+      } else {
+        const dbSession = storage.getCheckoutSession(session.id);
+        if (dbSession && dbSession.status !== "completed") {
+          storage.updateCheckoutSessionStatus(session.id, "completed");
+          if (!storage.hasOwnerPurchasedPreset(dbSession.ownerId, dbSession.presetId)) {
+            storage.purchasePreset({ ownerId: dbSession.ownerId, presetId: dbSession.presetId, serverId: dbSession.serverId });
+          }
         }
       }
     }
     res.json({ received: true });
+  });
+
+  // ── Stripe Connect ─────────────────────────────────────────────────────────────────────
+  // Start onboarding: creates a Connect account + returns onboarding URL
+  app.post("/api/connect/onboard", async (req, res) => {
+    try {
+      const { serverId } = req.body;
+      if (!serverId) return res.status(400).json({ error: "serverId required" });
+      const server = storage.getServerById(Number(serverId));
+      if (!server) return res.status(404).json({ error: "Server not found" });
+      const ownerId = server.ownerId;
+
+      if (!stripe) {
+        // Demo mode — simulate connected
+        storage.updateServer(Number(serverId), { stripeAccountId: `demo_acct_${serverId}`, stripeConnectStatus: "active" });
+        return res.json({ demoMode: true, url: null, status: "active" });
+      }
+
+      let accountId = server.stripeAccountId;
+      if (!accountId) {
+        const account = await stripe.accounts.create({ type: "express" });
+        accountId = account.id;
+        storage.updateServer(Number(serverId), { stripeAccountId: accountId, stripeConnectStatus: "pending" });
+      }
+
+      const baseUrl = getBaseUrl(req);
+      const accountLink = await stripe.accountLinks.create({
+        account: accountId,
+        refresh_url: `${baseUrl}/#/servers/${serverId}?connect=refresh`,
+        return_url: `${baseUrl}/#/servers/${serverId}?connect=success`,
+        type: "account_onboarding",
+      });
+      res.json({ url: accountLink.url, accountId });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // Poll connect status — checks Stripe and updates DB
+  app.get("/api/connect/status/:serverId", async (req, res) => {
+    try {
+      const server = storage.getServerById(Number(req.params.serverId));
+      if (!server) return res.status(404).json({ error: "Not found" });
+
+      if (!server.stripeAccountId) return res.json({ status: "not_connected", accountId: null });
+
+      if (stripe && server.stripeConnectStatus !== "active") {
+        const account = await stripe.accounts.retrieve(server.stripeAccountId);
+        if (account.details_submitted && account.charges_enabled) {
+          storage.updateServer(server.id, { stripeConnectStatus: "active" });
+          return res.json({ status: "active", accountId: server.stripeAccountId });
+        }
+        return res.json({ status: "pending", accountId: server.stripeAccountId });
+      }
+      res.json({ status: server.stripeConnectStatus, accountId: server.stripeAccountId });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // Disconnect — remove Connect account from server
+  app.post("/api/connect/disconnect", (req, res) => {
+    try {
+      const { serverId } = req.body;
+      if (!serverId) return res.status(400).json({ error: "serverId required" });
+      storage.updateServer(Number(serverId), { stripeAccountId: null as any, stripeConnectStatus: "not_connected" });
+      res.json({ success: true });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
   });
 
   // ── Member Auth (player login for storefronts) ─────────────────────────────────────────
@@ -584,6 +954,82 @@ export async function registerRoutes(httpServer: HttpServer, app: Express) {
       res.status(500).json({ error: e.message });
     }
   });
+
+  // Player-facing profile: purchase history, gifts received, balance, leaderboard rank
+  app.get("/api/member/profile", (req, res) => {
+    try {
+      const serverId = Number(req.query.serverId);
+      const username = (req.query.username as string || "").trim();
+      if (!serverId || !username) return res.status(400).json({ error: "serverId and username required" });
+      const member = storage.getMemberByUsername(serverId, username);
+      if (!member) return res.status(404).json({ error: "Member not found" });
+      // Orders
+      const allOrders = storage.getOrdersByServer(serverId);
+      const myOrders = allOrders.filter((o: any) => o.minecraftUsername === username && o.status === "completed");
+      // Gifts received (via gift_orders)
+      const giftRows = (storage as any).getGiftsReceivedByUsername
+        ? (storage as any).getGiftsReceivedByUsername(serverId, username)
+        : [];
+      // Leaderboard rank
+      const leaderboard = storage.getTopSpenders(serverId, null);
+      const rank = leaderboard.findIndex((r: any) => (r.minecraft_username || r.minecraftUsername) === username) + 1;
+      const totalOnLeaderboard = leaderboard.length;
+      res.json({
+        username,
+        balance: member.balance ?? 0,
+        totalSpent: member.totalSpent ?? 0,
+        orders: myOrders,
+        giftsReceived: giftRows,
+        leaderboardRank: rank > 0 ? rank : null,
+        totalOnLeaderboard,
+      });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // Player balance top-up via Stripe
+  app.post("/api/member/balance-topup", async (req, res) => {
+    try {
+      const { serverId, minecraftUsername, amount } = req.body;
+      if (!serverId || !minecraftUsername || !amount) return res.status(400).json({ error: "Missing fields" });
+      const amountPence = Math.round(Number(amount) * 100);
+      if (amountPence < 100) return res.status(400).json({ error: "Minimum top-up is £1.00" });
+      const server = storage.getServerById(Number(serverId));
+      if (!server) return res.status(404).json({ error: "Server not found" });
+      const rootDomain = process.env.ROOT_DOMAIN || "craftstore.org.uk";
+      const origin = process.env.SITE_ORIGIN || `https://${rootDomain}`;
+      if (process.env.STRIPE_SECRET_KEY) {
+        const platformFeePence = Math.round(amountPence * 0.20); // 20% to CraftStore
+        const connectedAccountId = server.stripeAccountId && server.stripeConnectStatus === "active"
+          ? server.stripeAccountId : null;
+
+        const sessionParams: Stripe.Checkout.SessionCreateParams = {
+          payment_method_types: ["card"],
+          line_items: [{ price_data: { currency: "gbp", product_data: { name: `Balance Top-Up — ${server.name}`, description: `Adding £${Number(amount).toFixed(2)} to ${minecraftUsername}'s balance` }, unit_amount: amountPence }, quantity: 1 }],
+          mode: "payment",
+          success_url: `${origin}/#/store/${serverId}/profile?topup=success&session_id={CHECKOUT_SESSION_ID}`,
+          cancel_url: `${origin}/#/store/${serverId}/profile?topup=cancelled`,
+          metadata: { type: "balance_topup", serverId: String(serverId), minecraftUsername, amount: String(amount) },
+          ...(connectedAccountId ? {
+            payment_intent_data: {
+              application_fee_amount: platformFeePence,
+              transfer_data: { destination: connectedAccountId },
+            },
+          } : {}),
+        };
+        const session = await stripe!.checkout.sessions.create(sessionParams);
+        res.json({ url: session.url });
+      } else {
+        // Demo mode: instantly credit balance
+        const member = storage.getMemberByUsername(Number(serverId), minecraftUsername);
+        if (!member) return res.status(404).json({ error: "Member not found" });
+        storage.updateMemberBalance(member.id, (member.balance ?? 0) + Number(amount));
+        res.json({ demoMode: true, newBalance: (member.balance ?? 0) + Number(amount) });
+      }
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // Stripe webhook: handle balance top-up completion
+  // (already handled in webhook via metadata.type === 'balance_topup')
 
   // Member stats endpoint (owner-facing — full profile)
   app.get("/api/servers/:serverId/members/:username/stats", (req, res) => {
@@ -788,6 +1234,34 @@ export async function registerRoutes(httpServer: HttpServer, app: Express) {
     });
   });
 
+  // ── Subdomain routes ─────────────────────────────────────────────────────
+  app.post("/api/servers/:id/subdomain", (req, res) => {
+    try {
+      const serverId = Number(req.params.id);
+      const { subdomain } = req.body as { subdomain: string };
+      if (!subdomain) return res.status(400).json({ error: "subdomain required" });
+      const clean = subdomain.toLowerCase().trim();
+      const result = storage.claimSubdomain(serverId, clean);
+      if (!result.success) return res.status(400).json({ error: result.error });
+      const rootDomain = process.env.ROOT_DOMAIN || "craftstore.org.uk";
+      res.json({ success: true, subdomain: clean, url: `https://${clean}.${rootDomain}` });
+    } catch (e: any) {
+      console.error("[subdomain claim error]", e);
+      res.status(500).json({ error: e.message || "Failed to claim subdomain" });
+    }
+  });
+
+  app.delete("/api/servers/:id/subdomain", (req, res) => {
+    storage.revokeSubdomain(Number(req.params.id));
+    res.json({ success: true });
+  });
+
+  app.get("/api/servers/:id/subdomain", (req, res) => {
+    const sub = storage.getSubdomainByServer(Number(req.params.id));
+    const rootDomain = process.env.ROOT_DOMAIN || "craftstore.org.uk";
+    res.json({ subdomain: sub, url: sub ? `https://${sub}.${rootDomain}` : null });
+  });
+
   // ── Admin ──────────────────────────────────────────────────────────────
   // Middleware: require X-Admin-Secret header or ?secret= query param
   function requireAdmin(req: any, res: any, next: any) {
@@ -831,6 +1305,34 @@ export async function registerRoutes(httpServer: HttpServer, app: Express) {
   app.post("/api/admin/servers/:id/activate-domain", requireAdmin, (req, res) => {
     try {
       storage.activateDomainPlan(Number(req.params.id));
+      res.json({ success: true });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // Admin: list all claimed subdomains
+  app.get("/api/admin/subdomains", requireAdmin, (req, res) => {
+    try {
+      const claims = storage.getAllSubdomainClaims();
+      const rootDomain = process.env.ROOT_DOMAIN || "craftstore.org.uk";
+      res.json(claims.map((c: any) => ({
+        ...c,
+        url: `https://${c.subdomain}.${rootDomain}`,
+      })));
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // Admin: audit log
+  app.get("/api/admin/audit-log", requireAdmin, (req, res) => {
+    try {
+      const limit = Number(req.query.limit) || 200;
+      res.json(storage.getAuditLog(limit));
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // Admin: revoke a subdomain claim by server id
+  app.delete("/api/admin/subdomains/:serverId", requireAdmin, (req, res) => {
+    try {
+      storage.revokeSubdomain(Number(req.params.serverId));
       res.json({ success: true });
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });

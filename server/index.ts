@@ -1,7 +1,9 @@
 import express, { type Request, Response, NextFunction } from "express";
+import cookieParser from "cookie-parser";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
+import { storage } from "./storage";
 
 const app = express();
 const httpServer = createServer(app);
@@ -22,6 +24,7 @@ app.use(
 );
 
 app.use(express.urlencoded({ extended: false }));
+app.use(cookieParser());
 
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
@@ -58,6 +61,35 @@ app.use((req, res, next) => {
   });
 
   next();
+});
+
+// ── Auto subdomain: name-based (e.g. skyblock-network.craftstore.org.uk) ──────
+const ROOT_HOST = (process.env.ROOT_DOMAIN || "craftstore.org.uk").replace(/^www\./, "");
+
+function nameToSlug(name: string): string {
+  return name.toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .trim()
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-");
+}
+
+app.use((req: any, _res: any, next: any) => {
+  const host = ((req.headers.host as string) || "").replace(/:\d+$/, "");
+  const bare = host.replace(/^www\./, "");
+  if (bare !== ROOT_HOST && bare.endsWith("." + ROOT_HOST)) {
+    req.craftSubdomain = bare.replace("." + ROOT_HOST, "");
+  }
+  next();
+});
+
+// Resolve subdomain → serverId by matching server name slug
+app.get("/api/subdomain/resolve/:subdomain", (req: any, res: any) => {
+  const slug = req.params.subdomain.toLowerCase();
+  const allServers = storage.getAllServers();
+  const match = allServers.find((s: any) => nameToSlug(s.name) === slug);
+  if (!match) return res.status(404).json({ error: "Subdomain not found" });
+  res.json({ serverId: match.id, serverName: match.name });
 });
 
 (async () => {
