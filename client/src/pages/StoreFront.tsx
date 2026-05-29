@@ -989,27 +989,30 @@ function CountdownBanner({ title, subtitle, endDate, ownerUsername, accent }: {
       {/* Dark overlay */}
       <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.22)", pointerEvents: "none" }} />
 
-      {/* Owner skin + bow — sits at bottom-left, fills full banner height */}
+      {/* Owner skin + bow — left side of banner */}
       {skinUrl && (
         <div style={{
           position: "relative",
-          width: 130,
+          width: 160,
           height: 120,
           flexShrink: 0,
           zIndex: 10,
+          overflow: "hidden",
         }}>
           <img
             src={skinUrl}
             alt={ownerUsername!}
+            width={120}
+            height={210}
             style={{
               position: "absolute",
-              bottom: 0,
-              left: 8,
-              width: 100,
-              height: 175,
-              objectFit: "contain",
+              bottom: -10,
+              left: 16,
+              width: 120,
+              height: 210,
               imageRendering: "pixelated",
               filter: "drop-shadow(0 4px 16px rgba(0,0,0,0.9))",
+              display: "block",
             }}
             onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
           />
@@ -1017,15 +1020,18 @@ function CountdownBanner({ title, subtitle, endDate, ownerUsername, accent }: {
           <img
             src="https://raw.githubusercontent.com/InventivetalentDev/minecraft-assets/1.21/assets/minecraft/textures/item/bow_pulling_2.png"
             alt="bow"
+            width={56}
+            height={56}
             style={{
               position: "absolute",
-              bottom: 40,
-              right: 2,
-              width: 52,
-              height: 52,
+              bottom: 30,
+              right: 8,
+              width: 56,
+              height: 56,
               imageRendering: "pixelated",
               transform: "rotate(-20deg) scaleX(-1)",
               filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.8))",
+              display: "block",
             }}
             onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
           />
