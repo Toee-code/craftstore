@@ -365,23 +365,43 @@ function MemberAuthModal({ serverId, accent, onClose, onLogin, bedrockEnabled, b
 
   return (
     <Dialog open onOpenChange={onClose}>
-      <DialogContent className="max-w-sm" style={{ background: "#0f0f13", border: "1px solid rgba(255,255,255,0.1)", color: "#fff" }}>
-        <DialogHeader>
-          <DialogTitle style={{ color: "#fff" }}>{mode === "login" ? "Member Login" : "Create Account"}</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-4">
-          {/* Platform switcher */}
+      <DialogContent className="max-w-sm p-0 overflow-hidden" style={{ background: "#0f0f13", border: "1px solid rgba(255,255,255,0.1)", color: "#fff" }}>
+        {/* Header */}
+        <div className="px-6 pt-6 pb-4 text-center">
+          <DialogTitle className="text-2xl font-extrabold text-white">Login</DialogTitle>
+          <p className="text-sm mt-1" style={{ color: "rgba(255,255,255,0.45)" }}>
+            Enter your {platform === "bedrock" ? "Xbox Gamertag" : "Minecraft Username"} to continue
+          </p>
+        </div>
+
+        <div className="px-6 pb-6 space-y-4">
+          {/* Java / Bedrock switcher — always shown if bedrockEnabled, big buttons like EchoSMP */}
           {bedrockEnabled && (
-            <div className="flex rounded-xl overflow-hidden p-1 gap-1" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
-              {(["java", "bedrock"] as const).map(p => (
-                <button key={p} onClick={() => { setPlatform(p); setUsername(""); setError(""); }}
-                  className="flex-1 py-2 rounded-lg text-sm font-semibold transition-all flex items-center justify-center gap-1.5"
-                  style={platform === p ? { background: accent, color: "#000" } : { color: "rgba(255,255,255,0.5)" }}>
-                  {p === "java" ? "☕ Java" : "🎮 Bedrock / Console"}
-                </button>
-              ))}
+            <div className="grid grid-cols-2 gap-3">
+              <button onClick={() => { setPlatform("java"); setUsername(""); setError(""); }}
+                className="flex items-center justify-center gap-2 rounded-xl py-3 font-bold text-sm transition-all"
+                style={platform === "java"
+                  ? { background: accent, color: "#000" }
+                  : { background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.55)", border: "1px solid rgba(255,255,255,0.1)" }}>
+                <svg viewBox="0 0 24 24" className="w-5 h-5" fill="currentColor">
+                  <path d="M8.851 18.56s-.917.534.653.714c1.902.218 2.874.187 4.969-.211 0 0 .552.346 1.321.646-4.699 2.013-10.633-.118-6.943-1.149M8.276 15.933s-1.028.761.542.924c2.032.209 3.636.227 6.413-.308 0 0 .384.389.987.602-5.679 1.661-12.007.13-7.942-1.218M13.116 11.475c1.158 1.333-.304 2.533-.304 2.533s2.939-1.518 1.589-3.418c-1.261-1.772-2.228-2.652 3.007-5.688 0 0-8.216 2.051-4.292 6.573M19.33 20.504s.679.559-.747.991c-2.712.822-11.288 1.069-13.669.033-.856-.373.749-.891 1.254-.998.527-.114.828-.093.828-.093-.953-.671-6.156 1.317-2.643 1.887 9.58 1.553 17.462-.7 14.977-1.82M9.292 13.21s-4.362 1.036-1.544 1.412c1.189.159 3.561.123 5.77-.062 1.806-.152 3.618-.477 3.618-.477s-.637.272-1.098.587c-4.429 1.165-12.986.623-10.522-.568 2.082-1.006 3.776-.892 3.776-.892M17.116 17.584c4.503-2.34 2.421-4.589.968-4.285-.355.074-.515.138-.515.138s.132-.207.385-.297c2.875-1.011 5.086 2.981-.928 4.562 0 0 .07-.063.09-.118M14.401 0s2.494 2.494-2.365 6.33c-3.896 3.077-.888 4.832 0 6.836-2.274-2.053-3.943-3.858-2.824-5.539 1.644-2.469 6.197-3.665 5.189-7.627M9.734 23.924c4.322.277 10.959-.153 11.116-2.198 0 0-.302.775-3.572 1.391-3.688.694-8.239.613-10.937.168 0 0 .553.457 3.393.639"/>
+                </svg>
+                JAVA
+              </button>
+              <button onClick={() => { setPlatform("bedrock"); setUsername(""); setError(""); }}
+                className="flex items-center justify-center gap-2 rounded-xl py-3 font-bold text-sm transition-all"
+                style={platform === "bedrock"
+                  ? { background: accent, color: "#000" }
+                  : { background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.55)", border: "1px solid rgba(255,255,255,0.1)" }}>
+                <svg viewBox="0 0 24 24" className="w-5 h-5" fill="currentColor">
+                  <path d="M4.102 21.033C6.211 22.881 8.977 24 12 24c6.623 0 12-5.377 12-12 0-1.585-.31-3.099-.868-4.483L4.102 21.033zm14.521-17.28C16.514 1.99 14.311 1 12 1 5.376 1 0 6.376 0 13c0 1.24.184 2.437.524 3.567l18.099-12.814z"/>
+                </svg>
+                BEDROCK
+              </button>
             </div>
           )}
+
+          {/* Log In / Register tabs */}
           <div className="flex rounded-xl overflow-hidden p-1 gap-1" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
             {(["login", "register"] as const).map(m => (
               <button key={m} onClick={() => setMode(m)}
@@ -391,14 +411,38 @@ function MemberAuthModal({ serverId, accent, onClose, onLogin, bedrockEnabled, b
               </button>
             ))}
           </div>
-          {/* Live skin preview */}
-          <SkinPreview username={username.trim()} platform={platform} />
+
+          {/* Username field with inline skin avatar */}
           <div className="space-y-1.5">
-            <Label style={{ color: "rgba(255,255,255,0.6)", fontSize: 12 }}>Minecraft Username</Label>
-            <Input placeholder="Steve" value={username} onChange={e => setUsername(e.target.value)}
-              style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", color: "#fff" }}
-              data-testid="input-member-username" />
+            <Label className="text-xs font-bold uppercase tracking-wider" style={{ color: "rgba(255,255,255,0.5)" }}>
+              {platform === "bedrock" ? "Xbox Gamertag" : "Minecraft Username"}
+            </Label>
+            <div className="flex items-center gap-2">
+              <div className="w-10 h-10 rounded-lg overflow-hidden shrink-0 flex items-center justify-center"
+                style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}>
+                {username.trim().length >= 2 ? (
+                  <img
+                    src={platform === "bedrock"
+                      ? `https://skin.matdoes.dev/renders/body/${encodeURIComponent(username.trim())}?overlay=true`
+                      : `https://nmsr.nickac.dev/face/${username.trim()}`}
+                    alt={username}
+                    className="w-full h-full object-contain"
+                    onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
+                  />
+                ) : (
+                  <span style={{ color: "rgba(255,255,255,0.2)", fontSize: 18 }}>?</span>
+                )}
+              </div>
+              <Input
+                placeholder={platform === "bedrock" ? "e.g. CoolPlayer" : "e.g. Steve"}
+                value={username}
+                onChange={e => setUsername(e.target.value)}
+                style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", color: "#fff" }}
+                data-testid="input-member-username"
+              />
+            </div>
           </div>
+
           {mode === "register" && (
             <div className="space-y-1.5">
               <Label style={{ color: "rgba(255,255,255,0.6)", fontSize: 12 }}>Email</Label>
@@ -414,9 +458,9 @@ function MemberAuthModal({ serverId, accent, onClose, onLogin, bedrockEnabled, b
               data-testid="input-member-password" />
           </div>
           {error && <p className="text-xs px-3 py-2 rounded-lg" style={{ background: "#ef444422", color: "#f87171", border: "1px solid #ef444440" }}>{error}</p>}
-          <Button className="w-full font-bold gap-2" style={{ background: accent, color: "#000", boxShadow: `0 0 20px ${accent}50` }}
+          <Button className="w-full font-bold gap-2 py-3 text-base" style={{ background: accent, color: "#000", boxShadow: `0 0 20px ${accent}50` }}
             disabled={loading} onClick={handleSubmit} data-testid="button-member-auth-submit">
-            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : mode === "login" ? <><LogIn className="w-4 h-4" /> Log In</> : <><UserPlus className="w-4 h-4" /> Create Account</>}
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <><LogIn className="w-5 h-5" /> {mode === "login" ? "Login" : "Create Account"}</>}
           </Button>
         </div>
       </DialogContent>
