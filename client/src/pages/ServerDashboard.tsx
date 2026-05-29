@@ -834,12 +834,13 @@ export default function ServerDashboard() {
   const dragProductId = useRef<number | null>(null);
 
   // Category image editing
-  type CatImage = { imageType: string; imageUrl: string; playerHeadName: string };
+  type CatImage = { imageType: string; imageUrl: string; playerHeadName: string; enchanted?: boolean };
   const [categoryImages, setCategoryImages] = useState<Record<string, CatImage>>({});
   const [editCatImage, setEditCatImage] = useState<string | null>(null); // which cat is being edited
   const [catImgType, setCatImgType] = useState("upload");
   const [catImgUrl, setCatImgUrl] = useState("");
   const [catImgHead, setCatImgHead] = useState("");
+  const [catImgEnchanted, setCatImgEnchanted] = useState(false);
 
   useEffect(() => {
     if (!theme) return;
@@ -882,12 +883,13 @@ export default function ServerDashboard() {
     setCatImgType(existing?.imageType || "upload");
     setCatImgUrl(existing?.imageUrl || "");
     setCatImgHead(existing?.playerHeadName || "");
+    setCatImgEnchanted(existing?.enchanted ?? false);
     setEditCatImage(cat);
   };
 
   const saveCatImage = () => {
     if (!editCatImage) return;
-    const nextImgs = { ...categoryImages, [editCatImage]: { imageType: catImgType, imageUrl: catImgUrl, playerHeadName: catImgHead } };
+    const nextImgs = { ...categoryImages, [editCatImage]: { imageType: catImgType, imageUrl: catImgUrl, playerHeadName: catImgHead, enchanted: catImgEnchanted } };
     setCategoryImages(nextImgs);
     setEditCatImage(null);
     saveCategories.mutate({ categories: catList, subcategories: subcats, catImgs: nextImgs });
@@ -1095,21 +1097,25 @@ export default function ServerDashboard() {
                     {catList.map(cat => {
                       const thumb = catImageUrl(cat);
                       const isHead = categoryImages[cat]?.imageType === "playerhead";
+                      const isCatEnchanted = !!categoryImages[cat]?.enchanted;
                       return (
                       <div key={cat} className="rounded-lg border border-border/60 overflow-hidden">
                         <div className="flex items-center gap-2 px-3 py-2 bg-muted/20">
                           {/* Thumbnail */}
                           <div
-                            className="w-9 h-9 rounded-md flex items-center justify-center shrink-0 overflow-hidden cursor-pointer hover:opacity-80 transition-opacity border border-border/40"
-                            style={{ background: "rgba(255,255,255,0.03)" }}
+                            className="w-9 h-9 rounded-md flex items-center justify-center shrink-0 overflow-hidden cursor-pointer hover:opacity-80 transition-opacity border border-border/40 enchant-wrap"
+                            style={{ background: "rgba(255,255,255,0.03)", borderRadius: 6 }}
                             onClick={() => openCatImageEditor(cat)}
                             title="Set category image"
                           >
                             {thumb ? (
-                              <img src={thumb} alt={cat}
-                                className="w-full h-full object-contain"
-                                style={isHead ? { imageRendering: "pixelated" } : {}}
-                              />
+                              <>
+                                <img src={thumb} alt={cat}
+                                  className="w-full h-full object-contain"
+                                  style={isHead ? { imageRendering: "pixelated" } : {}}
+                                />
+                                {isCatEnchanted && <div className="enchant-glint" style={{ borderRadius: 6 }} />}
+                              </>
                             ) : (
                               <Edit3 className="w-3.5 h-3.5 text-muted-foreground/50" />
                             )}
@@ -1179,6 +1185,19 @@ export default function ServerDashboard() {
                 <DialogHeader>
                   <DialogTitle>Set image for "{editCatImage}"</DialogTitle>
                 </DialogHeader>
+                {/* Enchanted toggle */}
+                <div className="flex items-center justify-between rounded-xl bg-purple-500/10 border border-purple-500/30 px-4 py-3">
+                  <div>
+                    <p className="text-sm font-medium flex items-center gap-1.5"><Sparkles className="w-3.5 h-3.5 text-purple-400" /> Enchanted</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">Adds enchantment glint shimmer to this category's image</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setCatImgEnchanted(v => !v)}
+                    className={`relative w-10 h-6 rounded-full transition-colors ${catImgEnchanted ? "bg-purple-500" : "bg-muted"}`}>
+                    <span className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform ${catImgEnchanted ? "translate-x-4" : ""}`} />
+                  </button>
+                </div>
                 <ProductImagePicker
                   imageType={catImgType}
                   setImageType={setCatImgType}
@@ -1374,14 +1393,12 @@ export default function ServerDashboard() {
                     data-testid={`card-product-${p.id}`}
                   >
                     {imgUrl ? (
-                      <div className="h-28 overflow-hidden rounded-t-xl flex items-center justify-center relative" style={{ background: "rgba(255,255,255,0.02)" }}>
+                      <div className="h-28 overflow-hidden rounded-t-xl flex items-center justify-center enchant-wrap" style={{ background: "rgba(255,255,255,0.02)" }}>
                         <img src={imgUrl} alt={p.name}
                           className={(p as any).imageType === "playerhead" ? "h-24 object-contain" : "w-full h-full object-cover"}
                           style={(p as any).imageType === "playerhead" ? { imageRendering: "pixelated" } : {}}
                         />
-                        {isEnchanted && (
-                          <div className="enchant-glint" style={{ position: "absolute", inset: 0, pointerEvents: "none", borderRadius: "inherit" }} />
-                        )}
+                        {isEnchanted && <div className="enchant-glint" />}
                       </div>
                     ) : (
                       <div className="h-28 rounded-t-xl flex items-center justify-center" style={{ background: "rgba(255,255,255,0.03)" }}>

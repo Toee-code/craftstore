@@ -513,7 +513,7 @@ function ProductCard({ product, accent, playerPrice, onBuy, onGift }: {
       data-testid={`card-store-product-${product.id}`}
     >
       {/* Image */}
-      <div className="relative overflow-hidden" style={{ height: 160 }}>
+      <div className="relative overflow-hidden enchant-wrap" style={{ height: 160 }}>
         {(() => { const imgUrl = productImageUrl(product); return imgUrl ? (
           <>
             <img src={imgUrl} alt={product.name}
@@ -522,9 +522,7 @@ function ProductCard({ product, accent, playerPrice, onBuy, onGift }: {
               }`}
               style={product.imageType === "playerhead" ? { imageRendering: "pixelated", background: `linear-gradient(135deg, ${accent}18, ${accent}08)` } : {}}
             />
-            {product.enchanted && (
-              <div className="enchant-glint" style={{ position: "absolute", inset: 0, pointerEvents: "none" }} />
-            )}
+            {product.enchanted && <div className="enchant-glint" />}
           </>
         ) : (
           <div className="w-full h-full flex items-center justify-center" style={{ background: `linear-gradient(135deg, ${accent}15, ${accent}05)` }}>
@@ -632,7 +630,7 @@ function DonutProductCard({
       {/* Product image / icon area — floats slightly above card */}
       <div className="flex justify-center pt-6 pb-2 relative">
         {(() => { const imgUrl = productImageUrl(product); return imgUrl ? (
-          <div className="relative">
+          <div className="enchant-wrap" style={{ borderRadius: 8 }}>
             <img
               src={imgUrl}
               alt={product.name}
@@ -642,9 +640,7 @@ function DonutProductCard({
                 imageRendering: "pixelated"
               }}
             />
-            {product.enchanted && (
-              <div className="enchant-glint" style={{ position: "absolute", inset: 0, pointerEvents: "none", borderRadius: 8 }} />
-            )}
+            {product.enchanted && <div className="enchant-glint" style={{ borderRadius: 8 }} />}
           </div>
         ) : (
           <div className="w-20 h-20 rounded-2xl flex items-center justify-center"
@@ -864,13 +860,11 @@ function EchoProductCard({
       {/* Floating product image — no background box */}
       <div className="flex items-end justify-center pt-5 pb-1" style={{ minHeight: 130 }}>
         {(() => { const imgUrl = productImageUrl(product); return imgUrl ? (
-          <div className="relative">
+          <div className="enchant-wrap" style={{ borderRadius: 8 }}>
             <img src={imgUrl} alt={product.name}
               className="w-24 h-24 object-contain"
               style={{ imageRendering: "pixelated", filter: "drop-shadow(0 4px 12px rgba(0,0,0,0.5))" }} />
-            {product.enchanted && (
-              <div className="enchant-glint" style={{ position: "absolute", inset: 0, pointerEvents: "none", borderRadius: 8 }} />
-            )}
+            {product.enchanted && <div className="enchant-glint" style={{ borderRadius: 8 }} />}
           </div>
         ) : (
           <div className="w-16 h-16 rounded-xl flex items-center justify-center mb-2"

@@ -145,21 +145,33 @@
 
 /* ── Enchantment Glint Effect ──────────────────────────────────────────────── */
 @keyframes enchantGlint {
-  0%   { background-position: -200% 0; opacity: 0.55; }
-  50%  { opacity: 0.75; }
-  100% { background-position: 200% 0; opacity: 0.55; }
+  0%   { background-position: -200% center; }
+  100% { background-position: 200% center; }
 }
 
+/* Wrapper — creates an isolated stacking context so blend only hits the image */
+.enchant-wrap {
+  position: relative;
+  display: inline-flex;
+  isolation: isolate;
+}
+
+/* The shimmer overlay — mix-blend-mode: color-dodge only tints opaque pixels */
 .enchant-glint {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
   background: linear-gradient(
     105deg,
-    transparent 20%,
-    rgba(120, 60, 255, 0.35) 35%,
-    rgba(80, 180, 255, 0.5)  50%,
-    rgba(190, 80, 255, 0.35) 65%,
-    transparent 80%
+    rgba(60, 0, 180, 0.0)  15%,
+    rgba(130, 60, 255, 0.9) 35%,
+    rgba(80, 160, 255, 1.0) 50%,
+    rgba(160, 60, 255, 0.9) 65%,
+    rgba(60, 0, 180, 0.0)  85%
   );
   background-size: 200% 100%;
-  mix-blend-mode: screen;
-  animation: enchantGlint 2.2s ease-in-out infinite;
+  mix-blend-mode: color-dodge;
+  animation: enchantGlint 1.8s linear infinite;
+  opacity: 0.55;
 }
