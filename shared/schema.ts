@@ -31,6 +31,8 @@ export const servers = sqliteTable("servers", {
   domainPlanActive: integer("domain_plan_active", { mode: "boolean" }).default(false), // NEW
   stripeAccountId: text("stripe_account_id"),         // Stripe Connect account ID
   stripeConnectStatus: text("stripe_connect_status").default("not_connected"), // "not_connected" | "pending" | "active"
+  bedrockPrefix: text("bedrock_prefix").default("none"), // "none" | "." | "_" — prefix added to Bedrock usernames
+  bedrockEnabled: integer("bedrock_enabled", { mode: "boolean" }).default(false), // show Bedrock login option
   createdAt: text("created_at").notNull().default(new Date().toISOString()),
 });
 

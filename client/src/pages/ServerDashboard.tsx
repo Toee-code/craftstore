@@ -418,6 +418,75 @@ function WebhookSecretEditor({ serverId, currentSecret }: { serverId: number; cu
   );
 }
 
+// ─── Bedrock Settings ────────────────────────────────────────────────────────
+function BedrockSettings({ serverId, server }: { serverId: number; server?: any }) {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const [enabled, setEnabled] = useState(server?.bedrockEnabled ?? false);
+  const [prefix, setPrefix] = useState(server?.bedrockPrefix ?? "none");
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    if (server) { setEnabled(server.bedrockEnabled); setPrefix(server.bedrockPrefix ?? "none"); }
+  }, [server]);
+
+  const save = useMutation({
+    mutationFn: () => apiRequest("PATCH", `/api/servers/${serverId}`, { bedrockEnabled: enabled, bedrockPrefix: prefix }).then(r => r.json()),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["/api/servers", serverId] });
+      setSaved(true); setTimeout(() => setSaved(false), 2000);
+      toast({ title: "Bedrock settings saved" });
+    },
+  });
+
+  const prefixOptions = [
+    { value: "none", label: "No prefix", desc: "Username sent as-is (e.g. Steve)" },
+    { value: ".", label: ". (dot)", desc: "Geyser default (e.g. .Steve)" },
+    { value: "_", label: "_ (underscore)", desc: "Alternative prefix (e.g. _Steve)" },
+  ];
+
+  return (
+    <div className="space-y-4">
+      {/* Enable toggle */}
+      <div className="flex items-center justify-between rounded-xl bg-muted/20 border border-border/40 px-4 py-3">
+        <div>
+          <p className="text-sm font-medium">Enable Bedrock / Console login</p>
+          <p className="text-xs text-muted-foreground mt-0.5">Shows a "Bedrock" tab in the store login modal for Xbox gamertag entry</p>
+        </div>
+        <button
+          onClick={() => setEnabled(!enabled)}
+          className={`relative w-10 h-6 rounded-full transition-colors ${enabled ? "bg-primary" : "bg-muted"}`}>
+          <span className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform ${enabled ? "translate-x-4" : ""}`} />
+        </button>
+      </div>
+
+      {enabled && (
+        <div className="space-y-2">
+          <Label className="text-sm">Username prefix for Bedrock players</Label>
+          <p className="text-xs text-muted-foreground">This prefix is added to their gamertag before running commands (must match your Geyser/Floodgate config).</p>
+          <div className="grid grid-cols-3 gap-2">
+            {prefixOptions.map(opt => (
+              <button key={opt.value} onClick={() => setPrefix(opt.value)}
+                className={`rounded-xl border px-3 py-2.5 text-left transition-all ${
+                  prefix === opt.value
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "border-border/40 bg-muted/20 text-muted-foreground hover:border-border"
+                }`}>
+                <p className="font-bold text-sm">{opt.label}</p>
+                <p className="text-xs mt-0.5 opacity-70">{opt.desc}</p>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <Button size="sm" onClick={() => save.mutate()} disabled={save.isPending}>
+        {saved ? "Saved!" : save.isPending ? "Saving..." : "Save"}
+      </Button>
+    </div>
+  );
+}
+
 export default function ServerDashboard() {
   const { id } = useParams<{ id: string }>();
   const serverId = Number(id);
@@ -850,6 +919,23 @@ export default function ServerDashboard() {
                 <CardHeader><CardTitle className="text-base">Webhook Configuration</CardTitle></CardHeader>
                 <CardContent className="space-y-4">
                   <WebhookSecretEditor serverId={Number(id)} currentSecret={server?.webhookSecret || ""} />
+                </CardContent>
+              </Card>
+
+              {/* Bedrock / Console Settings */}
+              <Card className="bg-card border-border/60">
+                <CardHeader>
+                  <CardTitle className="text-base">Bedrock & Console Players</CardTitle>
+                  <CardDescription>Allow Xbox/console players to log in to your store using their gamertag.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <BedrockSettings serverId={Number(id)} server={server} />
+                </CardContent>
+              </Card>
+
+              <Card className="bg-card border-border/60">
+                <CardHeader><CardTitle className="text-base">Webhook Configuration</CardTitle></CardHeader>
+                <CardContent className="space-y-4">
                   <div className="bg-muted/30 rounded-lg p-4 text-xs font-mono text-muted-foreground space-y-1">
                     <p className="text-primary font-semibold mb-2">Example webhook payload:</p>
                     <p>{"{"}</p>

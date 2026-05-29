@@ -171,6 +171,8 @@ const alterStatements = [
   // v5 — Stripe Connect
   "ALTER TABLE servers ADD COLUMN stripe_account_id TEXT",
   "ALTER TABLE servers ADD COLUMN stripe_connect_status TEXT DEFAULT 'not_connected'",
+  "ALTER TABLE servers ADD COLUMN bedrock_prefix TEXT DEFAULT 'none'",
+  "ALTER TABLE servers ADD COLUMN bedrock_enabled INTEGER DEFAULT 0",
 ];
 for (const stmt of alterStatements) {
   try { sqlite.exec(stmt); } catch { /* column already exists */ }
@@ -360,6 +362,8 @@ export const storage: IStorage = {
       domainPlanActive: row.domain_plan_active === 1,
       stripeAccountId: row.stripe_account_id || null,
       stripeConnectStatus: row.stripe_connect_status || 'not_connected',
+      bedrockPrefix: row.bedrock_prefix || 'none',
+      bedrockEnabled: row.bedrock_enabled === 1,
       createdAt: row.created_at,
     } as any;
   },

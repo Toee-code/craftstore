@@ -85,8 +85,7 @@ function SkinAvatar({ username, size = 40 }: { username: string; size?: number }
 }
 
 // ─── SkinPreview (modal) ──────────────────────────────────────────────────────
-// Resolves Minecraft username → UUID via Mojang API, then loads skin from mc-heads
-function SkinPreview({ username }: { username: string }) {
+function SkinPreview({ username, platform = "java" }: { username: string; platform?: string }) {
   const [skinUrl, setSkinUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -95,12 +94,17 @@ function SkinPreview({ username }: { username: string }) {
     setLoading(true);
     setSkinUrl(null);
     const timer = setTimeout(() => {
-      // nmsr.nickac.dev accepts usernames and always serves the real skin
-      setSkinUrl(`https://nmsr.nickac.dev/fullbody/${username}`);
+      if (platform === "bedrock") {
+        // GeyserMC skin API for Bedrock/Xbox players
+        setSkinUrl(`https://skin.matdoes.dev/renders/body/${encodeURIComponent(username)}?overlay=true`);
+      } else {
+        // Java — nmsr accepts usernames directly
+        setSkinUrl(`https://nmsr.nickac.dev/fullbody/${username}`);
+      }
       setLoading(false);
     }, 600);
     return () => clearTimeout(timer);
-  }, [username]);
+  }, [username, platform]);
 
   return (
     <div className="flex flex-col items-center py-2 gap-2">
@@ -313,10 +317,12 @@ function LeaderboardPanel({ serverId, accent }: { serverId: number; accent: stri
 }
 
 // ─── Member Auth Modal ────────────────────────────────────────────────────────
-function MemberAuthModal({ serverId, accent, onClose, onLogin }: {
+function MemberAuthModal({ serverId, accent, onClose, onLogin, bedrockEnabled, bedrockPrefix }: {
   serverId: number; accent: string;
   onClose: () => void; onLogin: (session: MemberSession) => void;
+  bedrockEnabled?: boolean; bedrockPrefix?: string;
 }) {
+  const [platform, setPlatform] = useState<"java" | "bedrock">("java");
   const [mode, setMode] = useState<"login" | "register">("login");
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
@@ -324,6 +330,11 @@ function MemberAuthModal({ serverId, accent, onClose, onLogin }: {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const { toast } = useToast();
+  
+  // For Bedrock: prefix is added server-side before commands run
+  const fullUsername = platform === "bedrock" && bedrockPrefix && bedrockPrefix !== "none"
+    ? `${bedrockPrefix}${username.trim()}`
+    : username.trim();
 
   const handleSubmit = async () => {
     setError("");
@@ -333,8 +344,8 @@ function MemberAuthModal({ serverId, accent, onClose, onLogin }: {
     try {
       const endpoint = mode === "login" ? "/api/member-auth/login" : "/api/member-auth/register";
       const body = mode === "login"
-        ? { serverId, minecraftUsername: username.trim(), password }
-        : { serverId, minecraftUsername: username.trim(), email: email.trim(), password };
+        ? { serverId, minecraftUsername: fullUsername, password }
+        : { serverId, minecraftUsername: fullUsername, email: email.trim(), password };
       const r = await apiRequest("POST", endpoint, body);
       const data = await r.json();
       if (!r.ok) throw new Error(data.error || "Failed");
@@ -356,6 +367,18 @@ function MemberAuthModal({ serverId, accent, onClose, onLogin }: {
           <DialogTitle style={{ color: "#fff" }}>{mode === "login" ? "Member Login" : "Create Account"}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
+          {/* Platform switcher */}
+          {bedrockEnabled && (
+            <div className="flex rounded-xl overflow-hidden p-1 gap-1" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
+              {(["java", "bedrock"] as const).map(p => (
+                <button key={p} onClick={() => { setPlatform(p); setUsername(""); setError(""); }}
+                  className="flex-1 py-2 rounded-lg text-sm font-semibold transition-all flex items-center justify-center gap-1.5"
+                  style={platform === p ? { background: accent, color: "#000" } : { color: "rgba(255,255,255,0.5)" }}>
+                  {p === "java" ? "☕ Java" : "🎮 Bedrock / Console"}
+                </button>
+              ))}
+            </div>
+          )}
           <div className="flex rounded-xl overflow-hidden p-1 gap-1" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
             {(["login", "register"] as const).map(m => (
               <button key={m} onClick={() => setMode(m)}
@@ -365,8 +388,8 @@ function MemberAuthModal({ serverId, accent, onClose, onLogin }: {
               </button>
             ))}
           </div>
-          {/* Live skin preview — resolves UUID via Mojang then loads crafatar */}
-          <SkinPreview username={username.trim()} />
+          {/* Live skin preview */}
+          <SkinPreview username={username.trim()} platform={platform} />
           <div className="space-y-1.5">
             <Label style={{ color: "rgba(255,255,255,0.6)", fontSize: 12 }}>Minecraft Username</Label>
             <Input placeholder="Steve" value={username} onChange={e => setUsername(e.target.value)}
@@ -1520,7 +1543,7 @@ function ThemedStore({ data }: { data: StoreData }) {
 
         {/* Shared modals — member auth + checkout (same Dialog as standard layout) */}
         {memberAuthOpen && (
-          <MemberAuthModal serverId={data.server.id} accent={accent} onClose={() => setMemberAuthOpen(false)} onLogin={(s) => setMemberSession(s)} />
+          <MemberAuthModal serverId={data.server.id} accent={accent} onClose={() => setMemberAuthOpen(false)} onLogin={(s) => setMemberSession(s)} bedrockEnabled={data.server.bedrockEnabled} bedrockPrefix={data.server.bedrockPrefix} />
         )}
         <Dialog open={checkout.open} onOpenChange={(o) => { if (!o) { setCheckout({ open: false, product: null, mode: "buy", paymentMode: "balance" }); setPurchased(false); } }}>
           <DialogContent className="max-w-sm" style={{ background: "#111214", border: "1px solid rgba(255,255,255,0.12)", color: "#fff" }}>
@@ -1680,7 +1703,7 @@ function ThemedStore({ data }: { data: StoreData }) {
 
         {/* Modals */}
         {memberAuthOpen && (
-          <MemberAuthModal serverId={data.server.id} accent={accent} onClose={() => setMemberAuthOpen(false)} onLogin={(s) => setMemberSession(s)} />
+          <MemberAuthModal serverId={data.server.id} accent={accent} onClose={() => setMemberAuthOpen(false)} onLogin={(s) => setMemberSession(s)} bedrockEnabled={data.server.bedrockEnabled} bedrockPrefix={data.server.bedrockPrefix} />
         )}
         <Dialog open={checkout.open} onOpenChange={(o) => { if (!o) { setCheckout({ open: false, product: null, mode: "buy", paymentMode: "balance" }); setPurchased(false); } }}>
           <DialogContent className="max-w-sm" style={{ background: "#14171d", border: "1px solid rgba(255,255,255,0.1)", color: "#fff" }}>
@@ -2016,7 +2039,7 @@ function ThemedStore({ data }: { data: StoreData }) {
 
       {/* Member Auth Modal */}
       {memberAuthOpen && (
-        <MemberAuthModal serverId={data.server.id} accent={accent} onClose={() => setMemberAuthOpen(false)} onLogin={(s) => setMemberSession(s)} />
+        <MemberAuthModal serverId={data.server.id} accent={accent} onClose={() => setMemberAuthOpen(false)} onLogin={(s) => setMemberSession(s)} bedrockEnabled={data.server.bedrockEnabled} bedrockPrefix={data.server.bedrockPrefix} />
       )}
 
       {/* ── Checkout Dialog ─────────────────────────────────────────────────── */}
