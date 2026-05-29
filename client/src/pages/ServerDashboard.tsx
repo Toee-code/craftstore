@@ -915,13 +915,6 @@ export default function ServerDashboard() {
 
           <TabsContent value="settings">
             <div className="max-w-xl space-y-6">
-              <Card className="bg-card border-border/60">
-                <CardHeader><CardTitle className="text-base">Webhook Configuration</CardTitle></CardHeader>
-                <CardContent className="space-y-4">
-                  <WebhookSecretEditor serverId={Number(id)} currentSecret={server?.webhookSecret || ""} />
-                </CardContent>
-              </Card>
-
               {/* Bedrock / Console Settings */}
               <Card className="bg-card border-border/60">
                 <CardHeader>
@@ -936,6 +929,7 @@ export default function ServerDashboard() {
               <Card className="bg-card border-border/60">
                 <CardHeader><CardTitle className="text-base">Webhook Configuration</CardTitle></CardHeader>
                 <CardContent className="space-y-4">
+                  <WebhookSecretEditor serverId={Number(id)} currentSecret={server?.webhookSecret || ""} />
                   <div className="bg-muted/30 rounded-lg p-4 text-xs font-mono text-muted-foreground space-y-1">
                     <p className="text-primary font-semibold mb-2">Example webhook payload:</p>
                     <p>{"{"}</p>
