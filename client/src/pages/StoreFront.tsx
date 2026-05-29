@@ -1184,6 +1184,14 @@ function EchoLayout({
             <div className="rounded px-2 py-1 text-xs font-bold" style={{ background: "#016fcb", border: "1px solid rgba(255,255,255,0.12)", color: "#fff", fontSize: 11 }}>
               AMEX
             </div>
+            {/* Apple Pay */}
+            <div className="rounded px-2 py-1 flex items-center gap-1" style={{ background: "#1a1a1a", border: "1px solid rgba(255,255,255,0.12)" }}>
+              {/* Apple logo */}
+              <svg viewBox="0 0 384 512" width="8" height="11" fill="white" aria-hidden="true">
+                <path d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5c0 28.9 5.2 58.8 15.6 89.5 13.9 40.3 64.1 139.3 116.4 137.7 29.4-.7 50.2-19.9 83.3-19.9 32.2 0 51.7 19.9 83.8 19.9 52.8-.7 99.2-91.6 112.6-132.1-71.2-33.5-96.8-99.6-96.8-99.9zm-91.2-190.4c27.5-32.1 24.7-61.5 24-72.7-23.8 1.4-51.5 16.1-67.3 34.5-17.5 19.7-27 44.3-25.2 70.5 26.1 2 50.2-12.6 68.5-32.3z"/>
+              </svg>
+              <span style={{ fontFamily: "-apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif", fontSize: 11, fontWeight: 500, color: "#fff", letterSpacing: "-0.2px" }}>Pay</span>
+            </div>
           </div>
         </div>
       </footer>

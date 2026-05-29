@@ -654,8 +654,8 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
       }
 
       // Real Stripe — create checkout session
+      // No payment_method_types restriction = Stripe auto-shows Apple Pay, Google Pay, card etc.
       const sessionParams: any = {
-        payment_method_types: ["card"],
         mode: "payment",
         line_items: [{
           price_data: {
