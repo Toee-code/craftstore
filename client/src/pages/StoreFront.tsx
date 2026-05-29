@@ -75,7 +75,7 @@ function SkinAvatar({ username, size = 40 }: { username: string; size?: number }
   }
   return (
     <img
-      src={`https://visage.surgeplay.com/face/${size}/${username}`}
+      src={`https://mc-heads.net/avatar/${username}/${size}`}
       alt={username}
       width={size} height={size}
       style={{ imageRendering: "pixelated", borderRadius: 8 }}
@@ -85,6 +85,7 @@ function SkinAvatar({ username, size = 40 }: { username: string; size?: number }
 }
 
 // ─── SkinPreview (modal) ──────────────────────────────────────────────────────
+// Resolves Minecraft username → UUID via Mojang API, then loads skin from mc-heads
 function SkinPreview({ username }: { username: string }) {
   const [skinUrl, setSkinUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -92,15 +93,19 @@ function SkinPreview({ username }: { username: string }) {
   useEffect(() => {
     if (username.length < 2) { setSkinUrl(null); return; }
     setLoading(true);
+    setSkinUrl(null);
     const timer = setTimeout(async () => {
       try {
-        // visage.surgeplay.com accepts usernames directly
-        const url = `https://visage.surgeplay.com/bust/128/${username}`;
-        setSkinUrl(url);
+        const r = await fetch(`https://api.mojang.com/users/profiles/minecraft/${username}`);
+        if (!r.ok) throw new Error("not found");
+        const data = await r.json();
+        setSkinUrl(`https://mc-heads.net/body/${data.id}/64`);
+      } catch {
+        setSkinUrl(null);
       } finally {
         setLoading(false);
       }
-    }, 400); // debounce
+    }, 600);
     return () => clearTimeout(timer);
   }, [username]);
 
@@ -922,7 +927,7 @@ function EchoLayout({
                 <div className="relative w-10 h-10 rounded-lg overflow-hidden shrink-0"
                   style={{ background: "rgba(255,255,255,0.05)" }}>
                   <img
-                    src={`https://visage.surgeplay.com/bust/128/${memberSession.minecraftUsername}`}
+                    src={`https://mc-heads.net/body/${memberSession.minecraftUsername}/64`}
                     alt={memberSession.minecraftUsername}
                     className="h-full object-contain mx-auto"
                   />
@@ -1287,7 +1292,7 @@ function ThemedStore({ data }: { data: StoreData }) {
               <div className="relative w-12 h-14 rounded-xl overflow-hidden shrink-0 flex items-end justify-center"
                 style={{ background: "rgba(255,255,255,0.05)", border: `1px solid ${accent}20` }}>
                 <img
-                  src={`https://visage.surgeplay.com/bust/128/${memberSession.minecraftUsername}`}
+                  src={`https://mc-heads.net/body/${memberSession.minecraftUsername}/64`}
                   alt={memberSession.minecraftUsername}
                   className="h-full object-contain"
                 />
