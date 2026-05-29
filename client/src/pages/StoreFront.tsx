@@ -365,7 +365,7 @@ function MemberAuthModal({ serverId, accent, onClose, onLogin, bedrockEnabled, b
 
   return (
     <Dialog open onOpenChange={onClose}>
-      <DialogContent className="max-w-sm p-0 overflow-hidden" style={{ background: "#0f0f13", border: "1px solid rgba(255,255,255,0.1)", color: "#fff" }}>
+      <DialogContent className="max-w-sm overflow-hidden" style={{ background: "#0f0f13", border: "1px solid rgba(255,255,255,0.1)", color: "#fff", padding: 0 }}>
         {/* Header */}
         <div className="px-6 pt-6 pb-4 text-center">
           <DialogTitle className="text-2xl font-extrabold text-white">Login</DialogTitle>
