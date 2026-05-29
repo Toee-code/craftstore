@@ -431,13 +431,23 @@ function BedrockSettings({ serverId, server }: { serverId: number; server?: any 
   }, [server]);
 
   const save = useMutation({
-    mutationFn: () => apiRequest("PATCH", `/api/servers/${serverId}`, { bedrockEnabled: enabled, bedrockPrefix: prefix }).then(r => r.json()),
+    mutationFn: () => apiRequest("PATCH", `/api/servers/${serverId}`, { bedrockEnabled: enabled, bedrockPrefix: prefix, bedrockReplaceSpaces: replaceSpaces }).then(r => r.json()),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["/api/servers", serverId] });
       setSaved(true); setTimeout(() => setSaved(false), 2000);
       toast({ title: "Bedrock settings saved" });
     },
   });
+
+  const [replaceSpaces, setReplaceSpaces] = useState(server?.bedrockReplaceSpaces ?? true);
+
+  useEffect(() => {
+    if (server) {
+      setEnabled(server.bedrockEnabled);
+      setPrefix(server.bedrockPrefix ?? "none");
+      setReplaceSpaces(server.bedrockReplaceSpaces ?? true);
+    }
+  }, [server]);
 
   const prefixOptions = [
     { value: "none", label: "No prefix", desc: "Username sent as-is (e.g. Steve)" },
@@ -461,21 +471,44 @@ function BedrockSettings({ serverId, server }: { serverId: number; server?: any 
       </div>
 
       {enabled && (
-        <div className="space-y-2">
-          <Label className="text-sm">Username prefix for Bedrock players</Label>
-          <p className="text-xs text-muted-foreground">This prefix is added to their gamertag before running commands (must match your Geyser/Floodgate config).</p>
-          <div className="grid grid-cols-3 gap-2">
-            {prefixOptions.map(opt => (
-              <button key={opt.value} onClick={() => setPrefix(opt.value)}
-                className={`rounded-xl border px-3 py-2.5 text-left transition-all ${
-                  prefix === opt.value
-                    ? "border-primary bg-primary/10 text-primary"
-                    : "border-border/40 bg-muted/20 text-muted-foreground hover:border-border"
-                }`}>
-                <p className="font-bold text-sm">{opt.label}</p>
-                <p className="text-xs mt-0.5 opacity-70">{opt.desc}</p>
-              </button>
-            ))}
+        <div className="space-y-4">
+          {/* Replace spaces toggle */}
+          <div className="flex items-center justify-between rounded-xl bg-muted/20 border border-border/40 px-4 py-3">
+            <div>
+              <p className="text-sm font-medium">Replace spaces with underscores</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Xbox gamertags can have spaces — this converts them (e.g. "Cool Player" → "Cool_Player")</p>
+            </div>
+            <button
+              onClick={() => setReplaceSpaces(!replaceSpaces)}
+              className={`relative w-10 h-6 rounded-full transition-colors ${replaceSpaces ? "bg-primary" : "bg-muted"}`}>
+              <span className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform ${replaceSpaces ? "translate-x-4" : ""}`} />
+            </button>
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-sm">Username prefix for Bedrock players</Label>
+            <p className="text-xs text-muted-foreground">This prefix is added to their gamertag before running commands (must match your Geyser/Floodgate config).</p>
+            <div className="grid grid-cols-3 gap-2">
+              {prefixOptions.map(opt => (
+                <button key={opt.value} onClick={() => setPrefix(opt.value)}
+                  className={`rounded-xl border px-3 py-2.5 text-left transition-all ${
+                    prefix === opt.value
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border/40 bg-muted/20 text-muted-foreground hover:border-border"
+                  }`}>
+                  <p className="font-bold text-sm">{opt.label}</p>
+                  <p className="text-xs mt-0.5 opacity-70">{opt.desc}</p>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Live preview */}
+          <div className="rounded-xl bg-muted/20 border border-border/40 px-4 py-3 text-xs">
+            <p className="text-muted-foreground mb-1">Example — gamertag "Cool Player" becomes:</p>
+            <code className="text-primary font-mono font-bold">
+              {prefix !== "none" ? prefix : ""}{replaceSpaces ? "Cool_Player" : "Cool Player"}
+            </code>
           </div>
         </div>
       )}

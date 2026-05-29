@@ -33,6 +33,7 @@ export const servers = sqliteTable("servers", {
   stripeConnectStatus: text("stripe_connect_status").default("not_connected"), // "not_connected" | "pending" | "active"
   bedrockPrefix: text("bedrock_prefix").default("none"), // "none" | "." | "_" — prefix added to Bedrock usernames
   bedrockEnabled: integer("bedrock_enabled", { mode: "boolean" }).default(false), // show Bedrock login option
+  bedrockReplaceSpaces: integer("bedrock_replace_spaces", { mode: "boolean" }).default(true), // replace spaces in gamertag with _
   createdAt: text("created_at").notNull().default(new Date().toISOString()),
 });
 

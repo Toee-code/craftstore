@@ -320,7 +320,7 @@ function LeaderboardPanel({ serverId, accent }: { serverId: number; accent: stri
 function MemberAuthModal({ serverId, accent, onClose, onLogin, bedrockEnabled, bedrockPrefix }: {
   serverId: number; accent: string;
   onClose: () => void; onLogin: (session: MemberSession) => void;
-  bedrockEnabled?: boolean; bedrockPrefix?: string;
+  bedrockEnabled?: boolean; bedrockPrefix?: string; bedrockReplaceSpaces?: boolean;
 }) {
   const [platform, setPlatform] = useState<"java" | "bedrock">("java");
   const [mode, setMode] = useState<"login" | "register">("login");
@@ -331,9 +331,12 @@ function MemberAuthModal({ serverId, accent, onClose, onLogin, bedrockEnabled, b
   const [error, setError] = useState("");
   const { toast } = useToast();
   
-  // For Bedrock: prefix is added server-side before commands run
-  const fullUsername = platform === "bedrock" && bedrockPrefix && bedrockPrefix !== "none"
-    ? `${bedrockPrefix}${username.trim()}`
+  // For Bedrock: apply space replacement then prefix
+  const bedrockName = bedrockReplaceSpaces !== false
+    ? username.trim().replace(/ /g, "_")
+    : username.trim();
+  const fullUsername = platform === "bedrock"
+    ? `${bedrockPrefix && bedrockPrefix !== "none" ? bedrockPrefix : ""}${bedrockName}`
     : username.trim();
 
   const handleSubmit = async () => {
@@ -1543,7 +1546,7 @@ function ThemedStore({ data }: { data: StoreData }) {
 
         {/* Shared modals — member auth + checkout (same Dialog as standard layout) */}
         {memberAuthOpen && (
-          <MemberAuthModal serverId={data.server.id} accent={accent} onClose={() => setMemberAuthOpen(false)} onLogin={(s) => setMemberSession(s)} bedrockEnabled={data.server.bedrockEnabled} bedrockPrefix={data.server.bedrockPrefix} />
+          <MemberAuthModal serverId={data.server.id} accent={accent} onClose={() => setMemberAuthOpen(false)} onLogin={(s) => setMemberSession(s)} bedrockEnabled={data.server.bedrockEnabled} bedrockPrefix={data.server.bedrockPrefix} bedrockReplaceSpaces={data.server.bedrockReplaceSpaces} />
         )}
         <Dialog open={checkout.open} onOpenChange={(o) => { if (!o) { setCheckout({ open: false, product: null, mode: "buy", paymentMode: "balance" }); setPurchased(false); } }}>
           <DialogContent className="max-w-sm" style={{ background: "#111214", border: "1px solid rgba(255,255,255,0.12)", color: "#fff" }}>
@@ -1703,7 +1706,7 @@ function ThemedStore({ data }: { data: StoreData }) {
 
         {/* Modals */}
         {memberAuthOpen && (
-          <MemberAuthModal serverId={data.server.id} accent={accent} onClose={() => setMemberAuthOpen(false)} onLogin={(s) => setMemberSession(s)} bedrockEnabled={data.server.bedrockEnabled} bedrockPrefix={data.server.bedrockPrefix} />
+          <MemberAuthModal serverId={data.server.id} accent={accent} onClose={() => setMemberAuthOpen(false)} onLogin={(s) => setMemberSession(s)} bedrockEnabled={data.server.bedrockEnabled} bedrockPrefix={data.server.bedrockPrefix} bedrockReplaceSpaces={data.server.bedrockReplaceSpaces} />
         )}
         <Dialog open={checkout.open} onOpenChange={(o) => { if (!o) { setCheckout({ open: false, product: null, mode: "buy", paymentMode: "balance" }); setPurchased(false); } }}>
           <DialogContent className="max-w-sm" style={{ background: "#14171d", border: "1px solid rgba(255,255,255,0.1)", color: "#fff" }}>
@@ -2039,7 +2042,7 @@ function ThemedStore({ data }: { data: StoreData }) {
 
       {/* Member Auth Modal */}
       {memberAuthOpen && (
-        <MemberAuthModal serverId={data.server.id} accent={accent} onClose={() => setMemberAuthOpen(false)} onLogin={(s) => setMemberSession(s)} bedrockEnabled={data.server.bedrockEnabled} bedrockPrefix={data.server.bedrockPrefix} />
+        <MemberAuthModal serverId={data.server.id} accent={accent} onClose={() => setMemberAuthOpen(false)} onLogin={(s) => setMemberSession(s)} bedrockEnabled={data.server.bedrockEnabled} bedrockPrefix={data.server.bedrockPrefix} bedrockReplaceSpaces={data.server.bedrockReplaceSpaces} />
       )}
 
       {/* ── Checkout Dialog ─────────────────────────────────────────────────── */}

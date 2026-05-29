@@ -173,6 +173,7 @@ const alterStatements = [
   "ALTER TABLE servers ADD COLUMN stripe_connect_status TEXT DEFAULT 'not_connected'",
   "ALTER TABLE servers ADD COLUMN bedrock_prefix TEXT DEFAULT 'none'",
   "ALTER TABLE servers ADD COLUMN bedrock_enabled INTEGER DEFAULT 0",
+  "ALTER TABLE servers ADD COLUMN bedrock_replace_spaces INTEGER DEFAULT 1",
 ];
 for (const stmt of alterStatements) {
   try { sqlite.exec(stmt); } catch { /* column already exists */ }
@@ -364,6 +365,7 @@ export const storage: IStorage = {
       stripeConnectStatus: row.stripe_connect_status || 'not_connected',
       bedrockPrefix: row.bedrock_prefix || 'none',
       bedrockEnabled: row.bedrock_enabled === 1,
+      bedrockReplaceSpaces: row.bedrock_replace_spaces !== 0,
       createdAt: row.created_at,
     } as any;
   },
