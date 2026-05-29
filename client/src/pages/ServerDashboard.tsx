@@ -1248,16 +1248,8 @@ export default function ServerDashboard() {
                         <Input type="number" {...productForm.register("stock", { valueAsNumber: true })} />
                       </div>
                     </div>
-                    <ProductImagePicker
-                      imageType={productForm.watch("imageType") || "upload"}
-                      setImageType={(v) => productForm.setValue("imageType", v)}
-                      imageUrl={productForm.watch("imageUrl") || ""}
-                      setImageUrl={(v) => productForm.setValue("imageUrl", v)}
-                      playerHeadName={productForm.watch("playerHeadName") || ""}
-                      setPlayerHeadName={(v) => productForm.setValue("playerHeadName", v)}
-                    />
                     {/* Enchanted toggle */}
-                    <div className="flex items-center justify-between rounded-xl bg-muted/20 border border-border/40 px-4 py-3">
+                    <div className="flex items-center justify-between rounded-xl bg-purple-500/10 border border-purple-500/30 px-4 py-3">
                       <div>
                         <p className="text-sm font-medium flex items-center gap-1.5"><Sparkles className="w-3.5 h-3.5 text-purple-400" /> Enchanted Item</p>
                         <p className="text-xs text-muted-foreground mt-0.5">Adds a Minecraft-style enchantment glint shimmer to the item image</p>
@@ -1269,6 +1261,14 @@ export default function ServerDashboard() {
                         <span className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform ${productForm.watch("enchanted") ? "translate-x-4" : ""}`} />
                       </button>
                     </div>
+                    <ProductImagePicker
+                      imageType={productForm.watch("imageType") || "upload"}
+                      setImageType={(v) => productForm.setValue("imageType", v)}
+                      imageUrl={productForm.watch("imageUrl") || ""}
+                      setImageUrl={(v) => productForm.setValue("imageUrl", v)}
+                      playerHeadName={productForm.watch("playerHeadName") || ""}
+                      setPlayerHeadName={(v) => productForm.setValue("playerHeadName", v)}
+                    />
                     <Button type="submit" className="w-full bg-primary text-primary-foreground" disabled={addProduct.isPending}>
                       {addProduct.isPending ? "Adding…" : "Add product"}
                     </Button>
@@ -1316,16 +1316,8 @@ export default function ServerDashboard() {
                       <Input type="number" {...editForm.register("stock", { valueAsNumber: true })} />
                     </div>
                   </div>
-                  <ProductImagePicker
-                    imageType={editForm.watch("imageType") || "upload"}
-                    setImageType={(v) => editForm.setValue("imageType", v)}
-                    imageUrl={editForm.watch("imageUrl") || ""}
-                    setImageUrl={(v) => editForm.setValue("imageUrl", v)}
-                    playerHeadName={editForm.watch("playerHeadName") || ""}
-                    setPlayerHeadName={(v) => editForm.setValue("playerHeadName", v)}
-                  />
                   {/* Enchanted toggle */}
-                  <div className="flex items-center justify-between rounded-xl bg-muted/20 border border-border/40 px-4 py-3">
+                  <div className="flex items-center justify-between rounded-xl bg-purple-500/10 border border-purple-500/30 px-4 py-3">
                     <div>
                       <p className="text-sm font-medium flex items-center gap-1.5"><Sparkles className="w-3.5 h-3.5 text-purple-400" /> Enchanted Item</p>
                       <p className="text-xs text-muted-foreground mt-0.5">Adds a Minecraft-style enchantment glint shimmer to the item image</p>
@@ -1337,6 +1329,14 @@ export default function ServerDashboard() {
                       <span className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform ${editForm.watch("enchanted") ? "translate-x-4" : ""}`} />
                     </button>
                   </div>
+                  <ProductImagePicker
+                    imageType={editForm.watch("imageType") || "upload"}
+                    setImageType={(v) => editForm.setValue("imageType", v)}
+                    imageUrl={editForm.watch("imageUrl") || ""}
+                    setImageUrl={(v) => editForm.setValue("imageUrl", v)}
+                    playerHeadName={editForm.watch("playerHeadName") || ""}
+                    setPlayerHeadName={(v) => editForm.setValue("playerHeadName", v)}
+                  />
                   <div className="flex gap-2">
                     <Button type="button" variant="outline" className="flex-1" onClick={() => setEditProduct(null)}>Cancel</Button>
                     <Button type="submit" className="flex-1 bg-primary text-primary-foreground" disabled={updateProduct.isPending}>
