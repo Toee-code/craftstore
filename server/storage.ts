@@ -395,6 +395,7 @@ export const storage: IStorage = {
       discordUrl: 'discord_url', serverIp: 'server_ip',
       customDomain: 'custom_domain', domainPlanActive: 'domain_plan_active',
       stripeAccountId: 'stripe_account_id', stripeConnectStatus: 'stripe_connect_status',
+      bedrockEnabled: 'bedrock_enabled', bedrockPrefix: 'bedrock_prefix', bedrockReplaceSpaces: 'bedrock_replace_spaces',
     };
     const entries = Object.entries(data).filter(([k]) => fieldMap[k] !== undefined);
     if (entries.length === 0) return storage.getServerById(id);
