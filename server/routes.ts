@@ -471,6 +471,19 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
     }
   });
 
+  // PATCH — merge partial fields into existing theme (won't wipe other fields)
+  app.patch("/api/servers/:serverId/theme", (req, res) => {
+    try {
+      const serverId = Number(req.params.serverId);
+      const existing = storage.getStoreTheme(serverId);
+      const merged = { ...(existing || {}), ...req.body, serverId };
+      const theme = storage.upsertStoreTheme(merged);
+      res.json(theme);
+    } catch (e: any) {
+      res.status(400).json({ error: e.message });
+    }
+  });
+
   // ── Presets ──────────────────────────────────────────────────────────────
   // List all presets (marketplace)
   app.get("/api/presets", (req, res) => {
