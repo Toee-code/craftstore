@@ -198,6 +198,7 @@ function EarningsSummary({ serverId }: { serverId: number }) {
 interface ProductForm {
   name: string; description: string; price: number;
   command: string; category: string; stock: number; imageUrl: string;
+  imageType: string; playerHeadName: string;
 }
 interface MemberForm { minecraftUsername: string; email: string; balance: number; }
 
@@ -564,7 +565,7 @@ export default function ServerDashboard() {
   });
 
   // Add product
-  const productForm = useForm<ProductForm>();
+  const productForm = useForm<ProductForm>({ defaultValues: { imageType: "custom", playerHeadName: "" } });
   const addProduct = useMutation({
     mutationFn: (data: ProductForm) =>
       apiRequest("POST", `/api/servers/${serverId}/products`, data).then(r => r.json()),
@@ -718,9 +719,51 @@ export default function ServerDashboard() {
                         <Input type="number" defaultValue={-1} {...productForm.register("stock", { valueAsNumber: true })} />
                       </div>
                     </div>
-                    <div className="space-y-1.5">
-                      <Label>Image URL (optional)</Label>
-                      <Input placeholder="https://…" {...productForm.register("imageUrl")} />
+                    {/* Image picker: Custom URL or Player Head */}
+                    <div className="space-y-2">
+                      <Label>Product Image</Label>
+                      <div className="flex rounded-lg overflow-hidden border border-border">
+                        <button type="button"
+                          className={`flex-1 py-1.5 text-sm font-medium transition-colors ${
+                            productForm.watch("imageType") !== "playerhead"
+                              ? "bg-primary text-primary-foreground"
+                              : "bg-muted text-muted-foreground hover:bg-muted/80"
+                          }`}
+                          onClick={() => productForm.setValue("imageType", "custom")}>
+                          Custom URL
+                        </button>
+                        <button type="button"
+                          className={`flex-1 py-1.5 text-sm font-medium transition-colors ${
+                            productForm.watch("imageType") === "playerhead"
+                              ? "bg-primary text-primary-foreground"
+                              : "bg-muted text-muted-foreground hover:bg-muted/80"
+                          }`}
+                          onClick={() => productForm.setValue("imageType", "playerhead")}>
+                          Player Head
+                        </button>
+                      </div>
+
+                      {productForm.watch("imageType") === "playerhead" ? (
+                        <div className="flex items-center gap-3">
+                          <div className="flex-1 space-y-1">
+                            <Input
+                              placeholder="Minecraft username (e.g. Notch)"
+                              {...productForm.register("playerHeadName")}
+                            />
+                            <p className="text-xs text-muted-foreground">Enter any Java player name to use their head as the product image</p>
+                          </div>
+                          {productForm.watch("playerHeadName") && (
+                            <img
+                              src={`https://mc-heads.net/3d/head/${productForm.watch("playerHeadName")}/100`}
+                              alt="head preview"
+                              className="w-16 h-16 object-contain rounded-lg"
+                              style={{ imageRendering: "pixelated", background: "rgba(255,255,255,0.05)" }}
+                            />
+                          )}
+                        </div>
+                      ) : (
+                        <Input placeholder="https://example.com/image.png" {...productForm.register("imageUrl")} />
+                      )}
                     </div>
                     <Button type="submit" className="w-full bg-primary text-primary-foreground" disabled={addProduct.isPending}>
                       {addProduct.isPending ? "Adding…" : "Add product"}

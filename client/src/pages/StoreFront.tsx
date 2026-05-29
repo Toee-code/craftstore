@@ -75,6 +75,14 @@ function faceSkinUrl(username: string, platform: "java" | "bedrock"): string {
   return `https://nmsr.nickac.dev/face/${username}`;
 }
 
+// Resolve product image — player head (3D render) or custom URL
+function productImageUrl(product: Product): string | null {
+  if (product.imageType === "playerhead" && product.playerHeadName) {
+    return `https://mc-heads.net/3d/head/${encodeURIComponent(product.playerHeadName)}/100`;
+  }
+  return product.imageUrl || null;
+}
+
 interface LeaderboardEntry { rank: number; minecraftUsername: string; total: number; }
 type LeaderboardPeriod = "monthly" | "yearly" | "alltime";
 type SidebarPage = "home" | "leaderboard" | string;
@@ -506,13 +514,18 @@ function ProductCard({ product, accent, playerPrice, onBuy, onGift }: {
     >
       {/* Image */}
       <div className="relative overflow-hidden" style={{ height: 160 }}>
-        {product.imageUrl ? (
-          <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+        {(() => { const imgUrl = productImageUrl(product); return imgUrl ? (
+          <img src={imgUrl} alt={product.name}
+            className={`w-full h-full transition-transform duration-500 group-hover:scale-105 ${
+              product.imageType === "playerhead" ? "object-contain p-2" : "object-cover"
+            }`}
+            style={product.imageType === "playerhead" ? { imageRendering: "pixelated", background: `linear-gradient(135deg, ${accent}18, ${accent}08)` } : {}}
+          />
         ) : (
           <div className="w-full h-full flex items-center justify-center" style={{ background: `linear-gradient(135deg, ${accent}15, ${accent}05)` }}>
             <Package className="w-12 h-12" style={{ color: accent + "50" }} />
           </div>
-        )}
+        ); })()}
         {/* Category badge */}
         {product.category && (
           <div className="absolute top-3 left-3">
@@ -613,9 +626,9 @@ function DonutProductCard({
 
       {/* Product image / icon area — floats slightly above card */}
       <div className="flex justify-center pt-6 pb-2 relative">
-        {product.imageUrl ? (
+        {(() => { const imgUrl = productImageUrl(product); return imgUrl ? (
           <img
-            src={product.imageUrl}
+            src={imgUrl}
             alt={product.name}
             className="w-20 h-20 object-contain"
             style={{
@@ -628,7 +641,7 @@ function DonutProductCard({
             style={{ background: `linear-gradient(135deg, ${accent}20, ${accent}08)`, border: `1px solid ${accent}30` }}>
             <Package className="w-9 h-9" style={{ color: accent + "70" }} />
           </div>
-        )}
+        ); })()}
       </div>
 
       {/* Content */}
@@ -840,8 +853,8 @@ function EchoProductCard({
 
       {/* Floating product image — no background box */}
       <div className="flex items-end justify-center pt-5 pb-1" style={{ minHeight: 130 }}>
-        {product.imageUrl ? (
-          <img src={product.imageUrl} alt={product.name}
+        {(() => { const imgUrl = productImageUrl(product); return imgUrl ? (
+          <img src={imgUrl} alt={product.name}
             className="w-24 h-24 object-contain"
             style={{ imageRendering: "pixelated", filter: "drop-shadow(0 4px 12px rgba(0,0,0,0.5))" }} />
         ) : (
@@ -849,7 +862,7 @@ function EchoProductCard({
             style={{ background: `${accent}15` }}>
             <Package className="w-8 h-8" style={{ color: `${accent}70` }} />
           </div>
-        )}
+        ); })()}
       </div>
 
       {/* Text + CTA */}

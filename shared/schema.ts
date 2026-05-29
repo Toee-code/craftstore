@@ -49,6 +49,8 @@ export const products = sqliteTable("products", {
   description: text("description"),
   price: real("price").notNull(),
   imageUrl: text("image_url"),
+  imageType: text("image_type").default("custom"),  // "custom" | "playerhead"
+  playerHeadName: text("player_head_name"),          // Minecraft username for head render
   category: text("category"),
   subcategory: text("subcategory"),            // NEW: subcategory within a category
   command: text("command").notNull(),
