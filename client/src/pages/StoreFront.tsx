@@ -928,13 +928,15 @@ function EchoCategoryCard({
 }
 
 function EchoLayout({
-  data, accent, onBuy, onGift, calcPlayerPrice, page, setPage, memberSession, onLogin
+  data, accent, onBuy, onGift, calcPlayerPrice, page, setPage, memberSession, onLogin,
+  playerDropdownOpen, setPlayerDropdownOpen, onLogout
 }: {
   data: StoreData; accent: string;
   onBuy: (p: Product) => void; onGift: (p: Product) => void;
   calcPlayerPrice: (p: number) => number;
   page: string; setPage: (p: string) => void;
   memberSession: MemberSession | null; onLogin: () => void;
+  playerDropdownOpen: boolean; setPlayerDropdownOpen: (v: boolean | ((prev: boolean) => boolean)) => void; onLogout: () => void;
 }) {
   const categories: string[] = (() => { try { return JSON.parse(data.theme.categories || "[]"); } catch { return []; } })();
   const activeProducts = data.products.filter(p => p.active);
@@ -1028,7 +1030,7 @@ function EchoLayout({
                       <User className="w-4 h-4" /> My Profile
                     </a>
                     <button
-                      onClick={handleMemberLogout}
+                      onClick={onLogout}
                       className="w-full flex items-center gap-2 px-4 py-3 text-sm font-medium hover:bg-white/5 transition-colors"
                       style={{ color: "#f87171", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
                       <LogOut className="w-4 h-4" /> Log Out
@@ -1824,6 +1826,9 @@ function ThemedStore({ data }: { data: StoreData }) {
               setPage={setPage}
               memberSession={memberSession}
               onLogin={() => setMemberAuthOpen(true)}
+              playerDropdownOpen={playerDropdownOpen}
+              setPlayerDropdownOpen={setPlayerDropdownOpen}
+              onLogout={handleMemberLogout}
             />
           )}
         </main>

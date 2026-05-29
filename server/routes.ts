@@ -1366,30 +1366,32 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
     }
   });
 
-  // Bedrock skin proxy — looks up XUID via GeyserMC then fetches skin render
+  // Bedrock skin proxy — XUID via GeyserMC → texture hash → nmsr render (proxied)
   app.get("/api/bedrock/skin/:gamertag", async (req, res) => {
+    const FALLBACK = "https://nmsr.nickac.dev/fullbody/MHF_Steve";
     try {
-      const gamertag = req.params.gamertag.replace(/^[._]/, ""); // strip floodgate prefix
-      // Step 1: get XUID from GeyserMC
+      const gamertag = req.params.gamertag.replace(/^[._]/, ""); // strip . or _ floodgate prefix
+      // 1. Gamertag → XUID
       const xuidRes = await fetch(`https://api.geysermc.org/v2/xbox/xuid/${encodeURIComponent(gamertag)}`);
-      if (!xuidRes.ok) {
-        // Fallback: redirect to a generic bedrock steve
-        return res.redirect("https://nmsr.nickac.dev/fullbody/MHF_Steve");
-      }
+      if (!xuidRes.ok) return res.redirect(FALLBACK);
       const { xuid } = await xuidRes.json() as { xuid: number };
-      // Step 2: get skin data from GeyserMC
+      // 2. XUID → texture hash via GeyserMC skin API
       const skinRes = await fetch(`https://api.geysermc.org/v2/skin/${xuid}`);
-      if (!skinRes.ok) return res.redirect("https://nmsr.nickac.dev/fullbody/MHF_Steve");
+      if (!skinRes.ok) return res.redirect(FALLBACK);
       const skinData = await skinRes.json() as any;
-      // skinData.texture_id is a Mineskin ID - we can build a render URL from it
-      // Or use the hash directly from skinData.value (base64 texture)
-      if (skinData.texture_id) {
-        // Redirect to mineskin render or use skin.matdoes.dev with xuid
-        return res.redirect(`https://skin.matdoes.dev/renders/body/${xuid}?overlay=true`);
-      }
-      res.redirect("https://nmsr.nickac.dev/fullbody/MHF_Steve");
-    } catch (e: any) {
-      res.redirect("https://nmsr.nickac.dev/fullbody/MHF_Steve");
+      const textureId = skinData.texture_id;
+      if (!textureId) return res.redirect(FALLBACK);
+      // 3. Texture hash → nmsr body render (proxy image bytes to avoid CORS)
+      const renderUrl = `https://nmsr.nickac.dev/fullbody/${textureId}`;
+      const imgRes = await fetch(renderUrl);
+      if (!imgRes.ok) return res.redirect(FALLBACK);
+      const contentType = imgRes.headers.get("content-type") || "image/png";
+      res.setHeader("Content-Type", contentType);
+      res.setHeader("Cache-Control", "public, max-age=3600"); // cache 1h
+      const buf = await imgRes.arrayBuffer();
+      res.send(Buffer.from(buf));
+    } catch {
+      res.redirect(FALLBACK);
     }
   });
 
