@@ -23,7 +23,17 @@ import {
 const DB_PATH = process.env.DB_PATH
   || (process.env.RAILWAY_VOLUME_MOUNT_PATH ? `${process.env.RAILWAY_VOLUME_MOUNT_PATH}/craftstore.db` : null)
   || "craftstore.db";
+
+console.log(`[CraftStore] Opening database at: ${DB_PATH}`);
 const sqlite = new Database(DB_PATH);
+
+// Enable WAL mode for crash safety and better write performance
+// WAL ensures completed transactions survive crashes/restarts
+sqlite.pragma("journal_mode = WAL");
+sqlite.pragma("synchronous = NORMAL");  // Safe with WAL, much faster than FULL
+sqlite.pragma("foreign_keys = ON");
+sqlite.pragma("busy_timeout = 5000");   // Wait up to 5s if DB is locked
+
 export const db = drizzle(sqlite);
 
 // Auto-migrate: create tables if not exists
