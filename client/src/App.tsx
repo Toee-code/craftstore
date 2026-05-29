@@ -61,8 +61,9 @@ function AuthHydrator() {
   useEffect(() => {
     if (!hydrated) return;
     if (!user) return;
-    const path = window.location.hash.replace('#', '') || '/';
-    if (path === '/' || path === '/login' || path === '') {
+    const hash = window.location.hash; // e.g. "" or "#/" or "#/login"
+    const isRootOrLogin = hash === '' || hash === '#' || hash === '#/' || hash === '#/login';
+    if (isRootOrLogin) {
       navigate('/dashboard');
     }
   }, [hydrated, user]);
