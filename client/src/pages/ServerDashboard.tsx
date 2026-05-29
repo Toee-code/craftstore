@@ -507,7 +507,7 @@ export default function ServerDashboard() {
   // Block access until hydrated + user confirmed
   if (!hydrated || !user) return null;
   // Wait for server to load before checking ownership
-  if (serverLoading || server === undefined) return null;
+  if (serverLoading || server === undefined) return <div className="min-h-screen bg-background flex items-center justify-center"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>;
   // Kick non-owners back to dashboard
   if (Number(server.ownerId) !== Number(user.id)) {
     navigate("/dashboard");
