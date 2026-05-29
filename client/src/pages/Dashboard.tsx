@@ -65,7 +65,7 @@ export default function Dashboard() {
     enabled: !!user,
   });
 
-  const logout = () => { authLogout().then(() => navigate("/")); };
+  const logout = () => { authLogout(); navigate("/"); };
 
   if (!user) return null;
 

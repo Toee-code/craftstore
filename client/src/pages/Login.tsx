@@ -22,11 +22,7 @@ export default function Login() {
     mutationFn: (data: LoginForm) => apiRequest("POST", "/api/auth/login", data),
     onSuccess: async (res) => {
       const user = await res.json();
-      setUser(user);
-      // Create a persistent session token (30-day cookie)
-      try {
-        await apiRequest("POST", "/api/auth/session", { userId: user.id });
-      } catch {}
+      setUser(user); // automatically saves a 30-day cookie
       navigate("/dashboard");
     },
     onError: async (err: any) => {
