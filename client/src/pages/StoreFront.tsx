@@ -1021,17 +1021,17 @@ function EchoLayout({
                 </button>
                 {/* Click-based dropdown */}
                 {playerDropdownOpen && (
-                  <div className="absolute right-0 top-full mt-2 rounded-xl overflow-hidden z-50"
-                    style={{ background: "#1a1d24", border: "1px solid rgba(255,255,255,0.1)", minWidth: 160, boxShadow: "0 8px 32px rgba(0,0,0,0.5)" }}>
-                    <a href={`/store/${data.server.id}/profile`}
-                      onClick={() => setPlayerDropdownOpen(false)}
-                      className="flex items-center gap-2 px-4 py-3 text-sm font-medium hover:bg-white/5 transition-colors"
+                  <div className="absolute right-0 top-full mt-2 rounded-xl z-50"
+                    style={{ background: "#1a1d24", border: "1px solid rgba(255,255,255,0.1)", minWidth: 160, boxShadow: "0 8px 32px rgba(0,0,0,0.5)", overflow: "visible" }}>
+                    <button
+                      onClick={() => { setPlayerDropdownOpen(false); setPage("profile"); }}
+                      className="w-full flex items-center gap-2 px-4 py-3 text-sm font-medium hover:bg-white/5 transition-colors rounded-t-xl"
                       style={{ color: "rgba(255,255,255,0.8)" }}>
                       <User className="w-4 h-4" /> My Profile
-                    </a>
+                    </button>
                     <button
                       onClick={onLogout}
-                      className="w-full flex items-center gap-2 px-4 py-3 text-sm font-medium hover:bg-white/5 transition-colors"
+                      className="w-full flex items-center gap-2 px-4 py-3 text-sm font-medium hover:bg-white/5 transition-colors rounded-b-xl"
                       style={{ color: "#f87171", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
                       <LogOut className="w-4 h-4" /> Log Out
                     </button>
