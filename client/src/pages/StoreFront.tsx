@@ -75,12 +75,52 @@ function SkinAvatar({ username, size = 40 }: { username: string; size?: number }
   }
   return (
     <img
-      src={`https://crafatar.com/avatars/${username}?size=${size}&overlay`}
+      src={`https://visage.surgeplay.com/face/${size}/${username}`}
       alt={username}
       width={size} height={size}
       style={{ imageRendering: "pixelated", borderRadius: 8 }}
       onError={() => setErr(true)}
     />
+  );
+}
+
+// ─── SkinPreview (modal) ──────────────────────────────────────────────────────
+function SkinPreview({ username }: { username: string }) {
+  const [skinUrl, setSkinUrl] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (username.length < 2) { setSkinUrl(null); return; }
+    setLoading(true);
+    const timer = setTimeout(async () => {
+      try {
+        // visage.surgeplay.com accepts usernames directly
+        const url = `https://visage.surgeplay.com/bust/128/${username}`;
+        setSkinUrl(url);
+      } finally {
+        setLoading(false);
+      }
+    }, 400); // debounce
+    return () => clearTimeout(timer);
+  }, [username]);
+
+  return (
+    <div className="flex flex-col items-center py-2 gap-2">
+      <div className="relative w-16 h-20 rounded-xl overflow-hidden flex items-center justify-center"
+        style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }}>
+        {loading && <Loader2 className="w-5 h-5 animate-spin" style={{ color: "rgba(255,255,255,0.3)" }} />}
+        {!loading && skinUrl && (
+          <img src={skinUrl} alt={username} className="h-full object-contain"
+            onError={e => { (e.target as HTMLImageElement).style.display = "none"; }} />
+        )}
+        {!loading && !skinUrl && (
+          <span className="text-2xl" style={{ color: "rgba(255,255,255,0.2)" }}>?</span>
+        )}
+      </div>
+      {username.length >= 2 && (
+        <p className="text-xs font-bold" style={{ color: "rgba(255,255,255,0.7)" }}>{username}</p>
+      )}
+    </div>
   );
 }
 
@@ -327,25 +367,8 @@ function MemberAuthModal({ serverId, accent, onClose, onLogin }: {
               </button>
             ))}
           </div>
-          {/* Live skin preview */}
-          <div className="flex flex-col items-center py-2 gap-2">
-            <div className="relative w-16 h-16 rounded-xl overflow-hidden flex items-center justify-center"
-              style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }}>
-              {username.trim().length >= 2 ? (
-                <img
-                  src={`https://crafatar.com/renders/body/${username.trim()}?size=64&overlay`}
-                  alt={username}
-                  className="h-full object-contain"
-                  onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
-                />
-              ) : (
-                <span className="text-2xl" style={{ color: "rgba(255,255,255,0.2)" }}>?</span>
-              )}
-            </div>
-            {username.trim().length >= 2 && (
-              <p className="text-xs font-bold" style={{ color: "rgba(255,255,255,0.7)" }}>{username.trim()}</p>
-            )}
-          </div>
+          {/* Live skin preview — resolves UUID via Mojang then loads crafatar */}
+          <SkinPreview username={username.trim()} />
           <div className="space-y-1.5">
             <Label style={{ color: "rgba(255,255,255,0.6)", fontSize: 12 }}>Minecraft Username</Label>
             <Input placeholder="Steve" value={username} onChange={e => setUsername(e.target.value)}
@@ -899,7 +922,7 @@ function EchoLayout({
                 <div className="relative w-10 h-10 rounded-lg overflow-hidden shrink-0"
                   style={{ background: "rgba(255,255,255,0.05)" }}>
                   <img
-                    src={`https://crafatar.com/renders/body/${memberSession.minecraftUsername}?size=64&overlay`}
+                    src={`https://visage.surgeplay.com/bust/128/${memberSession.minecraftUsername}`}
                     alt={memberSession.minecraftUsername}
                     className="h-full object-contain mx-auto"
                   />
@@ -1264,7 +1287,7 @@ function ThemedStore({ data }: { data: StoreData }) {
               <div className="relative w-12 h-14 rounded-xl overflow-hidden shrink-0 flex items-end justify-center"
                 style={{ background: "rgba(255,255,255,0.05)", border: `1px solid ${accent}20` }}>
                 <img
-                  src={`https://crafatar.com/renders/body/${memberSession.minecraftUsername}?size=64&overlay`}
+                  src={`https://visage.surgeplay.com/bust/128/${memberSession.minecraftUsername}`}
                   alt={memberSession.minecraftUsername}
                   className="h-full object-contain"
                 />
