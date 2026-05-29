@@ -1114,7 +1114,7 @@ export default function ServerDashboard() {
                                   className="w-full h-full object-contain"
                                   style={isHead ? { imageRendering: "pixelated" } : {}}
                                 />
-                                {isCatEnchanted && <div className="enchant-glint" style={{ borderRadius: 6 }} />}
+                                {isCatEnchanted && <img src={thumb} aria-hidden className="enchant-glint" style={{ objectFit: "contain", borderRadius: 6 }} />}
                               </>
                             ) : (
                               <Edit3 className="w-3.5 h-3.5 text-muted-foreground/50" />
@@ -1398,7 +1398,7 @@ export default function ServerDashboard() {
                           className={(p as any).imageType === "playerhead" ? "h-24 object-contain" : "w-full h-full object-cover"}
                           style={(p as any).imageType === "playerhead" ? { imageRendering: "pixelated" } : {}}
                         />
-                        {isEnchanted && <div className="enchant-glint" />}
+                        {isEnchanted && <img src={imgUrl} aria-hidden className="enchant-glint" style={{ objectFit: (p as any).imageType === "playerhead" ? "contain" : "cover" }} />}
                       </div>
                     ) : (
                       <div className="h-28 rounded-t-xl flex items-center justify-center" style={{ background: "rgba(255,255,255,0.03)" }}>

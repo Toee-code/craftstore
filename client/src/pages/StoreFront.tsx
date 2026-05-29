@@ -522,7 +522,7 @@ function ProductCard({ product, accent, playerPrice, onBuy, onGift }: {
               }`}
               style={product.imageType === "playerhead" ? { imageRendering: "pixelated", background: `linear-gradient(135deg, ${accent}18, ${accent}08)` } : {}}
             />
-            {product.enchanted && <div className="enchant-glint" />}
+            {product.enchanted && <img src={imgUrl} aria-hidden className="enchant-glint" style={{ objectFit: product.imageType === "playerhead" ? "contain" : "cover" }} />}
           </>
         ) : (
           <div className="w-full h-full flex items-center justify-center" style={{ background: `linear-gradient(135deg, ${accent}15, ${accent}05)` }}>
@@ -635,12 +635,9 @@ function DonutProductCard({
               src={imgUrl}
               alt={product.name}
               className="w-20 h-20 object-contain"
-              style={{
-                filter: `drop-shadow(0 4px 16px ${accent}60)`,
-                imageRendering: "pixelated"
-              }}
+              style={{ filter: `drop-shadow(0 4px 16px ${accent}60)`, imageRendering: "pixelated" }}
             />
-            {product.enchanted && <div className="enchant-glint" style={{ borderRadius: 8 }} />}
+            {product.enchanted && <img src={imgUrl} aria-hidden className="enchant-glint" style={{ objectFit: "contain", width: 80, height: 80 }} />}
           </div>
         ) : (
           <div className="w-20 h-20 rounded-2xl flex items-center justify-center"
@@ -864,7 +861,7 @@ function EchoProductCard({
             <img src={imgUrl} alt={product.name}
               className="w-24 h-24 object-contain"
               style={{ imageRendering: "pixelated", filter: "drop-shadow(0 4px 12px rgba(0,0,0,0.5))" }} />
-            {product.enchanted && <div className="enchant-glint" style={{ borderRadius: 8 }} />}
+            {product.enchanted && <img src={imgUrl} aria-hidden className="enchant-glint" style={{ objectFit: "contain", width: 96, height: 96 }} />}
           </div>
         ) : (
           <div className="w-16 h-16 rounded-xl flex items-center justify-center mb-2"
