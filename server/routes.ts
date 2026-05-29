@@ -1136,6 +1136,43 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
   // Stripe webhook: handle balance top-up completion
   // (already handled in webhook via metadata.type === 'balance_topup')
 
+  // Anonymous donation — no login required, player just picks an amount
+  app.post("/api/store/:serverId/donate", async (req, res) => {
+    try {
+      const serverId = Number(req.params.serverId);
+      const { amount, playerName } = req.body;
+      if (!amount || !playerName) return res.status(400).json({ error: "Missing fields" });
+      const amountPence = Math.round(Number(amount) * 100);
+      if (amountPence < 100) return res.status(400).json({ error: "Minimum donation is £1.00" });
+      const server = storage.getServerById(serverId);
+      if (!server) return res.status(404).json({ error: "Server not found" });
+      const rootDomain = process.env.ROOT_DOMAIN || "craftstore.org.uk";
+      const origin = process.env.SITE_ORIGIN || `https://${rootDomain}`;
+      if (process.env.STRIPE_SECRET_KEY) {
+        const platformFeePence = Math.round(amountPence * 0.20);
+        const connectedAccountId = server.stripeAccountId && server.stripeConnectStatus === "active"
+          ? server.stripeAccountId : null;
+        const sessionParams: Stripe.Checkout.SessionCreateParams = {
+          line_items: [{ price_data: { currency: "gbp", product_data: { name: `Donation to ${server.name}`, description: `Donated by ${playerName}` }, unit_amount: amountPence }, quantity: 1 }],
+          mode: "payment",
+          success_url: `${origin}/#/store/${serverId}?donated=true`,
+          cancel_url: `${origin}/#/store/${serverId}`,
+          metadata: { type: "donation", serverId: String(serverId), playerName, amount: String(amount) },
+          ...(connectedAccountId ? {
+            payment_intent_data: {
+              application_fee_amount: platformFeePence,
+              transfer_data: { destination: connectedAccountId },
+            },
+          } : {}),
+        };
+        const session = await stripe!.checkout.sessions.create(sessionParams);
+        res.json({ url: session.url });
+      } else {
+        res.json({ demoMode: true, message: "Demo mode — Stripe not configured" });
+      }
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
   // Member stats endpoint (owner-facing — full profile)
   app.get("/api/servers/:serverId/members/:username/stats", (req, res) => {
     const serverId = Number(req.params.serverId);

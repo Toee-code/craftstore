@@ -102,7 +102,7 @@ sqlite.exec(`
   CREATE TABLE IF NOT EXISTS store_themes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     server_id INTEGER NOT NULL UNIQUE,
-    layout TEXT NOT NULL DEFAULT 'grid',
+    layout TEXT NOT NULL DEFAULT 'echo',
     color_scheme TEXT NOT NULL DEFAULT 'dark',
     accent_color TEXT DEFAULT '#22c55e',
     banner_url TEXT,
@@ -192,6 +192,12 @@ const alterStatements = [
 for (const stmt of alterStatements) {
   try { sqlite.exec(stmt); } catch { /* column already exists */ }
 }
+
+// Migrate existing stores from old 'grid' default to 'echo' layout
+try {
+  sqlite.exec(`UPDATE store_themes SET layout = 'echo' WHERE layout = 'grid'`);
+} catch {}
+
 
 // Domain checkout sessions table
 sqlite.exec(`

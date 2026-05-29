@@ -48,7 +48,7 @@ const LAYOUTS = [
   { id: "list",     label: "List",       Icon: List,       desc: "Full-width rows with detail" },
   { id: "featured", label: "Featured",   Icon: Star,       desc: "Hero banner + grid below" },
   { id: "donut",    label: "DonutSMP",   Icon: Layers,     desc: "Dark tiled cards + featured banner" },
-  { id: "echo",     label: "EchoSMP",    Icon: Star,       desc: "Hero banner + category cards + featured grid" },
+  { id: "echo",     label: "ToeesSMP",   Icon: Star,       desc: "Hero banner + category cards + featured grid" },
 ];
 
 interface ThemeForm {

@@ -943,6 +943,140 @@ function EchoCategoryCard({
   );
 }
 
+// ─── Donate Modal ───────────────────────────────────────────────────────────────
+const DONATE_PRESETS = [1, 2, 5, 10, 20, 50];
+
+function DonateModal({ open, onClose, serverId, serverName, accent, memberSession }: {
+  open: boolean; onClose: () => void;
+  serverId: number; serverName: string; accent: string;
+  memberSession: MemberSession | null;
+}) {
+  const [amount, setAmount] = useState<number | "">("");
+  const [custom, setCustom] = useState("");
+  const [playerName, setPlayerName] = useState(memberSession?.minecraftUsername || "");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const { toast } = useToast();
+
+  // Keep playerName in sync if member logs in after modal opens
+  useEffect(() => {
+    if (memberSession?.minecraftUsername) setPlayerName(memberSession.minecraftUsername);
+  }, [memberSession]);
+
+  const finalAmount = custom ? parseFloat(custom) : (amount as number);
+
+  const handleDonate = async () => {
+    setError("");
+    if (!playerName.trim()) { setError("Enter your Minecraft username"); return; }
+    if (!finalAmount || finalAmount < 1) { setError("Minimum donation is £1.00"); return; }
+    setLoading(true);
+    try {
+      const r = await apiRequest("POST", `/api/store/${serverId}/donate`, { amount: finalAmount, playerName: playerName.trim() });
+      const d = await r.json();
+      if (d.url) {
+        window.location.href = d.url;
+      } else if (d.demoMode) {
+        toast({ title: "Demo mode", description: "Stripe not configured — donation skipped." });
+        onClose();
+      } else {
+        setError(d.error || "Something went wrong");
+      }
+    } catch { setError("Network error"); }
+    setLoading(false);
+  };
+
+  if (!open) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: "rgba(0,0,0,0.75)", backdropFilter: "blur(8px)" }}
+      onClick={e => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div
+        className="w-full max-w-sm rounded-2xl p-6"
+        style={{ background: "#13161c", border: "1px solid rgba(255,255,255,0.1)", color: "#fff" }}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between mb-5">
+          <div className="flex items-center gap-2">
+            <Heart className="w-5 h-5" style={{ color: accent }} />
+            <span className="font-extrabold text-lg">Donate to {serverName}</span>
+          </div>
+          <button onClick={onClose} className="text-white/40 hover:text-white transition-colors text-xl leading-none">×</button>
+        </div>
+
+        {/* Username */}
+        <div className="mb-4">
+          <label className="text-xs font-semibold mb-1.5 block" style={{ color: "rgba(255,255,255,0.5)" }}>Your Minecraft Username</label>
+          <input
+            value={playerName}
+            onChange={e => setPlayerName(e.target.value)}
+            placeholder="e.g. ToeeOnTT"
+            className="w-full rounded-xl px-4 py-2.5 text-sm font-medium outline-none"
+            style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", color: "#fff" }}
+          />
+        </div>
+
+        {/* Preset amounts */}
+        <p className="text-xs font-semibold mb-2" style={{ color: "rgba(255,255,255,0.5)" }}>Choose an amount</p>
+        <div className="grid grid-cols-3 gap-2 mb-3">
+          {DONATE_PRESETS.map(p => (
+            <button
+              key={p}
+              onClick={() => { setAmount(p); setCustom(""); }}
+              className="rounded-xl py-2.5 font-extrabold text-sm transition-all"
+              style={{
+                background: amount === p && !custom ? accent : "rgba(255,255,255,0.06)",
+                color: amount === p && !custom ? "#000" : "rgba(255,255,255,0.8)",
+                border: amount === p && !custom ? `1px solid ${accent}` : "1px solid rgba(255,255,255,0.08)",
+                boxShadow: amount === p && !custom ? `0 0 16px ${accent}50` : "none",
+              }}
+            >
+              £{p}
+            </button>
+          ))}
+        </div>
+
+        {/* Custom amount */}
+        <div className="mb-5">
+          <input
+            value={custom}
+            onChange={e => { setCustom(e.target.value); setAmount(""); }}
+            placeholder="Custom amount (e.g. 7.50)"
+            type="number"
+            min="1"
+            step="0.01"
+            className="w-full rounded-xl px-4 py-2.5 text-sm font-medium outline-none"
+            style={{ background: "rgba(255,255,255,0.06)", border: `1px solid ${custom ? accent : "rgba(255,255,255,0.1)"}`, color: "#fff" }}
+          />
+        </div>
+
+        {/* Summary */}
+        {finalAmount >= 1 && (
+          <div className="rounded-xl px-4 py-3 mb-4 text-sm" style={{ background: `${accent}12`, border: `1px solid ${accent}25` }}>
+            <span style={{ color: "rgba(255,255,255,0.6)" }}>Donating </span>
+            <span className="font-extrabold" style={{ color: accent }}>£{finalAmount.toFixed(2)}</span>
+            <span style={{ color: "rgba(255,255,255,0.6)" }}> to {serverName}</span>
+          </div>
+        )}
+
+        {error && <p className="text-xs mb-3 text-red-400">{error}</p>}
+
+        <button
+          onClick={handleDonate}
+          disabled={loading}
+          className="w-full rounded-xl py-3 font-extrabold text-sm transition-all flex items-center justify-center gap-2"
+          style={{ background: accent, color: "#000", opacity: loading ? 0.7 : 1, boxShadow: `0 0 24px ${accent}60` }}
+        >
+          {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Heart className="w-4 h-4" />}
+          {loading ? "Processing..." : `Donate${finalAmount >= 1 ? ` £${finalAmount.toFixed(2)}` : ""}`}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ─── Top Customers Sticky Sidebar ───────────────────────────────────────────
 function TopCustomersSidebar({ serverId, accent }: { serverId: number; accent: string }) {
   const { data: entries = [], isLoading } = useQuery<LeaderboardEntry[]>({
@@ -1399,6 +1533,7 @@ function ThemedStore({ data }: { data: StoreData }) {
   const [memberSession, setMemberSessionRaw] = useState<MemberSession | null>(null);
   const [memberAuthOpen, setMemberAuthOpen] = useState(false);
   const [playerDropdownOpen, setPlayerDropdownOpen] = useState(false);
+  const [donateOpen, setDonateOpen] = useState(false);
 
   // ── Persistent member session ──────────────────────────────────────────────
   const memberTokenKey = `cs_member_token_${data.server.id}`;
@@ -1960,9 +2095,19 @@ function ThemedStore({ data }: { data: StoreData }) {
           </div>
         )}
 
-        {/* Floating login link — top right only, no nav bar */}
+        {/* Floating top-right: Donate + Login */}
         <div className="relative">
-          <div className="absolute top-4 right-4 z-30">
+          <div className="absolute top-4 right-4 z-30 flex items-center gap-3">
+            {/* Donate button — always visible */}
+            <button
+              onClick={() => setDonateOpen(true)}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl font-extrabold text-xs transition-all hover:brightness-110"
+              style={{ background: accent, color: "#000", boxShadow: `0 0 18px ${accent}60` }}
+              data-testid="echo-donate">
+              <Heart className="w-3.5 h-3.5" />
+              Donate
+            </button>
+            {/* Login / username */}
             {!memberSession ? (
               <button
                 onClick={() => setMemberAuthOpen(true)}
@@ -2003,6 +2148,16 @@ function ThemedStore({ data }: { data: StoreData }) {
             />
           )}
         </main>
+
+        {/* Donate modal */}
+        <DonateModal
+          open={donateOpen}
+          onClose={() => setDonateOpen(false)}
+          serverId={data.server.id}
+          serverName={data.server.name}
+          accent={accent}
+          memberSession={memberSession}
+        />
 
         {/* Modals */}
         {memberAuthOpen && (
