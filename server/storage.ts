@@ -19,10 +19,10 @@ import {
   type OwnerSession, type MemberSessionRow,
 } from "@shared/schema";
 
-// Use /data volume on Railway (persistent), fallback to local file
-const DB_PATH = process.env.RAILWAY_VOLUME_MOUNT_PATH
-  ? `${process.env.RAILWAY_VOLUME_MOUNT_PATH}/craftstore.db`
-  : "craftstore.db";
+// Use DB_PATH env var (set by render.yaml disk mount), then Railway, then local
+const DB_PATH = process.env.DB_PATH
+  || (process.env.RAILWAY_VOLUME_MOUNT_PATH ? `${process.env.RAILWAY_VOLUME_MOUNT_PATH}/craftstore.db` : null)
+  || "craftstore.db";
 const sqlite = new Database(DB_PATH);
 export const db = drizzle(sqlite);
 

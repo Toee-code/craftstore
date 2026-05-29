@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: craftstore
+    env: node
+    buildCommand: npm install --include=dev && npm run build
+    startCommand: npm start
+    disk:
+      name: craftstore-data
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      - key: DB_PATH
+        value: /data/craftstore.db
+      - key: NODE_ENV
+        value: production
