@@ -947,12 +947,12 @@ function EchoLayout({
     <div style={{ background: "#0a0a0a", minHeight: "100%" }}>
 
       {/* ── Hero banner card ──────────────────────────────────────── */}
-      <div className="rounded-2xl overflow-hidden mb-8"
+      <div className="rounded-2xl mb-8"
         style={{ border: "1px solid rgba(255,255,255,0.08)" }}>
 
         {/* Banner image */}
         {data.theme.bannerUrl ? (
-          <div className="relative w-full overflow-hidden" style={{ height: 180 }}>
+          <div className="relative w-full overflow-hidden rounded-t-2xl" style={{ height: 180 }}>
             <img src={data.theme.bannerUrl} alt="banner" className="w-full h-full object-cover" />
             {/* Server IP chip — bottom left */}
             <div className="absolute bottom-3 left-4 flex items-center gap-2 px-3 py-1.5 rounded-full"
@@ -968,7 +968,7 @@ function EchoLayout({
             </div>
           </div>
         ) : (
-          <div className="relative w-full flex items-center justify-center" style={{ height: 180, background: `linear-gradient(135deg, #111318 0%, ${accent}18 100%)` }}>
+          <div className="relative w-full flex items-center justify-center rounded-t-2xl" style={{ height: 180, background: `linear-gradient(135deg, #111318 0%, ${accent}18 100%)` }}>
             <div className="text-center">
               {data.server.logoUrl
                 ? <img src={data.server.logoUrl} alt="logo" className="w-14 h-14 object-contain mx-auto mb-2" />
@@ -981,8 +981,8 @@ function EchoLayout({
         )}
 
         {/* Sub-bar: logo+name left, Login right (with MC skin peeking out) */}
-        <div className="flex items-center px-5 py-3 relative overflow-visible" style={{ overflow: "visible" }}
-          style={{ background: "#13161c", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+        <div className="flex items-center px-5 py-3 relative"
+          style={{ background: "#13161c", borderTop: "1px solid rgba(255,255,255,0.06)", overflow: "visible" }}>
 
           {/* Left: logo pill + server name */}
           <div className="flex items-center gap-3 flex-1 min-w-0">
