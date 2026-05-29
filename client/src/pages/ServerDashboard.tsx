@@ -505,7 +505,8 @@ export default function ServerDashboard() {
 
   // Block access until hydrated; redirect if not owner of this server
   if (!hydrated || !user) return null;
-  if (server && server.ownerId !== user.id) {
+  // Only enforce owner check once server data has loaded
+  if (server !== undefined && server.ownerId !== user.id) {
     navigate("/dashboard");
     return null;
   }
