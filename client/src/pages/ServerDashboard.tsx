@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useParams, useLocation } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
@@ -695,6 +695,8 @@ export default function ServerDashboard() {
   const [expandedCat, setExpandedCat] = useState<string | null>(null);
   const [subcats, setSubcats] = useState<Record<string, string[]>>({});
   const [newSubcatInput, setNewSubcatInput] = useState<Record<string, string>>({});
+  const [dragOverCat, setDragOverCat] = useState<string | null>(null);
+  const dragProductId = useRef<number | null>(null);
   useEffect(() => {
     if (!theme) return;
     try { setCatList(JSON.parse(theme.categories || "[]")); } catch { setCatList([]); }
@@ -789,6 +791,12 @@ export default function ServerDashboard() {
       qc.invalidateQueries({ queryKey: ["/api/servers", serverId, "products"] });
       qc.invalidateQueries({ queryKey: ["/api/servers", serverId, "stats"] });
     },
+  });
+
+  const moveProduct = useMutation({
+    mutationFn: ({ id, category }: { id: number; category: string }) =>
+      apiRequest("PATCH", `/api/products/${id}`, { category }).then(r => r.json()),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/servers", serverId, "products"] }),
   });
 
   // Add member
@@ -1089,67 +1097,111 @@ export default function ServerDashboard() {
                 <Package className="w-8 h-8 text-muted-foreground mx-auto mb-3" />
                 <p className="text-sm text-muted-foreground">No products yet — add your first one</p>
               </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {products.map(p => {
-                  const imgUrl = (p as any).imageType === "playerhead" && (p as any).playerHeadName
-                    ? `https://mc-heads.net/3d/head/${(p as any).playerHeadName}/100`
-                    : p.imageUrl;
-                  return (
-                    <Card key={p.id} className="block-card bg-card border-border/60 flex flex-col" data-testid={`card-product-${p.id}`}>
-                      {imgUrl ? (
-                        <div className="h-32 overflow-hidden rounded-t-xl flex items-center justify-center" style={{ background: "rgba(255,255,255,0.02)" }}>
-                          <img src={imgUrl} alt={p.name}
-                            className={(p as any).imageType === "playerhead" ? "h-28 object-contain" : "w-full h-full object-cover"}
-                            style={(p as any).imageType === "playerhead" ? { imageRendering: "pixelated" } : {}}
-                          />
+            ) : (() => {
+              // Group products by category
+              const sections = [
+                ...catList.map(c => ({ label: c, key: c })),
+                { label: "Uncategorised", key: "" },
+              ];
+
+              const ProductCard = ({ p }: { p: Product }) => {
+                const imgUrl = (p as any).imageType === "playerhead" && (p as any).playerHeadName
+                  ? `https://mc-heads.net/3d/head/${(p as any).playerHeadName}/100`
+                  : p.imageUrl;
+                return (
+                  <Card
+                    key={p.id}
+                    draggable
+                    onDragStart={() => { dragProductId.current = p.id; }}
+                    onDragEnd={() => { dragProductId.current = null; setDragOverCat(null); }}
+                    className="block-card bg-card border-border/60 flex flex-col cursor-grab active:cursor-grabbing active:opacity-60 transition-opacity"
+                    data-testid={`card-product-${p.id}`}
+                  >
+                    {imgUrl ? (
+                      <div className="h-28 overflow-hidden rounded-t-xl flex items-center justify-center" style={{ background: "rgba(255,255,255,0.02)" }}>
+                        <img src={imgUrl} alt={p.name}
+                          className={(p as any).imageType === "playerhead" ? "h-24 object-contain" : "w-full h-full object-cover"}
+                          style={(p as any).imageType === "playerhead" ? { imageRendering: "pixelated" } : {}}
+                        />
+                      </div>
+                    ) : (
+                      <div className="h-28 rounded-t-xl flex items-center justify-center" style={{ background: "rgba(255,255,255,0.03)" }}>
+                        <Package className="w-8 h-8 text-muted-foreground/30" />
+                      </div>
+                    )}
+                    <CardContent className="p-3 flex flex-col flex-1">
+                      <div className="flex items-start justify-between mb-1">
+                        <h3 className="font-semibold text-sm truncate flex-1 min-w-0">{p.name}</h3>
+                        <span className="text-primary font-bold ml-2 shrink-0 text-sm">£{p.price.toFixed(2)}</span>
+                      </div>
+                      {p.description && <p className="text-muted-foreground text-xs mb-2 line-clamp-1">{p.description}</p>}
+                      <div className="flex items-center justify-between mt-auto pt-1">
+                        <span className="text-xs text-muted-foreground">{p.stock === -1 ? "Unlimited" : `${p.stock} left`}</span>
+                        <div className="flex items-center gap-0.5">
+                          <Button size="icon" variant="ghost" className="h-6 w-6 text-muted-foreground hover:text-foreground" onClick={() => openEdit(p)}>
+                            <Edit3 className="w-3 h-3" />
+                          </Button>
+                          <Button size="icon" variant="ghost" className="h-6 w-6 text-destructive hover:text-destructive" onClick={() => deleteProduct.mutate(p.id)}>
+                            <Trash2 className="w-3 h-3" />
+                          </Button>
                         </div>
-                      ) : (
-                        <div className="h-32 rounded-t-xl flex items-center justify-center" style={{ background: "rgba(255,255,255,0.03)" }}>
-                          <Package className="w-10 h-10 text-muted-foreground/30" />
-                        </div>
-                      )}
-                      <CardContent className="p-4 flex flex-col flex-1">
-                        <div className="flex items-start justify-between mb-1">
-                          <div className="flex-1 min-w-0">
-                            <h3 className="font-semibold text-sm truncate">{p.name}</h3>
-                            {p.category && <Badge variant="outline" className="text-xs mt-1">{p.category}</Badge>}
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              };
+
+              return (
+                <div className="space-y-6">
+                  {sections.map(({ label, key }) => {
+                    const sectionProducts = products.filter(p => (p.category ?? "") === key);
+                    const isOver = dragOverCat === key;
+                    return (
+                      <div key={key}
+                        onDragOver={e => { e.preventDefault(); setDragOverCat(key); }}
+                        onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOverCat(null); }}
+                        onDrop={e => {
+                          e.preventDefault();
+                          if (dragProductId.current !== null) {
+                            moveProduct.mutate({ id: dragProductId.current, category: key });
+                          }
+                          setDragOverCat(null);
+                        }}
+                        className={`rounded-xl border-2 transition-colors ${
+                          isOver ? "border-primary bg-primary/5" : "border-border/40"
+                        }`}
+                      >
+                        {/* Section header */}
+                        <div className={`flex items-center justify-between px-4 py-2.5 rounded-t-xl ${
+                          isOver ? "bg-primary/10" : "bg-muted/30"
+                        }`}>
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold text-sm">{label}</span>
+                            <Badge variant="outline" className="text-xs">{sectionProducts.length}</Badge>
                           </div>
-                          <span className="text-primary font-bold ml-2 shrink-0">£{p.price.toFixed(2)}</span>
+                          {isOver && <span className="text-xs text-primary font-medium">Drop here</span>}
                         </div>
-                        {p.description && <p className="text-muted-foreground text-xs mb-2 line-clamp-2">{p.description}</p>}
-                        <div className="bg-muted/30 rounded-md p-2 mb-3">
-                          <code className="text-xs text-primary/80 font-mono line-clamp-1">{p.command}</code>
+
+                        {/* Products grid */}
+                        <div className="p-3">
+                          {sectionProducts.length === 0 ? (
+                            <div className={`flex items-center justify-center py-6 rounded-lg border-2 border-dashed transition-colors ${
+                              isOver ? "border-primary/40 text-primary" : "border-border/30 text-muted-foreground"
+                            }`}>
+                              <p className="text-xs">{isOver ? "Release to move here" : "Drag products here"}</p>
+                            </div>
+                          ) : (
+                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                              {sectionProducts.map(p => <ProductCard key={p.id} p={p} />)}
+                            </div>
+                          )}
                         </div>
-                        <div className="flex items-center justify-between mt-auto">
-                          <span className="text-xs text-muted-foreground">
-                            {p.stock === -1 ? "Unlimited" : `${p.stock} left`}
-                          </span>
-                          <div className="flex items-center gap-1">
-                            <Button
-                              size="icon" variant="ghost"
-                              className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                              onClick={() => openEdit(p)}
-                              data-testid={`button-edit-product-${p.id}`}
-                            >
-                              <Edit3 className="w-3.5 h-3.5" />
-                            </Button>
-                            <Button
-                              size="icon" variant="ghost"
-                              className="h-7 w-7 text-destructive hover:text-destructive"
-                              onClick={() => deleteProduct.mutate(p.id)}
-                              data-testid={`button-delete-product-${p.id}`}
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </Button>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
-            )}
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
           </TabsContent>
 
           {/* Members Tab */}
