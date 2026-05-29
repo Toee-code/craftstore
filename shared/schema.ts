@@ -138,6 +138,7 @@ export const storeThemes = sqliteTable("store_themes", {
   countdownTitle: text("countdown_title"),                // countdown banner heading
   countdownSubtitle: text("countdown_subtitle"),          // countdown banner subtext
   countdownEnd: text("countdown_end"),                    // ISO date string for timer
+  ownerMinecraftUsername: text("owner_minecraft_username"), // MC username shown in countdown banner
   updatedAt: text("updated_at").notNull().default(new Date().toISOString()),
 });
 

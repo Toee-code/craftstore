@@ -1358,9 +1358,8 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
       preset = storage.getPresetById(theme.activePresetId) || null;
     }
 
-    // Get owner's Minecraft username for countdown banner skin
-    const ownerRow = storage.getUserById((server as any).ownerId) as any;
-    const ownerUsername = ownerRow?.username || null;
+    // Use ownerMinecraftUsername from theme (set in Appearance panel)
+    const ownerUsername = (theme as any).ownerMinecraftUsername || null;
 
     res.json({
       server: {

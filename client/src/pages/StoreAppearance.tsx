@@ -64,6 +64,7 @@ interface ThemeForm {
   countdownTitle: string;
   countdownSubtitle: string;
   countdownEnd: string;
+  ownerMinecraftUsername: string;
 }
 
 interface ServerInfoForm {
@@ -113,7 +114,7 @@ export default function StoreAppearance({ serverId }: Props) {
       layout: "echo", colorScheme: "dark", accentColor: "#22c55e",
       bannerUrl: "", startPage: "all", announcementText: "", feeMode: "absorb",
       welcomeTitle: "", welcomeText: "",
-      countdownTitle: "", countdownSubtitle: "", countdownEnd: "",
+      countdownTitle: "", countdownSubtitle: "", countdownEnd: "", ownerMinecraftUsername: "",
     },
   });
 
@@ -132,6 +133,7 @@ export default function StoreAppearance({ serverId }: Props) {
       countdownTitle: (theme as any).countdownTitle || "",
       countdownSubtitle: (theme as any).countdownSubtitle || "",
       countdownEnd: (theme as any).countdownEnd ? (theme as any).countdownEnd.slice(0, 16) : "",
+      ownerMinecraftUsername: (theme as any).ownerMinecraftUsername || "",
     });
     try { setCategories(JSON.parse(theme.categories || "[]")); } catch { setCategories([]); }
     try { setSubcategories(JSON.parse(theme.subcategories || "{}")); } catch { setSubcategories({}); }
@@ -655,6 +657,16 @@ export default function StoreAppearance({ serverId }: Props) {
               placeholder="e.g. Get ready for the biggest update yet!"
               {...register("countdownSubtitle")}
             />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="flex items-center gap-1.5">
+              <Timer className="w-3.5 h-3.5" /> Your Minecraft username (for skin)
+            </Label>
+            <Input
+              placeholder="e.g. ToeeOnTT"
+              {...register("ownerMinecraftUsername")}
+            />
+            <p className="text-xs text-muted-foreground">Your Java username — this skin appears in the countdown banner.</p>
           </div>
         </CardContent>
       </Card>
