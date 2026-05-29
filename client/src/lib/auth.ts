@@ -18,7 +18,13 @@ interface AuthState {
 // ── Simple cookie helpers (client-side, no HttpOnly) ──────────────────────────
 function setCookie(name: string, value: string, days: number) {
   const expires = new Date(Date.now() + days * 864e5).toUTCString();
-  document.cookie = `${name}=${encodeURIComponent(value)};expires=${expires};path=/;SameSite=Lax`;
+  // Get root domain so cookie works across www. and subdomains
+  const host = window.location.hostname;
+  const isSecure = window.location.protocol === 'https:';
+  const parts = host.split('.');
+  const domain = parts.length > 1 ? parts.slice(-2).join('.') : host;
+  const secureFlag = isSecure ? ';Secure' : '';
+  document.cookie = `${name}=${encodeURIComponent(value)};expires=${expires};path=/;domain=${domain};SameSite=Lax${secureFlag}`;
 }
 
 function getCookie(name: string): string | null {
@@ -27,7 +33,10 @@ function getCookie(name: string): string | null {
 }
 
 function deleteCookie(name: string) {
-  document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`;
+  const host = window.location.hostname;
+  const parts = host.split('.');
+  const domain = parts.length > 1 ? parts.slice(-2).join('.') : host;
+  document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=${domain}`;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
