@@ -238,9 +238,9 @@ function ProductImagePicker({
     { key: "custom", label: "URL" },
   ];
 
-  // minotar.net works without UUID — uses username directly
+  // nmsr.nickac.dev/head/ — 3D rendered player head
   const headPreviewUrl = playerHeadName
-    ? `https://minotar.net/helm/${encodeURIComponent(playerHeadName)}/128`
+    ? `https://nmsr.nickac.dev/head/${encodeURIComponent(playerHeadName)}`
     : null;
 
   return (
@@ -1144,7 +1144,7 @@ export default function ServerDashboard() {
 
               const ProductCard = ({ p }: { p: Product }) => {
                 const imgUrl = (p as any).imageType === "playerhead" && (p as any).playerHeadName
-                  ? `https://minotar.net/helm/${encodeURIComponent((p as any).playerHeadName)}/128`
+                  ? `https://nmsr.nickac.dev/head/${encodeURIComponent((p as any).playerHeadName)}`
                   : p.imageUrl;
                 return (
                   <Card
