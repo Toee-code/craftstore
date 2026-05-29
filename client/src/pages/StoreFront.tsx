@@ -78,7 +78,7 @@ function faceSkinUrl(username: string, platform: "java" | "bedrock"): string {
 // Resolve product image — player head (3D render) or custom URL
 function productImageUrl(product: Product): string | null {
   if (product.imageType === "playerhead" && product.playerHeadName) {
-    return `https://mc-heads.net/3d/head/${encodeURIComponent(product.playerHeadName)}/100`;
+    return `https://minotar.net/helm/${encodeURIComponent(product.playerHeadName)}/128`;
   }
   return product.imageUrl || null;
 }

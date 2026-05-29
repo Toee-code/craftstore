@@ -207,14 +207,12 @@ function ProductImagePicker({
 }) {
   const [uploading, setUploading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string>(imageUrl || "");
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 2 * 1024 * 1024) {
-      alert("Image must be under 2MB");
-      return;
-    }
+    if (file.size > 2 * 1024 * 1024) { alert("Image must be under 2MB"); return; }
     setUploading(true);
     const reader = new FileReader();
     reader.onload = async () => {
@@ -240,17 +238,23 @@ function ProductImagePicker({
     { key: "custom", label: "URL" },
   ];
 
+  // minotar.net works without UUID — uses username directly
+  const headPreviewUrl = playerHeadName
+    ? `https://minotar.net/helm/${encodeURIComponent(playerHeadName)}/128`
+    : null;
+
   return (
-    <div className="space-y-2">
-      <Label>Product Image</Label>
+    <div className="space-y-2.5">
+      <Label className="text-sm font-semibold">Product Image</Label>
+
       {/* Tab switcher */}
-      <div className="flex rounded-lg overflow-hidden border border-border">
+      <div className="flex rounded-lg overflow-hidden border border-border/60 bg-muted/30">
         {tabs.map(t => (
           <button key={t.key} type="button"
-            className={`flex-1 py-1.5 text-sm font-medium transition-colors ${
+            className={`flex-1 py-2 text-sm font-medium transition-all ${
               imageType === t.key
-                ? "bg-primary text-primary-foreground"
-                : "bg-muted text-muted-foreground hover:bg-muted/80"
+                ? "bg-primary text-primary-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
             }`}
             onClick={() => setImageType(t.key)}>
             {t.label}
@@ -259,54 +263,85 @@ function ProductImagePicker({
       </div>
 
       {imageType === "upload" && (
-        <div className="flex items-center gap-3">
-          <label className="flex-1 flex flex-col items-center justify-center gap-1.5 border-2 border-dashed border-border rounded-lg py-4 cursor-pointer hover:border-primary/50 transition-colors">
+        <div className="space-y-2">
+          {/* Hidden real file input */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleFile}
+          />
+          <div
+            className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-border/60 rounded-xl py-6 cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-all"
+            onClick={() => fileInputRef.current?.click()}
+          >
             {uploading ? (
-              <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+              <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
             ) : previewUrl ? (
-              <img src={previewUrl} alt="preview" className="w-16 h-16 object-contain rounded" style={{ imageRendering: "pixelated" }} />
+              <img src={previewUrl} alt="preview" className="w-20 h-20 object-contain rounded-lg" />
             ) : (
               <>
-                <Package className="w-6 h-6 text-muted-foreground" />
-                <span className="text-xs text-muted-foreground">Click to upload (max 2MB)</span>
+                <div className="w-10 h-10 rounded-full bg-muted/60 flex items-center justify-center">
+                  <Package className="w-5 h-5 text-muted-foreground" />
+                </div>
+                <div className="text-center">
+                  <p className="text-sm font-medium">Click to upload</p>
+                  <p className="text-xs text-muted-foreground">PNG, JPG, GIF up to 2MB</p>
+                </div>
               </>
             )}
-            <input type="file" accept="image/*" className="hidden" onChange={handleFile} />
-          </label>
+          </div>
           {previewUrl && (
             <button type="button" onClick={() => { setPreviewUrl(""); setImageUrl(""); }}
-              className="text-xs text-destructive hover:underline">Remove</button>
+              className="text-xs text-destructive hover:underline w-full text-center">Remove image</button>
           )}
         </div>
       )}
 
       {imageType === "playerhead" && (
-        <div className="flex items-center gap-3">
-          <div className="flex-1 space-y-1">
+        <div className="flex items-center gap-3 p-3 rounded-xl border border-border/60 bg-muted/20">
+          <div
+            className="w-16 h-16 rounded-xl flex items-center justify-center shrink-0 overflow-hidden"
+            style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}
+          >
+            {headPreviewUrl ? (
+              <img
+                key={playerHeadName}
+                src={headPreviewUrl}
+                alt={playerHeadName}
+                className="w-full h-full object-contain"
+                style={{ imageRendering: "pixelated" }}
+                onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
+              />
+            ) : (
+              <span className="text-2xl">&#x1F464;</span>
+            )}
+          </div>
+          <div className="flex-1 space-y-1.5">
             <Input
-              placeholder="Minecraft username (e.g. Notch)"
+              placeholder="Minecraft username e.g. Notch"
               value={playerHeadName}
               onChange={e => setPlayerHeadName(e.target.value)}
             />
-            <p className="text-xs text-muted-foreground">Any Java username — renders as a 3D head on the store</p>
+            <p className="text-xs text-muted-foreground">Enter any Java username — their head appears on your store</p>
           </div>
-          {playerHeadName && (
-            <img
-              src={`https://mc-heads.net/3d/head/${playerHeadName}/100`}
-              alt="head preview"
-              className="w-16 h-16 object-contain rounded-lg"
-              style={{ imageRendering: "pixelated", background: "rgba(255,255,255,0.05)" }}
-            />
-          )}
         </div>
       )}
 
       {imageType === "custom" && (
-        <Input
-          placeholder="https://example.com/image.png"
-          value={imageUrl}
-          onChange={e => { setImageUrl(e.target.value); setPreviewUrl(e.target.value); }}
-        />
+        <div className="space-y-2">
+          <Input
+            placeholder="https://example.com/image.png"
+            value={imageUrl}
+            onChange={e => { setImageUrl(e.target.value); setPreviewUrl(e.target.value); }}
+          />
+          {previewUrl && (
+            <div className="flex justify-center p-2 rounded-xl border border-border/60 bg-muted/20">
+              <img src={previewUrl} alt="preview" className="h-20 object-contain rounded" onError={e => (e.target as HTMLImageElement).style.display="none"} />
+            </div>
+          )}
+        </div>
       )}
     </div>
   );
@@ -981,7 +1016,10 @@ export default function ServerDashboard() {
                 </DialogTrigger>
                 <DialogContent className="bg-card border-border/60 max-h-[90vh] overflow-y-auto">
                   <DialogHeader><DialogTitle>Add Product</DialogTitle></DialogHeader>
-                  <form onSubmit={productForm.handleSubmit((d) => addProduct.mutate(d))} className="space-y-4">
+                  <form onSubmit={productForm.handleSubmit(
+                    (d) => addProduct.mutate(d),
+                    (errs) => toast({ title: "Please fill in required fields", description: Object.values(errs).map((e: any) => e.message).filter(Boolean).join(", ") || "Name, price and command are required", variant: "destructive" })
+                  )} className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-1.5">
                         <Label>Name</Label>
@@ -1106,7 +1144,7 @@ export default function ServerDashboard() {
 
               const ProductCard = ({ p }: { p: Product }) => {
                 const imgUrl = (p as any).imageType === "playerhead" && (p as any).playerHeadName
-                  ? `https://mc-heads.net/3d/head/${(p as any).playerHeadName}/100`
+                  ? `https://minotar.net/helm/${encodeURIComponent((p as any).playerHeadName)}/128`
                   : p.imageUrl;
                 return (
                   <Card
