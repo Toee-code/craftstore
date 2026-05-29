@@ -125,8 +125,8 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
       // Set HttpOnly cookie — 30 days
       res.cookie("cs_owner_token", token, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
+        secure: true,  // always secure — Render is always HTTPS
+        sameSite: "none",  // needed for cross-origin proxy setup
         maxAge: 30 * 24 * 60 * 60 * 1000,
         path: "/",
       });
@@ -146,7 +146,7 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
       if (!session) return res.status(401).json({ error: "Session not found" });
       if (new Date(session.expiresAt) < new Date()) {
         storage.deleteOwnerSession(token);
-        res.clearCookie("cs_owner_token");
+        res.clearCookie("cs_owner_token", { path: "/", secure: true, sameSite: "none" });
         return res.status(401).json({ error: "Session expired" });
       }
       const user = storage.getUserById(session.userId);
@@ -163,7 +163,7 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
     try {
       const token = req.cookies?.["cs_owner_token"];
       if (token) storage.deleteOwnerSession(token);
-      res.clearCookie("cs_owner_token", { path: "/" });
+      res.clearCookie("cs_owner_token", { path: "/", secure: true, sameSite: "none" });
       res.json({ ok: true });
     } catch (e: any) {
       res.status(500).json({ error: e.message });

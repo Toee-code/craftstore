@@ -25,6 +25,7 @@ app.use(
 
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
+app.set("trust proxy", 1); // Render / Railway sit behind a reverse proxy
 
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
