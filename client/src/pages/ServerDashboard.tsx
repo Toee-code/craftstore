@@ -434,9 +434,10 @@ export default function ServerDashboard() {
     if (hydrated && !user) navigate("/login");
   }, [hydrated, user]);
 
-  const { data: server } = useQuery<Server>({
+  const { data: server, isLoading: serverLoading } = useQuery<Server>({
     queryKey: ["/api/servers", serverId],
     queryFn: () => apiRequest("GET", `/api/servers/${serverId}`).then(r => r.json()),
+    enabled: !!user,
   });
 
   const { data: products = [] } = useQuery<Product[]>({
@@ -503,10 +504,12 @@ export default function ServerDashboard() {
 
   const storeUrl = `${window.location.origin}${window.location.pathname}#/store/${serverId}`;
 
-  // Block access until hydrated; redirect if not owner of this server
+  // Block access until hydrated + user confirmed
   if (!hydrated || !user) return null;
-  // Only enforce owner check once server data has loaded
-  if (server !== undefined && server.ownerId !== user.id) {
+  // Wait for server to load before checking ownership
+  if (serverLoading || server === undefined) return null;
+  // Kick non-owners back to dashboard
+  if (Number(server.ownerId) !== Number(user.id)) {
     navigate("/dashboard");
     return null;
   }
