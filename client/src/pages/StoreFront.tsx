@@ -1228,62 +1228,106 @@ function RecentPurchasesSidebar({ serverId, accent }: { serverId: number; accent
     .sort((a: OrderEntry, b: OrderEntry) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     .slice(0, 5);
 
+  // Mobile swipe state
+  const [hidden, setHidden] = useState(false);
+  const touchStartX = useRef(0);
+  const touchStartY = useRef(0);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
+  };
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    const dx = e.changedTouches[0].clientX - touchStartX.current;
+    const dy = Math.abs(e.changedTouches[0].clientY - touchStartY.current);
+    if (dx < -40 && dy < 60) setHidden(true);   // swipe left to hide
+    if (dx > 40 && dy < 60) setHidden(false);    // swipe right to show
+  };
+
   return (
-    <div style={{
-      position: "fixed",
-      top: "50%",
-      left: 24,
-      transform: "translateY(-50%)",
-      width: 220,
-      zIndex: 40,
-      background: "rgba(13,15,20,0.92)",
-      backdropFilter: "blur(20px)",
-      WebkitBackdropFilter: "blur(20px)",
-      border: "1px solid rgba(255,255,255,0.12)",
-      borderRadius: 20,
-      padding: "20px 16px",
-      boxShadow: "0 16px 60px rgba(0,0,0,0.8)",
-      pointerEvents: "none",
-    }}>
-      {/* Header */}
-      <div className="flex items-center gap-2 mb-4">
-        <ShoppingBag className="w-4 h-4 shrink-0" style={{ color: accent }} />
-        <span className="text-xs font-extrabold uppercase tracking-widest" style={{ color: accent }}>Recent Payments</span>
+    <>
+      <div
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+        style={{
+          position: "fixed",
+          top: "50%",
+          left: hidden ? -240 : 24,
+          transform: "translateY(-50%)",
+          transition: "left 0.35s cubic-bezier(0.4,0,0.2,1)",
+          width: 220,
+          zIndex: 40,
+          background: "rgba(13,15,20,0.92)",
+          backdropFilter: "blur(20px)",
+          WebkitBackdropFilter: "blur(20px)",
+          border: "1px solid rgba(255,255,255,0.12)",
+          borderRadius: 20,
+          padding: "20px 16px",
+          boxShadow: "0 16px 60px rgba(0,0,0,0.8)",
+          pointerEvents: "none",
+        }}>
+        {/* Header */}
+        <div className="flex items-center gap-2 mb-4">
+          <ShoppingBag className="w-4 h-4 shrink-0" style={{ color: accent }} />
+          <span className="text-xs font-extrabold uppercase tracking-widest" style={{ color: accent }}>Recent Payments</span>
+        </div>
+
+        {isLoading ? (
+          <div className="flex justify-center py-6">
+            <Loader2 className="w-5 h-5 animate-spin" style={{ color: accent }} />
+          </div>
+        ) : recent.length === 0 ? (
+          <p className="text-xs text-center py-6" style={{ color: "rgba(255,255,255,0.3)" }}>No purchases yet</p>
+        ) : (
+          <div className="flex flex-col gap-3">
+            {recent.map((order: OrderEntry) => (
+              <div key={order.id} className="flex items-center gap-3">
+                <div style={{ width: 40, height: 40, borderRadius: 6, overflow: "hidden", flexShrink: 0, background: "rgba(255,255,255,0.05)" }}>
+                  <img
+                    src={`https://nmsr.nickac.dev/face/${order.minecraftUsername}`}
+                    alt={order.minecraftUsername}
+                    width={40} height={40}
+                    style={{ width: 40, height: 40, imageRendering: "pixelated", display: "block" }}
+                    onError={e => { (e.target as HTMLImageElement).src = `https://nmsr.nickac.dev/face/Steve`; }}
+                  />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-bold text-white truncate">{order.minecraftUsername}</p>
+                  {order.productName && (
+                    <p className="text-[11px] truncate" style={{ color: "rgba(255,255,255,0.45)" }}>{order.productName}</p>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
-      {isLoading ? (
-        <div className="flex justify-center py-6">
-          <Loader2 className="w-5 h-5 animate-spin" style={{ color: accent }} />
-        </div>
-      ) : recent.length === 0 ? (
-        <p className="text-xs text-center py-6" style={{ color: "rgba(255,255,255,0.3)" }}>No purchases yet</p>
-      ) : (
-        <div className="flex flex-col gap-3">
-          {recent.map((order: OrderEntry) => (
-            <div key={order.id} className="flex items-center gap-3">
-              {/* 2D face head */}
-              <div style={{ width: 40, height: 40, borderRadius: 6, overflow: "hidden", flexShrink: 0, background: "rgba(255,255,255,0.05)" }}>
-                <img
-                  src={`https://nmsr.nickac.dev/face/${order.minecraftUsername}`}
-                  alt={order.minecraftUsername}
-                  width={40}
-                  height={40}
-                  style={{ width: 40, height: 40, imageRendering: "pixelated", display: "block" }}
-                  onError={e => { (e.target as HTMLImageElement).src = `https://nmsr.nickac.dev/face/Steve`; }}
-                />
-              </div>
-              {/* Name + item */}
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-bold text-white truncate">{order.minecraftUsername}</p>
-                {order.productName && (
-                  <p className="text-[11px] truncate" style={{ color: "rgba(255,255,255,0.45)" }}>{order.productName}</p>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
+      {/* Mobile pull-tab — only visible when hidden, on small screens */}
+      {hidden && (
+        <button
+          className="sm:hidden"
+          onTouchStart={e => { touchStartX.current = e.touches[0].clientX; }}
+          onTouchEnd={e => { if (e.changedTouches[0].clientX - touchStartX.current > 20) setHidden(false); }}
+          onClick={() => setHidden(false)}
+          style={{
+            position: "fixed",
+            top: "50%",
+            left: 0,
+            transform: "translateY(-50%)",
+            zIndex: 41,
+            background: "rgba(13,15,20,0.92)",
+            border: "1px solid rgba(255,255,255,0.12)",
+            borderLeft: "none",
+            borderRadius: "0 10px 10px 0",
+            padding: "10px 6px",
+            pointerEvents: "auto",
+            cursor: "pointer",
+          }}>
+          <ShoppingBag style={{ width: 14, height: 14, color: accent }} />
+        </button>
       )}
-    </div>
+    </>
   );
 }
 
@@ -1298,68 +1342,109 @@ function TopCustomersSidebar({ serverId, accent }: { serverId: number; accent: s
   const top3 = entries.slice(0, 3);
   const medals = ["🥇", "🥈", "🥉"];
 
-  return (
-    <div
-      style={{
-        position: "fixed",
-        top: "50%",
-        right: 24,
-        transform: "translateY(-50%)",
-        width: 300,
-        zIndex: 40,
-        background: "rgba(13,15,20,0.92)",
-        backdropFilter: "blur(20px)",
-        WebkitBackdropFilter: "blur(20px)",
-        border: "1px solid rgba(255,255,255,0.12)",
-        borderRadius: 24,
-        padding: "24px 20px",
-        boxShadow: "0 16px 60px rgba(0,0,0,0.8)",
-        pointerEvents: "none",
-      }}
-    >
-      {/* Header */}
-      <div className="flex items-center gap-2 mb-5">
-        <Trophy className="w-5 h-5 shrink-0" style={{ color: accent }} />
-        <span className="text-sm font-extrabold uppercase tracking-widest" style={{ color: accent }}>Top Customers</span>
-      </div>
+  // Mobile swipe state
+  const [hidden, setHidden] = useState(false);
+  const touchStartX = useRef(0);
+  const touchStartY = useRef(0);
 
-      {isLoading ? (
-        <div className="flex justify-center py-10">
-          <Loader2 className="w-6 h-6 animate-spin" style={{ color: accent }} />
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
+  };
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    const dx = e.changedTouches[0].clientX - touchStartX.current;
+    const dy = Math.abs(e.changedTouches[0].clientY - touchStartY.current);
+    if (dx > 40 && dy < 60) setHidden(true);    // swipe right to hide
+    if (dx < -40 && dy < 60) setHidden(false);  // swipe left to show
+  };
+
+  return (
+    <>
+      <div
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+        style={{
+          position: "fixed",
+          top: "50%",
+          right: hidden ? -320 : 24,
+          transform: "translateY(-50%)",
+          transition: "right 0.35s cubic-bezier(0.4,0,0.2,1)",
+          width: 300,
+          zIndex: 40,
+          background: "rgba(13,15,20,0.92)",
+          backdropFilter: "blur(20px)",
+          WebkitBackdropFilter: "blur(20px)",
+          border: "1px solid rgba(255,255,255,0.12)",
+          borderRadius: 24,
+          padding: "24px 20px",
+          boxShadow: "0 16px 60px rgba(0,0,0,0.8)",
+          pointerEvents: "none",
+        }}
+      >
+        {/* Header */}
+        <div className="flex items-center gap-2 mb-5">
+          <Trophy className="w-5 h-5 shrink-0" style={{ color: accent }} />
+          <span className="text-sm font-extrabold uppercase tracking-widest" style={{ color: accent }}>Top Customers</span>
         </div>
-      ) : top3.length === 0 ? (
-        <p className="text-sm text-center py-10" style={{ color: "rgba(255,255,255,0.3)" }}>No purchases yet</p>
-      ) : (
-        <div className="flex flex-col gap-5">
-          {top3.map((entry, i) => (
-            <div key={entry.minecraftUsername} className="flex flex-col items-center gap-2">
-              {/* Rank medal */}
-              <div style={{ fontSize: 28, lineHeight: 1 }}>{medals[i]}</div>
-              {/* Skin */}
-              <div className="relative" style={{ width: 110, height: 148 }}>
-                <img
-                  src={`https://nmsr.nickac.dev/fullbody/${entry.minecraftUsername}`}
-                  alt={entry.minecraftUsername}
-                  style={{ width: 110, height: 148, objectFit: "contain", imageRendering: "pixelated", filter: i === 0 ? `drop-shadow(0 0 12px ${accent}99)` : "drop-shadow(0 2px 6px rgba(0,0,0,0.5))" }}
-                  onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
-                />
-                {i === 0 && (
-                  <div style={{ position: "absolute", inset: 0, borderRadius: 12, boxShadow: `0 0 32px ${accent}60`, pointerEvents: "none" }} />
+
+        {isLoading ? (
+          <div className="flex justify-center py-10">
+            <Loader2 className="w-6 h-6 animate-spin" style={{ color: accent }} />
+          </div>
+        ) : top3.length === 0 ? (
+          <p className="text-sm text-center py-10" style={{ color: "rgba(255,255,255,0.3)" }}>No purchases yet</p>
+        ) : (
+          <div className="flex flex-col gap-5">
+            {top3.map((entry, i) => (
+              <div key={entry.minecraftUsername} className="flex flex-col items-center gap-2">
+                <div style={{ fontSize: 28, lineHeight: 1 }}>{medals[i]}</div>
+                <div className="relative" style={{ width: 110, height: 148 }}>
+                  <img
+                    src={`https://nmsr.nickac.dev/fullbody/${entry.minecraftUsername}`}
+                    alt={entry.minecraftUsername}
+                    style={{ width: 110, height: 148, objectFit: "contain", imageRendering: "pixelated", filter: i === 0 ? `drop-shadow(0 0 12px ${accent}99)` : "drop-shadow(0 2px 6px rgba(0,0,0,0.5))" }}
+                    onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
+                  />
+                  {i === 0 && (
+                    <div style={{ position: "absolute", inset: 0, borderRadius: 12, boxShadow: `0 0 32px ${accent}60`, pointerEvents: "none" }} />
+                  )}
+                </div>
+                <p className="text-base font-bold text-center truncate w-full" style={{ color: i === 0 ? "#fff" : "rgba(255,255,255,0.75)" }}>{entry.minecraftUsername}</p>
+                <p className="text-base font-extrabold" style={{ color: accent, textShadow: i === 0 ? `0 0 16px ${accent}80` : "none" }}>£{entry.total.toFixed(2)}</p>
+                {i < 2 && top3[i + 1] && (
+                  <div style={{ width: "75%", height: 1, background: "rgba(255,255,255,0.08)", marginTop: 4 }} />
                 )}
               </div>
-              {/* Name */}
-              <p className="text-base font-bold text-center truncate w-full" style={{ color: i === 0 ? "#fff" : "rgba(255,255,255,0.75)" }}>{entry.minecraftUsername}</p>
-              {/* Amount */}
-              <p className="text-base font-extrabold" style={{ color: accent, textShadow: i === 0 ? `0 0 16px ${accent}80` : "none" }}>£{entry.total.toFixed(2)}</p>
-              {/* Divider */}
-              {i < 2 && top3[i + 1] && (
-                <div style={{ width: "75%", height: 1, background: "rgba(255,255,255,0.08)", marginTop: 4 }} />
-              )}
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Mobile pull-tab — only visible when hidden, on small screens */}
+      {hidden && (
+        <button
+          className="sm:hidden"
+          onTouchStart={e => { touchStartX.current = e.touches[0].clientX; }}
+          onTouchEnd={e => { if (e.changedTouches[0].clientX - touchStartX.current < -20) setHidden(false); }}
+          onClick={() => setHidden(false)}
+          style={{
+            position: "fixed",
+            top: "50%",
+            right: 0,
+            transform: "translateY(-50%)",
+            zIndex: 41,
+            background: "rgba(13,15,20,0.92)",
+            border: "1px solid rgba(255,255,255,0.12)",
+            borderRight: "none",
+            borderRadius: "10px 0 0 10px",
+            padding: "10px 6px",
+            pointerEvents: "auto",
+            cursor: "pointer",
+          }}>
+          <Trophy style={{ width: 14, height: 14, color: accent }} />
+        </button>
       )}
-    </div>
+    </>
   );
 }
 
