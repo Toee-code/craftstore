@@ -1796,19 +1796,28 @@ function ThemedStore({ data }: { data: StoreData }) {
   const [topupAmount, setTopupAmount] = useState(10);
   const [topupCustom, setTopupCustom] = useState("");
   const topupMutation = useMutation({
-    mutationFn: (amount: number) => apiRequest("POST", "/api/member/balance-topup", {
-      serverId: data.server.id,
-      minecraftUsername: memberSession?.minecraftUsername,
-      memberToken: (() => { try { return localStorage.getItem(`cs_member_token_${data.server.id}`); } catch { return null; } })(),
-      amount,
-    }).then(r => r.json()),
+    mutationFn: async (amount: number) => {
+      const r = await apiRequest("POST", "/api/member/balance-topup", {
+        serverId: data.server.id,
+        minecraftUsername: memberSession?.minecraftUsername,
+        amount,
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || "Top-up failed");
+      return d;
+    },
     onSuccess: (d: any) => {
       if (d.url) { window.location.href = d.url; }
-      else { toast({ title: "Top-up initiated" }); setTopupOpen(false); }
+      else { toast({ title: `Balance topped up!` }); setTopupOpen(false); }
     },
-    onError: () => toast({ title: "Top-up failed", description: "Please try again.", variant: "destructive" }),
+    onError: (e: any) => toast({ title: "Top-up failed", description: e.message || "Please try again.", variant: "destructive" }),
   });
   const handleTopup = () => {
+    if (!memberSession) {
+      setTopupOpen(false);
+      setMemberAuthOpen(true);
+      return;
+    }
     const amt = topupCustom ? Number(topupCustom) : topupAmount;
     if (!amt || amt < 1) return toast({ title: "Minimum top-up is £1", variant: "destructive" });
     topupMutation.mutate(amt);
