@@ -1456,9 +1456,9 @@ export default function ServerDashboard() {
                       <Textarea placeholder="A powerful sword…" rows={2} {...productForm.register("description")} />
                     </div>
                     <div className="space-y-1.5">
-                      <Label className="flex items-center gap-1.5"><Terminal className="w-3.5 h-3.5" /> In-game command</Label>
-                      <Input placeholder="give {player} diamond_sword 1" data-testid="input-product-command" {...productForm.register("command", { required: true })} />
-                      <p className="text-xs text-muted-foreground">Use <code className="text-primary">{"{player}"}</code> as placeholder for the buyer's username.</p>
+                      <Label className="flex items-center gap-1.5"><Terminal className="w-3.5 h-3.5" /> In-game commands</Label>
+                      <Textarea placeholder={"give {player} diamond_sword 1\nlp user {player} parent set vip\ntell {player} Thanks for purchasing!"} rows={4} className="font-mono text-xs" data-testid="input-product-command" {...productForm.register("command", { required: true })} />
+                      <p className="text-xs text-muted-foreground">One command per line. Use <code className="text-primary">{"{player}"}</code> for the buyer's username — all commands run in order.</p>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-1.5">
@@ -1540,9 +1540,9 @@ export default function ServerDashboard() {
                     <Textarea rows={2} {...editForm.register("description")} />
                   </div>
                   <div className="space-y-1.5">
-                    <Label className="flex items-center gap-1.5"><Terminal className="w-3.5 h-3.5" /> In-game command</Label>
-                    <Input {...editForm.register("command", { required: true })} />
-                    <p className="text-xs text-muted-foreground">Use <code className="text-primary">{"{player}"}</code> as placeholder for the buyer's username.</p>
+                    <Label className="flex items-center gap-1.5"><Terminal className="w-3.5 h-3.5" /> In-game commands</Label>
+                    <Textarea rows={4} className="font-mono text-xs" {...editForm.register("command", { required: true })} />
+                    <p className="text-xs text-muted-foreground">One command per line. Use <code className="text-primary">{"{player}"}</code> for the buyer's username — all commands run in order.</p>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1.5">

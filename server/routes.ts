@@ -432,11 +432,13 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
     // Fire webhook if configured
       if (server.webhookUrl) {
         const command = product.command.replace("{player}", minecraftUsername);
+        const commands = command.split("\n").map((c: string) => c.trim()).filter(Boolean);
         const payload = {
           event: "purchase",
           orderId: order.id,
           minecraftUsername,
           command,
+          commands,
           product: { id: product.id, name: product.name },
           secret: server.webhookSecret,
         };
@@ -671,8 +673,9 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
         storage.updateMemberTotalSpent(member.id, playerPrice);
         if (server.webhookUrl) {
           const command = product.command.replace("%player%", minecraftUsername).replace("{player}", minecraftUsername);
+          const commands = command.split("\n").map((c: string) => c.trim()).filter(Boolean);
           try {
-            await fetch(server.webhookUrl, { method: "POST", headers: { "Content-Type": "application/json", "X-CraftStore-Secret": server.webhookSecret || "" }, body: JSON.stringify({ event: "purchase", orderId: order.id, minecraftUsername, command, product: { id: product.id, name: product.name }, productName: product.name, secret: server.webhookSecret }) });
+            await fetch(server.webhookUrl, { method: "POST", headers: { "Content-Type": "application/json", "X-CraftStore-Secret": server.webhookSecret || "" }, body: JSON.stringify({ event: "purchase", orderId: order.id, minecraftUsername, command, commands, product: { id: product.id, name: product.name }, productName: product.name, secret: server.webhookSecret }) });
             storage.updateOrderStatus(order.id, "completed", true);
           } catch { storage.updateOrderStatus(order.id, "failed", false); }
         }
@@ -775,11 +778,12 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
         // Fire webhook to Minecraft server
         if (server.webhookUrl) {
           const command = product.command.replace("%player%", minecraftUsername).replace("{player}", minecraftUsername);
+          const commands = command.split("\n").map((c: string) => c.trim()).filter(Boolean);
           try {
             const wResp = await fetch(server.webhookUrl, {
               method: "POST",
               headers: { "Content-Type": "application/json", "X-CraftStore-Secret": server.webhookSecret || "" },
-              body: JSON.stringify({ event: "purchase", orderId: order.id, minecraftUsername, command, product: { id: product.id, name: product.name }, productName: product.name, secret: server.webhookSecret }),
+              body: JSON.stringify({ event: "purchase", orderId: order.id, minecraftUsername, command, commands, product: { id: product.id, name: product.name }, productName: product.name, secret: server.webhookSecret }),
             });
             storage.updateOrderStatus(order.id, wResp.ok ? "completed" : "failed", wResp.ok);
           } catch {
@@ -1272,10 +1276,11 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
       // Fire webhook for recipient
       if (server.webhookUrl) {
         const command = product.command.replace("{player}", recipientUsername);
+        const commands = command.split("\n").map((c: string) => c.trim()).filter(Boolean);
         const payload = {
           event: "gift_purchase", orderId: order.id,
           minecraftUsername: recipientUsername, senderUsername,
-          command, product: { id: product.id, name: product.name },
+          command, commands, product: { id: product.id, name: product.name },
           secret: server.webhookSecret,
         };
         try {
@@ -1525,11 +1530,13 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
     if (!server) return res.status(404).json({ error: "Server not found" });
     if (!server.webhookUrl) return res.status(400).json({ error: "No webhook URL configured. Add one in Settings first." });
     const { minecraftUsername = "TestPlayer", command = "say Welcome TestPlayer!" } = req.body;
+    const commands = command.split("\n").map((c: string) => c.trim()).filter(Boolean);
     const payload = {
       event: "purchase",
       orderId: 0,
       minecraftUsername,
       command,
+      commands,
       product: { id: 0, name: "Test Product" },
       productName: "Test Product",
       secret: server.webhookSecret,
