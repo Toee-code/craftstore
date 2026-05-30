@@ -769,63 +769,74 @@ export default function StoreAppearance({ serverId }: Props) {
             const isVid = watch("bannerImageUrl").startsWith("data:video/") || watch("bannerImageUrl").endsWith(".mp4") || watch("bannerImageUrl").endsWith(".webm");
             const focalY = watch("bannerFocalY") || "50%";
             const focalPct = parseFloat(focalY);
+            const accent = watch("accentColor") || "#22c55e";
             return (
               <div className="space-y-1.5">
-                <div
-                  className="rounded-xl overflow-hidden border border-border/40 relative group select-none"
-                  style={{ height: 160, cursor: "ns-resize" }}
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    const container = e.currentTarget;
-                    const rect = container.getBoundingClientRect();
-                    const startY = e.clientY;
-                    const startPct = focalPct;
-                    const onMove = (mv: MouseEvent) => {
-                      const deltaY = mv.clientY - startY;
-                      // Moving up → focal point moves up (smaller %)
-                      const newPct = Math.min(100, Math.max(0, startPct + (deltaY / rect.height) * 100));
-                      setValue("bannerFocalY", `${Math.round(newPct)}%`);
-                    };
-                    const onUp = () => {
-                      window.removeEventListener("mousemove", onMove);
-                      window.removeEventListener("mouseup", onUp);
-                    };
-                    window.addEventListener("mousemove", onMove);
-                    window.addEventListener("mouseup", onUp);
-                  }}
-                >
-                  {isVid ? (
-                    <video
-                      src={watch("bannerImageUrl")}
-                      autoPlay loop muted playsInline
-                      className="w-full h-full object-cover"
-                      style={{ objectPosition: `center ${focalY}` }}
-                    />
-                  ) : (
-                    <img
-                      src={watch("bannerImageUrl")}
-                      alt="Banner preview"
-                      className="w-full h-full object-cover"
-                      style={{ objectPosition: `center ${focalY}` }}
-                    />
-                  )}
-                  {/* Drag hint */}
-                  <div className="absolute inset-0 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                    <div className="bg-black/60 rounded-lg px-3 py-1.5 flex items-center gap-1.5">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><path d="M12 5v14M5 12l7-7 7 7M5 12l7 7 7-7" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                      <span className="text-xs font-semibold text-white">Drag to reposition</span>
-                    </div>
-                  </div>
-                  {/* Clear button */}
-                  <button
-                    type="button"
-                    onClick={() => setValue("bannerImageUrl", "")}
-                    className="absolute top-2 right-2 bg-black/60 hover:bg-black/80 text-white rounded-full w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                <p className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 5v14M5 12l7-7 7 7M5 12l7 7 7-7" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  Drag to reposition — this is exactly how it looks in your store
+                </p>
+                {/* ── Exact replica of EchoLayout hero card ── */}
+                <div className="rounded-2xl overflow-hidden select-none" style={{ border: "1px solid rgba(255,255,255,0.08)", background: "#0a0a0a" }}>
+                  {/* Top area: 180px, draggable */}
+                  <div
+                    className="relative w-full overflow-hidden rounded-t-2xl group"
+                    style={{ height: 180, cursor: "ns-resize" }}
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      const startY = e.clientY;
+                      const startPct = focalPct;
+                      const onMove = (mv: MouseEvent) => {
+                        const deltaY = mv.clientY - startY;
+                        const newPct = Math.min(100, Math.max(0, startPct + (deltaY / rect.height) * 100));
+                        setValue("bannerFocalY", `${Math.round(newPct)}%`);
+                      };
+                      const onUp = () => {
+                        window.removeEventListener("mousemove", onMove);
+                        window.removeEventListener("mouseup", onUp);
+                      };
+                      window.addEventListener("mousemove", onMove);
+                      window.addEventListener("mouseup", onUp);
+                    }}
                   >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
+                    {isVid ? (
+                      <video src={watch("bannerImageUrl")} autoPlay loop muted playsInline
+                        className="w-full h-full object-cover" style={{ display: "block", objectPosition: `center ${focalY}` }} />
+                    ) : (
+                      <img src={watch("bannerImageUrl")} alt="Banner preview"
+                        className="w-full h-full object-cover" style={{ objectPosition: `center ${focalY}` }} />
+                    )}
+                    {/* Drag hint overlay */}
+                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                      <div className="bg-black/60 backdrop-blur-sm rounded-lg px-3 py-1.5 flex items-center gap-1.5">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><path d="M12 5v14M5 12l7-7 7 7M5 12l7 7 7-7" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                        <span className="text-xs font-semibold text-white">Drag up / down</span>
+                      </div>
+                    </div>
+                    {/* Clear button */}
+                    <button type="button" onClick={() => setValue("bannerImageUrl", "")}
+                      className="absolute top-2 right-2 bg-black/60 hover:bg-black/80 text-white rounded-full w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                  {/* Sub-bar replica */}
+                  <div className="flex items-center px-5 py-3" style={{ background: "#13161c", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+                    <div className="flex items-center gap-3 flex-1">
+                      <div className="w-9 h-9 rounded-lg flex items-center justify-center text-xs font-extrabold shrink-0"
+                        style={{ background: `${accent}22`, color: accent, border: `1px solid ${accent}30` }}>
+                        {serverInfo.logoUrl
+                          ? <img src={serverInfo.logoUrl} alt="logo" className="w-7 h-7 object-contain rounded" />
+                          : "TO"}
+                      </div>
+                      <div>
+                        <p className="font-bold text-white text-sm leading-none">Toee SMP</p>
+                        <p className="text-xs mt-0.5" style={{ color: "rgba(255,255,255,0.38)" }}>Welcome to our store!</p>
+                      </div>
+                    </div>
+                    <div className="rounded-xl px-4 py-2 text-xs font-extrabold text-white" style={{ background: accent }}>Login</div>
+                  </div>
                 </div>
-                <p className="text-xs text-muted-foreground text-center">Drag up/down to adjust which part shows — saves with the form</p>
               </div>
             );
           })()}
