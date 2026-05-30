@@ -856,22 +856,24 @@ function EchoProductCard({
       style={{ background: "#16191f", border: "1px solid rgba(255,255,255,0.07)" }}
       data-testid={`card-echo-product-${product.id}`}>
 
-      {/* Floating product image — no background box */}
-      <div className="flex items-end justify-center pt-5 pb-1" style={{ minHeight: 130 }}>
-        {(() => { const imgUrl = productImageUrl(product); return imgUrl ? (
-          <div className="enchant-wrap" style={{ borderRadius: 8 }}>
-            <img src={imgUrl} alt={product.name}
-              className="w-24 h-24 object-contain"
-              style={{ imageRendering: "pixelated", filter: "drop-shadow(0 4px 12px rgba(0,0,0,0.5))" }} />
-            {!!product.enchanted && <img src={imgUrl} aria-hidden className="enchant-glint" style={{ objectFit: "contain", width: 96, height: 96 }} />}
-          </div>
-        ) : (
-          <div className="w-16 h-16 rounded-xl flex items-center justify-center mb-2"
-            style={{ background: `${accent}15` }}>
-            <Package className="w-8 h-8" style={{ color: `${accent}70` }} />
-          </div>
-        ); })()}
-      </div>
+      {/* Product image */}
+      {(() => { const imgUrl = productImageUrl(product); return imgUrl ? (
+        <div className="enchant-wrap relative w-full overflow-hidden" style={{ height: 120, borderRadius: "16px 16px 0 0" }}>
+          <img src={imgUrl} alt={product.name}
+            className="w-full h-full"
+            style={{
+              objectFit: product.imageType === "playerhead" || product.imageType === "minecraft_item" ? "contain" : "cover",
+              imageRendering: "pixelated",
+              padding: product.imageType === "playerhead" || product.imageType === "minecraft_item" ? 12 : 0,
+              filter: "drop-shadow(0 4px 12px rgba(0,0,0,0.5))",
+            }} />
+          {!!product.enchanted && <img src={imgUrl} aria-hidden className="enchant-glint" style={{ objectFit: "cover", width: "100%", height: "100%" }} />}
+        </div>
+      ) : (
+        <div className="w-full flex items-center justify-center" style={{ height: 120, borderRadius: "16px 16px 0 0", background: `${accent}15` }}>
+          <Package className="w-10 h-10" style={{ color: `${accent}70` }} />
+        </div>
+      ); })()}
 
       {/* Text + CTA */}
       <div className="px-4 pb-1 pt-2">
