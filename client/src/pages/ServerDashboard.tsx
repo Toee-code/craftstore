@@ -28,6 +28,133 @@ import StoreAppearance from "./StoreAppearance";
 import StorePresets from "./StorePresets";
 import type { Product, Member, Order, Server } from "@shared/schema";
 
+// ─── Command Placeholder Picker ──────────────────────────────────────────────
+const COMMAND_PLACEHOLDERS = [
+  { tag: "{player}",        label: "Player",         desc: "Buyer's Minecraft username",           color: "bg-blue-500/15 text-blue-400 border-blue-500/30" },
+  { tag: "{displayname}",  label: "Display Name",   desc: "Buyer's display name / nickname",      color: "bg-violet-500/15 text-violet-400 border-violet-500/30" },
+  { tag: "{uuid}",         label: "UUID",            desc: "Buyer's Minecraft UUID",               color: "bg-slate-500/15 text-slate-400 border-slate-500/30" },
+  { tag: "{product}",      label: "Product",         desc: "Name of the purchased product",        color: "bg-amber-500/15 text-amber-400 border-amber-500/30" },
+  { tag: "{price}",        label: "Price",           desc: "Amount paid (e.g. 4.99)",              color: "bg-green-500/15 text-green-400 border-green-500/30" },
+  { tag: "{currency}",     label: "Currency",        desc: "Currency code (e.g. GBP)",             color: "bg-green-500/15 text-green-400 border-green-500/30" },
+  { tag: "{order_id}",     label: "Order ID",        desc: "Unique order reference number",        color: "bg-slate-500/15 text-slate-400 border-slate-500/30" },
+  { tag: "{date}",         label: "Date",            desc: "Purchase date (YYYY-MM-DD)",           color: "bg-orange-500/15 text-orange-400 border-orange-500/30" },
+  { tag: "{time}",         label: "Time",            desc: "Purchase time (HH:MM)",               color: "bg-orange-500/15 text-orange-400 border-orange-500/30" },
+  { tag: "{server}",       label: "Server",          desc: "Your server's name",                  color: "bg-cyan-500/15 text-cyan-400 border-cyan-500/30" },
+  { tag: "{quantity}",     label: "Quantity",        desc: "Number of items purchased",            color: "bg-pink-500/15 text-pink-400 border-pink-500/30" },
+  { tag: "{&c}",           label: "&c Red",          desc: "Chat colour: Red",                    color: "bg-red-500/15 text-red-400 border-red-500/30" },
+  { tag: "{&a}",           label: "&a Green",        desc: "Chat colour: Green",                  color: "bg-green-500/15 text-green-400 border-green-500/30" },
+  { tag: "{&b}",           label: "&b Aqua",         desc: "Chat colour: Aqua",                   color: "bg-cyan-500/15 text-cyan-400 border-cyan-500/30" },
+  { tag: "{&e}",           label: "&e Yellow",       desc: "Chat colour: Yellow",                 color: "bg-yellow-500/15 text-yellow-400 border-yellow-500/30" },
+  { tag: "{&6}",           label: "&6 Gold",         desc: "Chat colour: Gold",                   color: "bg-amber-500/15 text-amber-400 border-amber-500/30" },
+  { tag: "{&d}",           label: "&d Pink",         desc: "Chat colour: Pink / Light Purple",    color: "bg-pink-500/15 text-pink-400 border-pink-500/30" },
+  { tag: "{&5}",           label: "&5 Purple",       desc: "Chat colour: Dark Purple",            color: "bg-purple-500/15 text-purple-400 border-purple-500/30" },
+  { tag: "{&9}",           label: "&9 Blue",         desc: "Chat colour: Blue",                   color: "bg-blue-500/15 text-blue-400 border-blue-500/30" },
+  { tag: "{&f}",           label: "&f White",        desc: "Chat colour: White",                  color: "bg-slate-200/15 text-slate-300 border-slate-400/30" },
+  { tag: "{&0}",           label: "&0 Black",        desc: "Chat colour: Black",                  color: "bg-slate-900/40 text-slate-400 border-slate-600/30" },
+  { tag: "{&l}",           label: "&l Bold",         desc: "Chat format: Bold",                   color: "bg-slate-500/15 text-slate-300 border-slate-500/30" },
+  { tag: "{&o}",           label: "&o Italic",       desc: "Chat format: Italic",                 color: "bg-slate-500/15 text-slate-300 border-slate-500/30" },
+  { tag: "{&n}",           label: "&n Underline",    desc: "Chat format: Underline",              color: "bg-slate-500/15 text-slate-300 border-slate-500/30" },
+  { tag: "{&r}",           label: "&r Reset",        desc: "Chat format: Reset formatting",       color: "bg-slate-500/15 text-slate-300 border-slate-500/30" },
+];
+
+function CommandTextarea({ value, onChange, rows = 4, placeholder, dataTestId }: {
+  value: string;
+  onChange: (v: string) => void;
+  rows?: number;
+  placeholder?: string;
+  dataTestId?: string;
+}) {
+  const ref = useRef<HTMLTextAreaElement>(null);
+  const [show, setShow] = useState(false);
+  const [query, setQuery] = useState("");
+
+  const filtered = query
+    ? COMMAND_PLACEHOLDERS.filter(p =>
+        p.label.toLowerCase().includes(query.toLowerCase()) ||
+        p.tag.toLowerCase().includes(query.toLowerCase()) ||
+        p.desc.toLowerCase().includes(query.toLowerCase())
+      )
+    : COMMAND_PLACEHOLDERS;
+
+  function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (e.key === "Escape") { setShow(false); setQuery(""); }
+  }
+
+  function handleChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
+    const v = e.target.value;
+    onChange(v);
+    // find the last { before the cursor that isn't already closed
+    const cursor = e.target.selectionStart ?? v.length;
+    const before = v.slice(0, cursor);
+    const lastOpen = before.lastIndexOf("{");
+    const lastClose = before.lastIndexOf("}");
+    if (lastOpen !== -1 && lastOpen > lastClose) {
+      setQuery(before.slice(lastOpen + 1));
+      setShow(true);
+    } else {
+      setShow(false);
+      setQuery("");
+    }
+  }
+
+  function insert(tag: string) {
+    const el = ref.current;
+    if (!el) return;
+    const cursor = el.selectionStart ?? value.length;
+    const before = value.slice(0, cursor);
+    const after = value.slice(cursor);
+    const lastOpen = before.lastIndexOf("{");
+    const newBefore = lastOpen !== -1 ? before.slice(0, lastOpen) : before;
+    const newValue = newBefore + tag + after;
+    onChange(newValue);
+    setShow(false);
+    setQuery("");
+    // restore focus + move cursor after tag
+    setTimeout(() => {
+      el.focus();
+      const pos = newBefore.length + tag.length;
+      el.setSelectionRange(pos, pos);
+    }, 0);
+  }
+
+  return (
+    <div className="relative">
+      <textarea
+        ref={ref}
+        value={value}
+        onChange={handleChange}
+        onKeyDown={handleKeyDown}
+        rows={rows}
+        placeholder={placeholder}
+        data-testid={dataTestId}
+        className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-xs font-mono shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none"
+      />
+      {show && (
+        <div className="absolute z-50 left-0 top-full mt-1 w-full max-h-56 overflow-y-auto rounded-lg border border-border bg-popover shadow-xl p-2 space-y-0.5">
+          <p className="text-[10px] text-muted-foreground px-1 pb-1 font-medium tracking-wide uppercase">Placeholders — click to insert</p>
+          {filtered.map(p => (
+            <button
+              key={p.tag}
+              type="button"
+              onClick={() => insert(p.tag)}
+              className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-md hover:bg-muted text-left transition-colors"
+            >
+              <span className={`shrink-0 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold border ${p.color}`}>{p.tag}</span>
+              <span className="flex flex-col min-w-0">
+                <span className="text-xs font-medium text-foreground leading-tight">{p.label}</span>
+                <span className="text-[10px] text-muted-foreground leading-tight truncate">{p.desc}</span>
+              </span>
+            </button>
+          ))}
+          {filtered.length === 0 && (
+            <p className="text-xs text-muted-foreground px-2 py-2">No matching placeholders</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Stripe Connect Panel ────────────────────────────────────────────────────
 function StripeConnectPanel({ serverId, server }: { serverId: number; server: any }) {
   const { toast } = useToast();
@@ -1457,8 +1584,14 @@ export default function ServerDashboard() {
                     </div>
                     <div className="space-y-1.5">
                       <Label className="flex items-center gap-1.5"><Terminal className="w-3.5 h-3.5" /> In-game commands</Label>
-                      <Textarea placeholder={"give {player} diamond_sword 1\nlp user {player} parent set vip\ntell {player} Thanks for purchasing!"} rows={4} className="font-mono text-xs" data-testid="input-product-command" {...productForm.register("command", { required: true })} />
-                      <p className="text-xs text-muted-foreground">One command per line. Use <code className="text-primary">{"{player}"}</code> for the buyer's username — all commands run in order.</p>
+                      <CommandTextarea
+                        value={productForm.watch("command") ?? ""}
+                        onChange={v => productForm.setValue("command", v, { shouldValidate: true, shouldDirty: true })}
+                        rows={4}
+                        placeholder={"give {player} diamond_sword 1\nlp user {player} parent set vip\ntell {player} Thanks for purchasing!"}
+                        dataTestId="input-product-command"
+                      />
+                      <p className="text-xs text-muted-foreground">One command per line. Type <code className="text-primary">{"{}"}</code> to browse placeholders — player, colours, product info and more.</p>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-1.5">
@@ -1541,8 +1674,12 @@ export default function ServerDashboard() {
                   </div>
                   <div className="space-y-1.5">
                     <Label className="flex items-center gap-1.5"><Terminal className="w-3.5 h-3.5" /> In-game commands</Label>
-                    <Textarea rows={4} className="font-mono text-xs" {...editForm.register("command", { required: true })} />
-                    <p className="text-xs text-muted-foreground">One command per line. Use <code className="text-primary">{"{player}"}</code> for the buyer's username — all commands run in order.</p>
+                    <CommandTextarea
+                      value={editForm.watch("command") ?? ""}
+                      onChange={v => editForm.setValue("command", v, { shouldValidate: true, shouldDirty: true })}
+                      rows={4}
+                    />
+                    <p className="text-xs text-muted-foreground">One command per line. Type <code className="text-primary">{"{}"}</code> to browse placeholders — player, colours, product info and more.</p>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1.5">
