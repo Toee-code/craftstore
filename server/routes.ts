@@ -258,8 +258,9 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
   app.post("/api/servers/:serverId/products", (req, res) => {
     try {
       const body = { ...req.body, serverId: Number(req.params.serverId) };
-      // Convert boolean enchanted → integer for SQLite
+      // Convert boolean fields → integer for SQLite
       if (typeof body.enchanted === "boolean") body.enchanted = body.enchanted ? 1 : 0;
+      if (typeof body.featured === "boolean") body.featured = body.featured ? 1 : 0;
       const parsed = insertProductSchema.parse(body);
       res.json(storage.createProduct(parsed));
     } catch (e: any) {
@@ -269,8 +270,9 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
 
   app.patch("/api/products/:id", (req, res) => {
     const body = { ...req.body };
-    // Convert boolean enchanted → integer for SQLite
+    // Convert boolean fields → integer for SQLite
     if (typeof body.enchanted === "boolean") body.enchanted = body.enchanted ? 1 : 0;
+    if (typeof body.featured === "boolean") body.featured = body.featured ? 1 : 0;
     const product = storage.updateProduct(Number(req.params.id), body);
     if (!product) return res.status(404).json({ error: "Not found" });
     res.json(product);
