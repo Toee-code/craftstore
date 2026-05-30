@@ -552,7 +552,7 @@ function ProductCard({ product, accent, playerPrice, onBuy, onGift }: {
         {product.description && (
           <p className="text-xs mb-3 line-clamp-2 flex-1" style={{ color: "rgba(255,255,255,0.45)" }}>{product.description}</p>
         )}
-        {product.stock !== -1 && (
+        {product.stock > 0 && product.stock !== -1 && (
           <p className="text-xs mb-2" style={{ color: "rgba(255,255,255,0.35)" }}>
             <span style={{ color: product.stock < 5 ? "#f87171" : accent }}>●</span> {product.stock} left
           </p>
@@ -718,7 +718,7 @@ function DonutProductCard({
         </div>
 
         {/* Stock */}
-        {product.stock != null && product.stock !== -1 && (
+        {product.stock != null && product.stock > 0 && product.stock !== -1 && (
           <p className="text-center text-xs mt-2" style={{ color: (product.stock ?? 99) < 5 ? "#f87171" : "rgba(255,255,255,0.3)" }}>
             <span style={{ color: (product.stock ?? 99) < 5 ? "#f87171" : accent }}>●</span> {product.stock} left
           </p>
@@ -2638,7 +2638,7 @@ function ThemedStore({ data }: { data: StoreData }) {
                           {product.category && <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: accent + "20", color: accent }}>{product.category}</span>}
                         </div>
                         {product.description && <p className="text-xs mt-1 line-clamp-1" style={{ color: "rgba(255,255,255,0.45)" }}>{product.description}</p>}
-                        {product.stock !== -1 && <p className="text-xs mt-1" style={{ color: "rgba(255,255,255,0.35)" }}>{product.stock} left</p>}
+                        {product.stock > 0 && product.stock !== -1 && <p className="text-xs mt-1" style={{ color: "rgba(255,255,255,0.35)" }}>{product.stock} left</p>}
                       </div>
                       <div className="flex items-center gap-3 shrink-0">
                         <span className="text-xl font-extrabold" style={{ color: accent, textShadow: `0 0 20px ${accent}80` }}>£{calcPlayerPrice(product.price).toFixed(2)}</span>

@@ -1415,7 +1415,7 @@ export default function ServerDashboard() {
                       </div>
                       {p.description && <p className="text-muted-foreground text-xs mb-2 line-clamp-1">{p.description}</p>}
                       <div className="flex items-center justify-between mt-auto pt-1">
-                        <span className="text-xs text-muted-foreground">{p.stock === -1 ? "Unlimited" : `${p.stock} left`}</span>
+                        <span className="text-xs text-muted-foreground">{p.stock === -1 ? "Unlimited" : p.stock > 0 ? `${p.stock} left` : ""}</span>
                         <div className="flex items-center gap-0.5">
                           <Button size="icon" variant="ghost" className="h-6 w-6 text-muted-foreground hover:text-foreground" onClick={() => openEdit(p)}>
                             <Edit3 className="w-3 h-3" />
