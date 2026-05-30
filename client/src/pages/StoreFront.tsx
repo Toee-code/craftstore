@@ -21,7 +21,7 @@ import {
   ShoppingCart, Package, CheckCircle2, Loader2, AlertCircle,
   Megaphone, Home, Trophy, ChevronRight, ChevronDown, Menu, X, ShoppingBag,
   User, Gift, LogIn, LogOut, UserPlus, Heart, CreditCard, Zap,
-  Star, TrendingUp, Shield, Sparkles, Flame
+  Star, TrendingUp, Shield, Sparkles, Flame, Plus
 } from "lucide-react";
 import type { Product } from "@shared/schema";
 import { COLOR_SCHEMES } from "./StoreAppearance";
@@ -1365,7 +1365,7 @@ function TopCustomersSidebar({ serverId, accent }: { serverId: number; accent: s
 
 function EchoLayout({
   data, accent, onBuy, onGift, calcPlayerPrice, page, setPage, memberSession, onLogin,
-  playerDropdownOpen, setPlayerDropdownOpen, onLogout
+  playerDropdownOpen, setPlayerDropdownOpen, onLogout, onTopup
 }: {
   data: StoreData; accent: string;
   onBuy: (p: Product) => void; onGift: (p: Product) => void;
@@ -1373,6 +1373,7 @@ function EchoLayout({
   page: string; setPage: (p: string) => void;
   memberSession: MemberSession | null; onLogin: () => void;
   playerDropdownOpen: boolean; setPlayerDropdownOpen: (v: boolean | ((prev: boolean) => boolean)) => void; onLogout: () => void;
+  onTopup: () => void;
 }) {
   const categories: string[] = (() => { try { return JSON.parse(data.theme.categories || "[]"); } catch { return []; } })();
   const activeProducts = data.products.filter(p => p.active);
@@ -1464,6 +1465,12 @@ function EchoLayout({
                       className="w-full flex items-center gap-2 px-4 py-3 text-sm font-medium hover:bg-white/5 transition-colors rounded-t-xl"
                       style={{ color: "rgba(255,255,255,0.8)" }}>
                       <User className="w-4 h-4" /> My Profile
+                    </button>
+                    <button
+                      onClick={() => { setPlayerDropdownOpen(false); onTopup(); }}
+                      className="w-full flex items-center gap-2 px-4 py-3 text-sm font-medium hover:bg-white/5 transition-colors"
+                      style={{ color: "#22c55e", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+                      <Plus className="w-4 h-4" /> Top Up Balance
                     </button>
                     <button
                       onClick={onLogout}
@@ -1784,6 +1791,29 @@ function ThemedStore({ data }: { data: StoreData }) {
   const [giftRecipient, setGiftRecipient] = useState("");
   const [giftMessage, setGiftMessage] = useState("");
 
+  // ── Balance top-up modal ──────────────────────────────────────────────────
+  const [topupOpen, setTopupOpen] = useState(false);
+  const [topupAmount, setTopupAmount] = useState(10);
+  const [topupCustom, setTopupCustom] = useState("");
+  const topupMutation = useMutation({
+    mutationFn: (amount: number) => apiRequest("POST", "/api/member/balance-topup", {
+      serverId: data.server.id,
+      minecraftUsername: memberSession?.minecraftUsername,
+      memberToken: (() => { try { return localStorage.getItem(`cs_member_token_${data.server.id}`); } catch { return null; } })(),
+      amount,
+    }).then(r => r.json()),
+    onSuccess: (d: any) => {
+      if (d.url) { window.location.href = d.url; }
+      else { toast({ title: "Top-up initiated" }); setTopupOpen(false); }
+    },
+    onError: () => toast({ title: "Top-up failed", description: "Please try again.", variant: "destructive" }),
+  });
+  const handleTopup = () => {
+    const amt = topupCustom ? Number(topupCustom) : topupAmount;
+    if (!amt || amt < 1) return toast({ title: "Minimum top-up is £1", variant: "destructive" });
+    topupMutation.mutate(amt);
+  };
+
   const feeMode = data.theme.feeMode || "absorb";
   const calcPlayerPrice = (basePrice: number) => {
     if (feeMode === "passthrough") return Math.round((basePrice * 1.2) * 100) / 100;
@@ -1965,12 +1995,21 @@ function ThemedStore({ data }: { data: StoreData }) {
                 <LogOut className="w-3.5 h-3.5" style={{ color: "rgba(255,255,255,0.5)" }} />
               </button>
             </div>
-            <a href={`/store/${data.server.id}/profile`}
-              className="w-full flex items-center justify-center gap-1.5 rounded-xl px-2 py-1.5 text-xs font-bold transition-all hover:opacity-80"
-              style={{ background: accent + "20", color: accent, border: `1px solid ${accent}30` }}
-              data-testid="link-my-profile">
-              <User className="w-3 h-3" /> My Profile
-            </a>
+            <div className="flex gap-1.5">
+              <a href={`/store/${data.server.id}/profile`}
+                className="flex-1 flex items-center justify-center gap-1.5 rounded-xl px-2 py-1.5 text-xs font-bold transition-all hover:opacity-80"
+                style={{ background: accent + "20", color: accent, border: `1px solid ${accent}30` }}
+                data-testid="link-my-profile">
+                <User className="w-3 h-3" /> Profile
+              </a>
+              <button
+                onClick={() => setTopupOpen(true)}
+                className="flex-1 flex items-center justify-center gap-1.5 rounded-xl px-2 py-1.5 text-xs font-bold transition-all hover:opacity-80"
+                style={{ background: "rgba(34,197,94,0.15)", color: "#22c55e", border: "1px solid rgba(34,197,94,0.25)" }}
+                data-testid="button-topup-balance">
+                <Plus className="w-3 h-3" /> Top Up
+              </button>
+            </div>
           </div>
         ) : (
           <button onClick={() => setMemberAuthOpen(true)}
@@ -2183,6 +2222,45 @@ function ThemedStore({ data }: { data: StoreData }) {
           )}
         </main>
 
+        {/* Top-up Balance Modal */}
+        <Dialog open={topupOpen} onOpenChange={setTopupOpen}>
+          <DialogContent className="max-w-sm" style={{ background: "#111214", border: "1px solid rgba(255,255,255,0.12)", color: "#fff" }}>
+            <DialogHeader>
+              <DialogTitle style={{ color: "#fff" }}>Top Up Balance</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <p className="text-sm" style={{ color: "rgba(255,255,255,0.5)" }}>Add credit to your store balance to spend on items.</p>
+              <div className="grid grid-cols-3 gap-2">
+                {[5, 10, 20, 50, 100, 200].map(amt => (
+                  <button key={amt}
+                    onClick={() => { setTopupAmount(amt); setTopupCustom(""); }}
+                    className="py-2 rounded-xl text-sm font-bold transition-all"
+                    style={topupAmount === amt && !topupCustom
+                      ? { background: accent, color: "#fff" }
+                      : { background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.7)", border: "1px solid rgba(255,255,255,0.1)" }}>
+                    £{amt}
+                  </button>
+                ))}
+              </div>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold" style={{ color: "rgba(255,255,255,0.4)" }}>£</span>
+                <Input
+                  type="number" placeholder="Custom amount" value={topupCustom}
+                  onChange={e => { setTopupCustom(e.target.value); }}
+                  className="pl-7"
+                  style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", color: "#fff" }} />
+              </div>
+              <Button className="w-full font-bold" style={{ background: accent, color: "#fff" }}
+                onClick={handleTopup} disabled={topupMutation.isPending}>
+                {topupMutation.isPending
+                  ? <><Loader2 className="w-4 h-4 animate-spin" /> Redirecting…</>
+                  : <><CreditCard className="w-4 h-4" /> Pay £{topupCustom ? (Number(topupCustom) || 0).toFixed(2) : topupAmount.toFixed(2)}</>}
+              </Button>
+              <p className="text-xs text-center" style={{ color: "rgba(255,255,255,0.3)" }}>Powered by Stripe. Funds added to your balance instantly.</p>
+            </div>
+          </DialogContent>
+        </Dialog>
+
         {/* Shared modals — member auth + checkout (same Dialog as standard layout) */}
         {memberAuthOpen && (
           <MemberAuthModal serverId={data.server.id} accent={accent} onClose={() => setMemberAuthOpen(false)} onLogin={(s) => setMemberSession(s)} bedrockEnabled={data.server.bedrockEnabled} bedrockPrefix={data.server.bedrockPrefix} bedrockReplaceSpaces={data.server.bedrockReplaceSpaces} />
@@ -2365,6 +2443,7 @@ function ThemedStore({ data }: { data: StoreData }) {
               playerDropdownOpen={playerDropdownOpen}
               setPlayerDropdownOpen={setPlayerDropdownOpen}
               onLogout={handleMemberLogout}
+              onTopup={() => setTopupOpen(true)}
             />
           )}
         </main>
