@@ -1488,7 +1488,7 @@ function EchoLayout({
 
 
       {/* ── Hero banner card ──────────────────────────────────────── */}
-      <div className="rounded-2xl mb-8"
+      <div className="rounded-2xl mb-8 overflow-hidden"
         style={{ border: "1px solid rgba(255,255,255,0.08)" }}>
 
         {/* Banner image — promo banner (bannerImageUrl) takes priority, then bannerUrl, then default */}
@@ -1499,7 +1499,7 @@ function EchoLayout({
           if (heroSrc) {
             const isVideo = heroSrc.startsWith("data:video/") || heroSrc.endsWith(".mp4") || heroSrc.endsWith(".webm");
             return (
-              <div className="relative w-full overflow-hidden rounded-t-2xl" style={{ height: 180 }}>
+              <div className="relative w-full overflow-hidden" style={{ height: 240 }}>
                 {isVideo ? (
                   <video src={heroSrc} autoPlay loop muted playsInline className="w-full h-full object-cover" style={{ display: "block", objectPosition: objPos }} />
                 ) : (
@@ -1509,7 +1509,7 @@ function EchoLayout({
             );
           }
           return (
-            <div className="relative w-full flex items-center justify-center rounded-t-2xl" style={{ height: 180, background: `linear-gradient(135deg, #111318 0%, ${accent}18 100%)` }}>
+            <div className="relative w-full flex items-center justify-center" style={{ height: 240, background: `linear-gradient(135deg, #111318 0%, ${accent}18 100%)` }}>
               <div className="text-center">
                 {data.server.logoUrl
                   ? <img src={data.server.logoUrl} alt="logo" className="w-14 h-14 object-contain mx-auto mb-2" />

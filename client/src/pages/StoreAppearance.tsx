@@ -780,8 +780,8 @@ export default function StoreAppearance({ serverId }: Props) {
                 <div className="rounded-2xl overflow-hidden select-none" style={{ border: "1px solid rgba(255,255,255,0.08)", background: "#0a0a0a" }}>
                   {/* Top area: 180px, draggable */}
                   <div
-                    className="relative w-full overflow-hidden rounded-t-2xl group"
-                    style={{ height: 180, cursor: "ns-resize" }}
+                    className="relative w-full overflow-hidden group"
+                    style={{ height: 240, cursor: "ns-resize" }}
                     onMouseDown={(e) => {
                       e.preventDefault();
                       const rect = e.currentTarget.getBoundingClientRect();
