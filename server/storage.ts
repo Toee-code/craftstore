@@ -197,6 +197,8 @@ const alterStatements = [
   "ALTER TABLE store_themes ADD COLUMN banner_link_url TEXT",
   "ALTER TABLE store_themes ADD COLUMN banner_position TEXT DEFAULT 'top'",
   "ALTER TABLE store_themes ADD COLUMN banner_focal_y TEXT DEFAULT '50%'",
+  // v7 — webhook retry
+  "ALTER TABLE orders ADD COLUMN webhook_retry_count INTEGER NOT NULL DEFAULT 0",
 ];
 for (const stmt of alterStatements) {
   try { sqlite.exec(stmt); } catch { /* column already exists */ }
@@ -312,6 +314,9 @@ export interface IStorage {
   getOrderById(id: number): Order | undefined;
   updateOrderStatus(id: number, status: string, webhookDelivered?: boolean): Order | undefined;
   getTopSpenders(serverId: number, since: string | null): { minecraftUsername: string; total: number }[];
+  getUndeliveredOrders(): { id: number; serverId: number; productId: number; minecraftUsername: string; webhookRetryCount: number }[];
+  incrementWebhookRetry(orderId: number): void;
+  getServerAnalytics(serverId: number): { dailyRevenue: { date: string; revenue: number }[]; topProducts: { name: string; count: number; revenue: number }[]; hourlyOrders: { hour: number; count: number }[] };
   getMostPurchased(serverId: number, limit: number): { product_id: number; product_name: string; purchase_count: number; image_url: string | null; image_type: string | null; player_head_name: string | null; price: number }[];
   // Notifications
   createNotification(data: InsertNotification): Notification;
@@ -550,6 +555,60 @@ export const storage: IStorage = {
       ORDER BY purchase_count DESC
       LIMIT ?
     `).all(serverId, limit) as any[];
+  },
+
+  getUndeliveredOrders() {
+    return sqlite.prepare(`
+      SELECT o.id, o.server_id as serverId, o.product_id as productId,
+             o.minecraft_username as minecraftUsername,
+             o.webhook_retry_count as webhookRetryCount
+      FROM orders o
+      WHERE o.status = 'completed'
+        AND o.webhook_delivered = 0
+        AND o.webhook_retry_count < 5
+      ORDER BY o.created_at ASC
+    `).all() as any[];
+  },
+
+  incrementWebhookRetry(orderId) {
+    sqlite.prepare(`UPDATE orders SET webhook_retry_count = webhook_retry_count + 1 WHERE id = ?`).run(orderId);
+  },
+
+  getServerAnalytics(serverId) {
+    // Daily revenue: last 30 days
+    const dailyRevenue = sqlite.prepare(`
+      SELECT strftime('%Y-%m-%d', created_at) as date,
+             COALESCE(SUM(amount), 0) as revenue
+      FROM orders
+      WHERE server_id = ? AND status = 'completed'
+        AND created_at >= datetime('now', '-30 days')
+      GROUP BY date
+      ORDER BY date ASC
+    `).all(serverId) as { date: string; revenue: number }[];
+
+    // Top 5 products by purchase count
+    const topProducts = sqlite.prepare(`
+      SELECT o.product_name as name,
+             COUNT(*) as count,
+             COALESCE(SUM(o.amount), 0) as revenue
+      FROM orders o
+      WHERE o.server_id = ? AND o.status = 'completed'
+      GROUP BY o.product_name
+      ORDER BY count DESC
+      LIMIT 5
+    `).all(serverId) as { name: string; count: number; revenue: number }[];
+
+    // Hourly distribution (0-23)
+    const hourlyOrders = sqlite.prepare(`
+      SELECT CAST(strftime('%H', created_at) AS INTEGER) as hour,
+             COUNT(*) as count
+      FROM orders
+      WHERE server_id = ? AND status = 'completed'
+      GROUP BY hour
+      ORDER BY hour ASC
+    `).all(serverId) as { hour: number; count: number }[];
+
+    return { dailyRevenue, topProducts, hourlyOrders };
   },
 
   // ── Notifications ──────────────────────────────────────────────────────────

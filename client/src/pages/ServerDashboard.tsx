@@ -18,8 +18,12 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   ArrowLeft, Plus, Trash2, ExternalLink, Package, Users, ShoppingCart,
   BarChart3, Terminal, Copy, Edit3, TrendingUp, DollarSign, Paintbrush, Sparkles, Star,
-  ChevronRight, Loader2, Gift, Globe, CheckCircle2, CreditCard, XCircle, AlertCircle
+  ChevronRight, Loader2, Gift, Globe, CheckCircle2, CreditCard, XCircle, AlertCircle,
+  Activity
 } from "lucide-react";
+import {
+  AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell
+} from "recharts";
 import StoreAppearance from "./StoreAppearance";
 import StorePresets from "./StorePresets";
 import type { Product, Member, Order, Server } from "@shared/schema";
@@ -773,6 +777,150 @@ function BedrockSettings({ serverId, server }: { serverId: number; server?: any 
   );
 }
 
+// ─── Analytics Tab ───────────────────────────────────────────────────────────
+function AnalyticsTab({ serverId }: { serverId: number }) {
+  const { data, isLoading } = useQuery<{
+    dailyRevenue: { date: string; revenue: number }[];
+    topProducts: { name: string; count: number; revenue: number }[];
+    hourlyOrders: { hour: number; count: number }[];
+  }>({
+    queryKey: ["/api/servers/analytics", serverId],
+    queryFn: () => apiRequest("GET", `/api/servers/${serverId}/analytics`).then(r => r.json()),
+    refetchInterval: 60000,
+  });
+
+  const ACCENT = "#22c55e";
+  const HOUR_LABELS = ["12a","1a","2a","3a","4a","5a","6a","7a","8a","9a","10a","11a",
+                        "12p","1p","2p","3p","4p","5p","6p","7p","8p","9p","10p","11p"];
+
+  // Fill missing hours with 0
+  const hourlyFull = Array.from({ length: 24 }, (_, h) => {
+    const found = data?.hourlyOrders.find(o => o.hour === h);
+    return { hour: HOUR_LABELS[h], count: found?.count ?? 0 };
+  });
+
+  if (isLoading) return (
+    <div className="flex items-center justify-center py-20">
+      <Loader2 className="w-6 h-6 animate-spin text-primary" />
+    </div>
+  );
+
+  return (
+    <div className="space-y-6">
+      {/* Revenue Over Time */}
+      <Card className="bg-card border-border/60">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <TrendingUp className="w-4 h-4 text-primary" /> Revenue — Last 30 Days
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {(data?.dailyRevenue?.length ?? 0) === 0 ? (
+            <p className="text-sm text-muted-foreground py-8 text-center">No sales data yet.</p>
+          ) : (
+            <ResponsiveContainer width="100%" height={220}>
+              <AreaChart data={data!.dailyRevenue} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor={ACCENT} stopOpacity={0.3} />
+                    <stop offset="95%" stopColor={ACCENT} stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                <XAxis dataKey="date" tick={{ fontSize: 10, fill: "#71717a" }}
+                  tickFormatter={d => d.slice(5)} interval="preserveStartEnd" />
+                <YAxis tick={{ fontSize: 10, fill: "#71717a" }}
+                  tickFormatter={v => `£${v}`} />
+                <Tooltip
+                  contentStyle={{ background: "#18181b", border: "1px solid #27272a", borderRadius: 8 }}
+                  labelStyle={{ color: "#a1a1aa", fontSize: 11 }}
+                  formatter={(v: any) => [`£${Number(v).toFixed(2)}`, "Revenue"]}
+                />
+                <Area type="monotone" dataKey="revenue" stroke={ACCENT} strokeWidth={2}
+                  fill="url(#revGrad)" dot={false} activeDot={{ r: 4, fill: ACCENT }} />
+              </AreaChart>
+            </ResponsiveContainer>
+          )}
+        </CardContent>
+      </Card>
+
+      <div className="grid md:grid-cols-2 gap-6">
+        {/* Top Products */}
+        <Card className="bg-card border-border/60">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Package className="w-4 h-4 text-primary" /> Top Products
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {(data?.topProducts?.length ?? 0) === 0 ? (
+              <p className="text-sm text-muted-foreground py-6 text-center">No sales yet.</p>
+            ) : (
+              <div className="space-y-3">
+                {data!.topProducts.map((p, i) => {
+                  const maxCount = data!.topProducts[0]?.count || 1;
+                  const pct = Math.round((p.count / maxCount) * 100);
+                  return (
+                    <div key={i} className="space-y-1">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="font-medium truncate max-w-[60%]">{p.name}</span>
+                        <span className="text-muted-foreground text-xs">
+                          {p.count}x · £{p.revenue.toFixed(2)}
+                        </span>
+                      </div>
+                      <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                        <div
+                          className="h-full rounded-full transition-all"
+                          style={{ width: `${pct}%`, background: ACCENT }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Peak Hours */}
+        <Card className="bg-card border-border/60">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <BarChart3 className="w-4 h-4 text-primary" /> Peak Purchase Hours
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {hourlyFull.every(h => h.count === 0) ? (
+              <p className="text-sm text-muted-foreground py-6 text-center">No sales yet.</p>
+            ) : (
+              <ResponsiveContainer width="100%" height={200}>
+                <BarChart data={hourlyFull} margin={{ top: 4, right: 4, left: -28, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                  <XAxis dataKey="hour" tick={{ fontSize: 9, fill: "#71717a" }}
+                    interval={2} />
+                  <YAxis tick={{ fontSize: 10, fill: "#71717a" }} allowDecimals={false} />
+                  <Tooltip
+                    contentStyle={{ background: "#18181b", border: "1px solid #27272a", borderRadius: 8 }}
+                    labelStyle={{ color: "#a1a1aa", fontSize: 11 }}
+                    formatter={(v: any) => [v, "Orders"]}
+                  />
+                  <Bar dataKey="count" radius={[3, 3, 0, 0]}>
+                    {hourlyFull.map((entry, idx) => (
+                      <Cell key={idx}
+                        fill={entry.count === Math.max(...hourlyFull.map(h => h.count)) && entry.count > 0
+                          ? ACCENT : "rgba(255,255,255,0.08)"} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
 export default function ServerDashboard() {
   const { id } = useParams<{ id: string }>();
   const serverId = Number(id);
@@ -1068,6 +1216,9 @@ export default function ServerDashboard() {
               <CreditCard className="w-3.5 h-3.5" /> Payments
             </TabsTrigger>
             <TabsTrigger value="settings" data-testid="tab-settings">Settings</TabsTrigger>
+            <TabsTrigger value="analytics" data-testid="tab-analytics" className="gap-1.5">
+              <Activity className="w-3.5 h-3.5" /> Analytics
+            </TabsTrigger>
           </TabsList>
 
           {/* Products Tab */}
@@ -1710,6 +1861,11 @@ export default function ServerDashboard() {
                 </CardContent>
               </Card>
             </div>
+          </TabsContent>
+
+          {/* ── Analytics Tab ─────────────────────────────────────────────── */}
+          <TabsContent value="analytics">
+            <AnalyticsTab serverId={Number(id)} />
           </TabsContent>
         </Tabs>
       </main>

@@ -96,6 +96,49 @@ app.get("/api/subdomain/resolve/:subdomain", (req: any, res: any) => {
 (async () => {
   await registerRoutes(httpServer, app);
 
+  // ── Webhook retry queue ─────────────────────────────────────────────────
+  // Every 5 minutes, retry failed webhook deliveries (up to 5 attempts each)
+  setInterval(async () => {
+    const pendingOrders = storage.getUndeliveredOrders();
+    if (pendingOrders.length === 0) return;
+    log(`[webhook-retry] Retrying ${pendingOrders.length} undelivered order(s)`, "retry");
+    for (const order of pendingOrders) {
+      const server = storage.getServerById(order.serverId);
+      if (!server?.webhookUrl) {
+        // No webhook configured — mark delivered so we don't retry forever
+        storage.updateOrderStatus(order.id, "completed", true);
+        continue;
+      }
+      const product = storage.getProductById(order.productId);
+      const command = (product?.command || "").replace("{player}", order.minecraftUsername);
+      try {
+        const resp = await fetch(server.webhookUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "X-CraftStore-Secret": server.webhookSecret || "" },
+          body: JSON.stringify({
+            event: "purchase",
+            orderId: order.id,
+            minecraftUsername: order.minecraftUsername,
+            command,
+            product: { id: order.productId, name: product?.name || "" },
+            productName: product?.name || "",
+            secret: server.webhookSecret,
+          }),
+        });
+        if (resp.ok) {
+          storage.updateOrderStatus(order.id, "completed", true);
+          log(`[webhook-retry] Order ${order.id} delivered OK`, "retry");
+        } else {
+          storage.incrementWebhookRetry(order.id);
+          log(`[webhook-retry] Order ${order.id} HTTP ${resp.status} (attempt ${order.webhookRetryCount + 1})`, "retry");
+        }
+      } catch (err: any) {
+        storage.incrementWebhookRetry(order.id);
+        log(`[webhook-retry] Order ${order.id} error: ${err?.message} (attempt ${order.webhookRetryCount + 1})`, "retry");
+      }
+    }
+  }, 5 * 60 * 1000); // 5 minutes
+
   app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";

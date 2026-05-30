@@ -92,6 +92,7 @@ export const orders = sqliteTable("orders", {
   status: text("status").notNull().default("pending"),
   stripePaymentIntentId: text("stripe_payment_intent_id"),
   webhookDelivered: integer("webhook_delivered", { mode: "boolean" }).default(false),
+  webhookRetryCount: integer("webhook_retry_count").notNull().default(0),
   createdAt: text("created_at").notNull().default(new Date().toISOString()),
 });
 
