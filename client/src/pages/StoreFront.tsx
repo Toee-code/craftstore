@@ -858,7 +858,7 @@ function EchoProductCard({
 
       {/* Product image */}
       {(() => { const imgUrl = productImageUrl(product); return imgUrl ? (
-        <div className="enchant-wrap relative w-full overflow-hidden" style={{ height: 120, borderRadius: "16px 16px 0 0" }}>
+        <div className="enchant-wrap relative overflow-hidden" style={{ height: 110, borderRadius: 10, margin: "10px 10px 0 10px" }}>
           <img src={imgUrl} alt={product.name}
             className="w-full h-full"
             style={{
