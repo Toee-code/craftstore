@@ -1483,13 +1483,9 @@ function EchoLayout({
   const activeProducts = data.products.filter(p => p.active);
   const filteredProducts = (page === "all" || page === "home") ? activeProducts : activeProducts.filter(p => p.category === page);
   const isHome = page === "home" || page === "all";
-  const bannerPos = ((data.theme as any).bannerPosition as string) || "top";
-
   return (
     <div style={{ background: "#0a0a0a", minHeight: "100%" }}>
 
-      {/* ── Promo Banner: top ───────────────────────────────────── */}
-      {isHome && bannerPos === "top" && <PromoBanner data={data} />}
 
       {/* ── Hero banner card ──────────────────────────────────────── */}
       <div className="rounded-2xl mb-8"
@@ -1617,8 +1613,6 @@ function EchoLayout({
         </div>
       </div>
 
-      {/* ── Promo Banner: below-countdown ────────────────────────── */}
-      {isHome && bannerPos === "below-countdown" && <PromoBanner data={data} />}
 
       {/* ── Most Popular ──────────────────────────────────────────── */}
       {isHome && <MostPopularSection serverId={data.server.id} accent={accent} onBuy={onBuy} onGift={onGift} calcPlayerPrice={calcPlayerPrice} products={activeProducts} />}
@@ -1636,8 +1630,6 @@ function EchoLayout({
         </div>
       )}
 
-      {/* ── Promo Banner: below-featured ─────────────────────────── */}
-      {isHome && bannerPos === "below-featured" && <PromoBanner data={data} />}
 
       {/* ── Category page products ────────────────────────────────── */}
       {!isHome && (
@@ -1659,8 +1651,6 @@ function EchoLayout({
         </div>
       )}
 
-      {/* ── Promo Banner: above-categories ─────────────────────── */}
-      {isHome && bannerPos === "above-categories" && <PromoBanner data={data} />}
 
       {/* ── Categories grid (2-col) ──────────────────────────────── */}
       {isHome && categories.length > 0 && (() => {
@@ -1688,23 +1678,25 @@ function EchoLayout({
         );
       })()}
 
-      {/* ── Welcome card ────────────────────────────────────────── */}
+      {/* ── Welcome card / Promo Banner slot ──────────────────── */}
       {isHome && (
-        <div className="rounded-2xl p-8 mb-4"
-          style={{ background: "#13161c", border: "1px solid rgba(255,255,255,0.07)" }}>
-          <p className="text-xs font-semibold uppercase tracking-widest mb-2"
-            style={{ color: "rgba(255,255,255,0.3)" }}>Welcome to</p>
-          <h2 className="text-3xl font-extrabold mb-4 uppercase" style={{ color: accent }}>
-            {data.theme.welcomeTitle || data.server.name}
-          </h2>
-          <p className="text-sm leading-relaxed" style={{ color: "rgba(255,255,255,0.55)" }}>
-            {data.theme.welcomeText ||
-              `Welcome to the official ${data.server.name} Store. To begin shopping, select a category above.`}
-          </p>
-        </div>
+        (data.theme as any).bannerImageUrl ? (
+          <PromoBanner data={data} />
+        ) : (
+          <div className="rounded-2xl p-8 mb-4"
+            style={{ background: "#13161c", border: "1px solid rgba(255,255,255,0.07)" }}>
+            <p className="text-xs font-semibold uppercase tracking-widest mb-2"
+              style={{ color: "rgba(255,255,255,0.3)" }}>Welcome to</p>
+            <h2 className="text-3xl font-extrabold mb-4 uppercase" style={{ color: accent }}>
+              {data.theme.welcomeTitle || data.server.name}
+            </h2>
+            <p className="text-sm leading-relaxed" style={{ color: "rgba(255,255,255,0.55)" }}>
+              {data.theme.welcomeText ||
+                `Welcome to the official ${data.server.name} Store. To begin shopping, select a category above.`}
+            </p>
+          </div>
+        )
       )}
-      {/* ── Promo Banner: below-welcome / bottom ───────────────── */}
-      {isHome && (bannerPos === "below-welcome" || bannerPos === "bottom") && <PromoBanner data={data} />}
 
       {/* ── Footer ────────────────────────────────────────── */}
       <footer style={{ background: "#0e1015", borderTop: "1px solid rgba(255,255,255,0.06)", marginTop: 40 }}>
