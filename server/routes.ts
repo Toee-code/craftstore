@@ -339,6 +339,13 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
     res.json(result);
   });
 
+  // Most purchased products
+  app.get("/api/servers/:serverId/most-purchased", (req, res) => {
+    const serverId = Number(req.params.serverId);
+    const limit = Number(req.query.limit) || 5;
+    res.json(storage.getMostPurchased(serverId, limit));
+  });
+
   // Public purchase endpoint (player-facing store)
   app.post("/api/purchase", async (req, res) => {
     try {

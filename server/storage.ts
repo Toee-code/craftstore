@@ -308,6 +308,7 @@ export interface IStorage {
   getOrderById(id: number): Order | undefined;
   updateOrderStatus(id: number, status: string, webhookDelivered?: boolean): Order | undefined;
   getTopSpenders(serverId: number, since: string | null): { minecraftUsername: string; total: number }[];
+  getMostPurchased(serverId: number, limit: number): { product_id: number; product_name: string; purchase_count: number; image_url: string | null; image_type: string | null; player_head_name: string | null; price: number }[];
   // Notifications
   createNotification(data: InsertNotification): Notification;
   getNotificationsByUser(userId: number): Notification[];
@@ -532,6 +533,19 @@ export const storage: IStorage = {
       ORDER BY total DESC
       LIMIT 10
     `).all(serverId) as { minecraftUsername: string; total: number }[];
+  },
+
+  getMostPurchased(serverId: number, limit: number) {
+    return sqlite.prepare(`
+      SELECT o.product_id, o.product_name, COUNT(*) as purchase_count,
+             p.image_url, p.image_type, p.player_head_name, p.price
+      FROM orders o
+      LEFT JOIN products p ON p.id = o.product_id
+      WHERE o.server_id = ? AND o.status = 'completed'
+      GROUP BY o.product_id, o.product_name
+      ORDER BY purchase_count DESC
+      LIMIT ?
+    `).all(serverId, limit) as any[];
   },
 
   // ── Notifications ──────────────────────────────────────────────────────────

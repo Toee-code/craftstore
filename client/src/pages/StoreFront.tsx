@@ -1363,6 +1363,84 @@ function TopCustomersSidebar({ serverId, accent }: { serverId: number; accent: s
   );
 }
 
+function MostPopularSection({ serverId, accent, onBuy, onGift, calcPlayerPrice, products }: {
+  serverId: number; accent: string;
+  onBuy: (p: Product) => void; onGift: (p: Product) => void;
+  calcPlayerPrice: (p: number) => number;
+  products: Product[];
+}) {
+  const { data: popular } = useQuery<any[]>({
+    queryKey: ["/api/servers", serverId, "most-purchased"],
+    queryFn: () => apiRequest("GET", `/api/servers/${serverId}/most-purchased?limit=5`).then(r => r.json()),
+    staleTime: 60_000,
+  });
+
+  if (!popular || popular.length === 0) return null;
+
+  // Match to live product objects so we have full data for buy/gift
+  const items = popular.map(row => ({
+    ...row,
+    product: products.find(p => p.id === row.product_id) ?? null,
+  }));
+
+  return (
+    <div className="mb-10">
+      <div className="flex items-center gap-2 mb-4">
+        <Flame className="w-5 h-5" style={{ color: accent }} />
+        <h2 className="font-extrabold text-white text-xl">Most Popular</h2>
+      </div>
+      <div className="flex flex-col gap-2">
+        {items.map((item, i) => {
+          const imgUrl = item.image_type === "playerhead" && item.player_head_name
+            ? `https://nmsr.nickac.dev/head/${encodeURIComponent(item.player_head_name)}`
+            : item.image_url;
+          return (
+            <div key={item.product_id}
+              className="flex items-center gap-4 rounded-2xl px-4 py-3 transition-all hover:brightness-110"
+              style={{ background: "rgba(255,255,255,0.04)", border: i === 0 ? `1px solid ${accent}40` : "1px solid rgba(255,255,255,0.07)" }}>
+              {/* Rank */}
+              <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 font-extrabold text-sm"
+                style={{ background: i === 0 ? accent : "rgba(255,255,255,0.08)", color: i === 0 ? "#000" : "rgba(255,255,255,0.4)" }}>
+                {i + 1}
+              </div>
+              {/* Image */}
+              {imgUrl ? (
+                <img src={imgUrl} alt={item.product_name}
+                  className="w-10 h-10 rounded-lg object-cover shrink-0"
+                  style={{ imageRendering: item.image_type === "minecraft_item" ? "pixelated" : "auto" }} />
+              ) : (
+                <div className="w-10 h-10 rounded-lg shrink-0 flex items-center justify-center"
+                  style={{ background: "rgba(255,255,255,0.06)" }}>
+                  <Package className="w-5 h-5" style={{ color: "rgba(255,255,255,0.2)" }} />
+                </div>
+              )}
+              {/* Name + count */}
+              <div className="flex-1 min-w-0">
+                <p className="font-bold text-sm text-white truncate">{item.product_name}</p>
+                <p className="text-xs mt-0.5" style={{ color: "rgba(255,255,255,0.4)" }}>
+                  {item.purchase_count} {item.purchase_count === 1 ? "purchase" : "purchases"}
+                </p>
+              </div>
+              {/* Price + buy */}
+              {item.product && (
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="text-sm font-extrabold" style={{ color: accent }}>£{calcPlayerPrice(item.product.price).toFixed(2)}</span>
+                  <button
+                    onClick={() => onBuy(item.product!)}
+                    className="px-3 py-1.5 rounded-lg text-xs font-bold transition-all hover:brightness-110"
+                    style={{ background: accent, color: "#000" }}>
+                    Buy
+                  </button>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function EchoLayout({
   data, accent, onBuy, onGift, calcPlayerPrice, page, setPage, memberSession, onLogin,
   playerDropdownOpen, setPlayerDropdownOpen, onLogout, onTopup
@@ -1504,6 +1582,9 @@ function EchoLayout({
           </div>
         </div>
       </div>
+
+      {/* ── Most Popular ──────────────────────────────────────────── */}
+      {isHome && <MostPopularSection serverId={data.server.id} accent={accent} onBuy={onBuy} onGift={onGift} calcPlayerPrice={calcPlayerPrice} products={activeProducts} />}
 
       {/* ── Featured Packages ───────────────────────────────────── */}
       {isHome && activeProducts.filter(p => !!(p as any).featured).length > 0 && (
