@@ -245,7 +245,24 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
       if (dataUrl.length > 2_800_000) {
         return res.status(413).json({ error: "Image too large — max 2MB" });
       }
-      // Return the data URL itself as the image URL (stored inline like logos)
+      res.json({ url: dataUrl });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // POST /api/upload-banner — image OR video upload up to 20MB, returns url
+  app.post("/api/upload-banner", (req, res) => {
+    try {
+      const { dataUrl } = req.body;
+      if (!dataUrl) return res.status(400).json({ error: "No data provided" });
+      const isImage = dataUrl.startsWith("data:image/");
+      const isVideo = dataUrl.startsWith("data:video/");
+      if (!isImage && !isVideo) {
+        return res.status(400).json({ error: "Only image or video files are supported" });
+      }
+      // ~27MB base64 = ~20MB raw file
+      if (dataUrl.length > 27_000_000) {
+        return res.status(413).json({ error: "File too large — max 20MB" });
+      }
       res.json({ url: dataUrl });
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });

@@ -215,20 +215,22 @@ export default function StoreAppearance({ serverId }: Props) {
   const handleBannerUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (!file.type.startsWith("image/")) {
-      toast({ title: "Please select an image file", variant: "destructive" }); return;
+    const isImage = file.type.startsWith("image/");
+    const isVideo = file.type === "video/mp4" || file.type === "video/webm";
+    if (!isImage && !isVideo) {
+      toast({ title: "Please select an image or MP4 video", variant: "destructive" }); return;
     }
-    if (file.size > 2 * 1024 * 1024) {
-      toast({ title: "Image too large", description: "Max 2MB", variant: "destructive" }); return;
+    if (file.size > 20 * 1024 * 1024) {
+      toast({ title: "File too large", description: "Max 20MB", variant: "destructive" }); return;
     }
     setBannerUploading(true);
     const reader = new FileReader();
     reader.onload = async () => {
       const dataUrl = reader.result as string;
       try {
-        const res = await apiRequest("POST", "/api/upload-image", { dataUrl }).then(r => r.json());
+        const res = await apiRequest("POST", "/api/upload-banner", { dataUrl }).then(r => r.json());
         setValue("bannerUrl", res.url);
-        toast({ title: "Banner uploaded" });
+        toast({ title: isVideo ? "Video banner uploaded" : "Banner uploaded" });
       } catch {
         toast({ title: "Upload failed", variant: "destructive" });
       } finally { setBannerUploading(false); }
@@ -239,20 +241,22 @@ export default function StoreAppearance({ serverId }: Props) {
   const handlePromoBannerUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (!file.type.startsWith("image/")) {
-      toast({ title: "Please select an image file", variant: "destructive" }); return;
+    const isImage = file.type.startsWith("image/");
+    const isVideo = file.type === "video/mp4" || file.type === "video/webm";
+    if (!isImage && !isVideo) {
+      toast({ title: "Please select an image or MP4 video", variant: "destructive" }); return;
     }
-    if (file.size > 2 * 1024 * 1024) {
-      toast({ title: "Image too large", description: "Max 2MB", variant: "destructive" }); return;
+    if (file.size > 20 * 1024 * 1024) {
+      toast({ title: "File too large", description: "Max 20MB", variant: "destructive" }); return;
     }
     setPromoBannerUploading(true);
     const reader = new FileReader();
     reader.onload = async () => {
       const dataUrl = reader.result as string;
       try {
-        const res = await apiRequest("POST", "/api/upload-image", { dataUrl }).then(r => r.json());
+        const res = await apiRequest("POST", "/api/upload-banner", { dataUrl }).then(r => r.json());
         setValue("bannerImageUrl", res.url);
-        toast({ title: "Banner uploaded" });
+        toast({ title: isVideo ? "Video banner uploaded" : "Banner uploaded" });
       } catch {
         toast({ title: "Upload failed", variant: "destructive" });
       } finally { setPromoBannerUploading(false); }
@@ -751,15 +755,19 @@ export default function StoreAppearance({ serverId }: Props) {
               >
                 {promoBannerUploading
                   ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Uploading…</>
-                  : <><Upload className="w-3.5 h-3.5" /> Upload Image</>}
+                  : <><Upload className="w-3.5 h-3.5" /> Upload Image / Video</>}
               </Button>
               <Input placeholder="…or paste image URL" {...register("bannerImageUrl")} />
             </div>
-            <p className="text-xs text-muted-foreground">Recommended size: 1200×300px. Upload or paste a direct image link. Leave blank to hide.</p>
+            <p className="text-xs text-muted-foreground">Recommended size: 1200×300px. Supports images or MP4 video (max 20MB). Leave blank to hide.</p>
           </div>
           {watch("bannerImageUrl") && (
             <div className="rounded-xl overflow-hidden border border-border/40 relative group">
-              <img src={watch("bannerImageUrl")} alt="Banner preview" className="w-full object-cover" style={{ maxHeight: 160 }} />
+              {watch("bannerImageUrl").startsWith("data:video/") || watch("bannerImageUrl").endsWith(".mp4") ? (
+                <video src={watch("bannerImageUrl")} autoPlay loop muted playsInline className="w-full object-cover" style={{ maxHeight: 160 }} />
+              ) : (
+                <img src={watch("bannerImageUrl")} alt="Banner preview" className="w-full object-cover" style={{ maxHeight: 160 }} />
+              )}
               <button
                 type="button"
                 onClick={() => setValue("bannerImageUrl", "")}
@@ -772,7 +780,7 @@ export default function StoreAppearance({ serverId }: Props) {
           <input
             ref={promoBannerFileRef}
             type="file"
-            accept="image/*"
+            accept="image/*,video/mp4,video/webm"
             className="hidden"
             onChange={handlePromoBannerUpload}
           />
@@ -807,13 +815,17 @@ export default function StoreAppearance({ serverId }: Props) {
               >
                 {bannerUploading
                   ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Uploading…</>
-                  : <><Upload className="w-3.5 h-3.5" /> Upload Image</>}
+                  : <><Upload className="w-3.5 h-3.5" /> Upload Image / Video</>}
               </Button>
               <Input placeholder="…or paste image URL" {...register("bannerUrl")} />
             </div>
             {watch("bannerUrl") && (
               <div className="rounded-xl overflow-hidden border border-border/40 relative group mt-2">
-                <img src={watch("bannerUrl")} alt="Banner preview" className="w-full object-cover" style={{ maxHeight: 120 }} />
+                {watch("bannerUrl").startsWith("data:video/") || watch("bannerUrl").endsWith(".mp4") ? (
+                  <video src={watch("bannerUrl")} autoPlay loop muted playsInline className="w-full object-cover" style={{ maxHeight: 120 }} />
+                ) : (
+                  <img src={watch("bannerUrl")} alt="Banner preview" className="w-full object-cover" style={{ maxHeight: 120 }} />
+                )}
                 <button
                   type="button"
                   onClick={() => setValue("bannerUrl", "")}
@@ -826,11 +838,11 @@ export default function StoreAppearance({ serverId }: Props) {
             <input
               ref={bannerFileRef}
               type="file"
-              accept="image/*"
+              accept="image/*,video/mp4,video/webm"
               className="hidden"
               onChange={handleBannerUpload}
             />
-            <p className="text-xs text-muted-foreground">Shown as the hero image on your store card. Upload or paste a link. Leave blank to show the default icon.</p>
+            <p className="text-xs text-muted-foreground">Shown as the hero image on your store card. Supports images or MP4 video (max 20MB). Leave blank to show the default icon.</p>
           </div>
           <div className="space-y-1.5">
             <Label>Announcement text</Label>

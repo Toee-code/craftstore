@@ -1468,7 +1468,11 @@ function EchoLayout({
         {/* Banner image */}
         {data.theme.bannerUrl ? (
           <div className="relative w-full overflow-hidden rounded-t-2xl" style={{ height: 180 }}>
-            <img src={data.theme.bannerUrl} alt="banner" className="w-full h-full object-cover" />
+            {data.theme.bannerUrl.startsWith("data:video/") || data.theme.bannerUrl.endsWith(".mp4") || data.theme.bannerUrl.endsWith(".webm") ? (
+              <video src={data.theme.bannerUrl} autoPlay loop muted playsInline className="w-full h-full object-cover" style={{ display: "block" }} />
+            ) : (
+              <img src={data.theme.bannerUrl} alt="banner" className="w-full h-full object-cover" />
+            )}
             {/* Server IP chip — bottom left */}
             <div className="absolute bottom-3 left-4 flex items-center gap-2 px-3 py-1.5 rounded-full"
               style={{ background: "rgba(20,20,26,0.85)", backdropFilter: "blur(8px)" }}>
@@ -1719,21 +1723,29 @@ function StoreHome({ data, accent, onCategory }: {
   return (
     <div className="p-6 max-w-2xl mx-auto w-full space-y-8">
       {/* ── Promotional Banner ──────────────────────────────────── */}
-      {(data.theme as any).bannerImageUrl && (
-        (data.theme as any).bannerLinkUrl ? (
-          <a href={(data.theme as any).bannerLinkUrl} target="_blank" rel="noopener noreferrer"
+      {(data.theme as any).bannerImageUrl && (() => {
+        const bannerSrc = (data.theme as any).bannerImageUrl as string;
+        const bannerLink = (data.theme as any).bannerLinkUrl as string | undefined;
+        const isVideo = bannerSrc.startsWith("data:video/") || bannerSrc.endsWith(".mp4") || bannerSrc.endsWith(".webm");
+        const BannerMedia = isVideo ? (
+          <video src={bannerSrc} autoPlay loop muted playsInline
+            className="w-full object-cover" style={{ maxHeight: 200, minHeight: 80, display: "block" }} />
+        ) : (
+          <img src={bannerSrc} alt="Promotional banner"
+            className="w-full object-cover" style={{ maxHeight: 200, minHeight: 80 }} />
+        );
+        return bannerLink ? (
+          <a href={bannerLink} target="_blank" rel="noopener noreferrer"
             className="block rounded-2xl overflow-hidden transition-all hover:brightness-110 hover:scale-[1.01]"
             style={{ border: "1px solid rgba(255,255,255,0.08)" }}>
-            <img src={(data.theme as any).bannerImageUrl} alt="Promotional banner"
-              className="w-full object-cover" style={{ maxHeight: 200, minHeight: 80 }} />
+            {BannerMedia}
           </a>
         ) : (
           <div className="rounded-2xl overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.08)" }}>
-            <img src={(data.theme as any).bannerImageUrl} alt="Promotional banner"
-              className="w-full object-cover" style={{ maxHeight: 200, minHeight: 80 }} />
+            {BannerMedia}
           </div>
-        )
-      )}
+        );
+      })()}
 
       {/* Welcome banner */}
       {(data.theme.welcomeTitle || data.theme.welcomeText) && (
@@ -2744,7 +2756,11 @@ function ThemedStore({ data }: { data: StoreData }) {
             <div className="relative overflow-hidden" style={{ minHeight: 180 }}>
               {/* Banner image */}
               {data.theme.bannerUrl ? (
-                <img src={data.theme.bannerUrl} alt="banner" className="absolute inset-0 w-full h-full object-cover" />
+                data.theme.bannerUrl.startsWith("data:video/") || data.theme.bannerUrl.endsWith(".mp4") || data.theme.bannerUrl.endsWith(".webm") ? (
+                  <video src={data.theme.bannerUrl} autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover" style={{ display: "block" }} />
+                ) : (
+                  <img src={data.theme.bannerUrl} alt="banner" className="absolute inset-0 w-full h-full object-cover" />
+                )
               ) : (
                 <div className="absolute inset-0" style={{ background: `radial-gradient(ellipse at 30% 50%, ${accent}20 0%, transparent 70%)` }} />
               )}
