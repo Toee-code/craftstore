@@ -1491,39 +1491,34 @@ function EchoLayout({
       <div className="rounded-2xl mb-8"
         style={{ border: "1px solid rgba(255,255,255,0.08)" }}>
 
-        {/* Banner image */}
-        {data.theme.bannerUrl ? (
-          <div className="relative w-full overflow-hidden rounded-t-2xl" style={{ height: 180 }}>
-            {data.theme.bannerUrl.startsWith("data:video/") || data.theme.bannerUrl.endsWith(".mp4") || data.theme.bannerUrl.endsWith(".webm") ? (
-              <video src={data.theme.bannerUrl} autoPlay loop muted playsInline className="w-full h-full object-cover" style={{ display: "block" }} />
-            ) : (
-              <img src={data.theme.bannerUrl} alt="banner" className="w-full h-full object-cover" />
-            )}
-            {/* Server IP chip — bottom left */}
-            <div className="absolute bottom-3 left-4 flex items-center gap-2 px-3 py-1.5 rounded-full"
-              style={{ background: "rgba(20,20,26,0.85)", backdropFilter: "blur(8px)" }}>
-              <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0"
-                style={{ background: "#23262e" }}>
-                <Package className="w-3 h-3" style={{ color: "rgba(255,255,255,0.5)" }} />
+        {/* Banner image — promo banner (bannerImageUrl) takes priority, then bannerUrl, then default */}
+        {(() => {
+          const heroSrc = (data.theme as any).bannerImageUrl || data.theme.bannerUrl;
+          if (heroSrc) {
+            const isVideo = heroSrc.startsWith("data:video/") || heroSrc.endsWith(".mp4") || heroSrc.endsWith(".webm");
+            return (
+              <div className="relative w-full overflow-hidden rounded-t-2xl" style={{ height: 180 }}>
+                {isVideo ? (
+                  <video src={heroSrc} autoPlay loop muted playsInline className="w-full h-full object-cover" style={{ display: "block" }} />
+                ) : (
+                  <img src={heroSrc} alt="banner" className="w-full h-full object-cover" />
+                )}
               </div>
-              <div className="leading-none">
-                <p className="text-xs font-bold text-white uppercase tracking-wide">{data.server.name}</p>
-                <p className="text-[10px] mt-0.5" style={{ color: "rgba(255,255,255,0.45)" }}>Click to copy IP</p>
+            );
+          }
+          return (
+            <div className="relative w-full flex items-center justify-center rounded-t-2xl" style={{ height: 180, background: `linear-gradient(135deg, #111318 0%, ${accent}18 100%)` }}>
+              <div className="text-center">
+                {data.server.logoUrl
+                  ? <img src={data.server.logoUrl} alt="logo" className="w-14 h-14 object-contain mx-auto mb-2" />
+                  : <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-2" style={{ background: `${accent}20` }}>
+                      <Package className="w-8 h-8" style={{ color: accent }} />
+                    </div>}
+                <p className="font-extrabold text-white text-xl uppercase tracking-widest">{data.server.name}</p>
               </div>
             </div>
-          </div>
-        ) : (
-          <div className="relative w-full flex items-center justify-center rounded-t-2xl" style={{ height: 180, background: `linear-gradient(135deg, #111318 0%, ${accent}18 100%)` }}>
-            <div className="text-center">
-              {data.server.logoUrl
-                ? <img src={data.server.logoUrl} alt="logo" className="w-14 h-14 object-contain mx-auto mb-2" />
-                : <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-2" style={{ background: `${accent}20` }}>
-                    <Package className="w-8 h-8" style={{ color: accent }} />
-                  </div>}
-              <p className="font-extrabold text-white text-xl uppercase tracking-widest">{data.server.name}</p>
-            </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* Sub-bar: logo+name left, Login right (with MC skin peeking out) */}
         <div className="flex items-center px-5 py-3 relative"
@@ -1678,24 +1673,20 @@ function EchoLayout({
         );
       })()}
 
-      {/* ── Welcome card / Promo Banner slot ──────────────────── */}
+      {/* ── Welcome card ────────────────────────────────────────── */}
       {isHome && (
-        (data.theme as any).bannerImageUrl ? (
-          <PromoBanner data={data} />
-        ) : (
-          <div className="rounded-2xl p-8 mb-4"
-            style={{ background: "#13161c", border: "1px solid rgba(255,255,255,0.07)" }}>
-            <p className="text-xs font-semibold uppercase tracking-widest mb-2"
-              style={{ color: "rgba(255,255,255,0.3)" }}>Welcome to</p>
-            <h2 className="text-3xl font-extrabold mb-4 uppercase" style={{ color: accent }}>
-              {data.theme.welcomeTitle || data.server.name}
-            </h2>
-            <p className="text-sm leading-relaxed" style={{ color: "rgba(255,255,255,0.55)" }}>
-              {data.theme.welcomeText ||
-                `Welcome to the official ${data.server.name} Store. To begin shopping, select a category above.`}
-            </p>
-          </div>
-        )
+        <div className="rounded-2xl p-8 mb-4"
+          style={{ background: "#13161c", border: "1px solid rgba(255,255,255,0.07)" }}>
+          <p className="text-xs font-semibold uppercase tracking-widest mb-2"
+            style={{ color: "rgba(255,255,255,0.3)" }}>Welcome to</p>
+          <h2 className="text-3xl font-extrabold mb-4 uppercase" style={{ color: accent }}>
+            {data.theme.welcomeTitle || data.server.name}
+          </h2>
+          <p className="text-sm leading-relaxed" style={{ color: "rgba(255,255,255,0.55)" }}>
+            {data.theme.welcomeText ||
+              `Welcome to the official ${data.server.name} Store. To begin shopping, select a category above.`}
+          </p>
+        </div>
       )}
 
       {/* ── Footer ────────────────────────────────────────── */}
