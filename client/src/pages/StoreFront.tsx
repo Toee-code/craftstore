@@ -2944,6 +2944,44 @@ function ThemedStore({ data }: { data: StoreData }) {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Top-up Balance Modal */}
+      <Dialog open={topupOpen} onOpenChange={setTopupOpen}>
+        <DialogContent className="max-w-sm" style={{ background: "#111214", border: "1px solid rgba(255,255,255,0.12)", color: "#fff" }}>
+          <DialogHeader>
+            <DialogTitle style={{ color: "#fff" }}>Top Up Balance</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm" style={{ color: "rgba(255,255,255,0.5)" }}>Add credit to your store balance to spend on items.</p>
+            <div className="grid grid-cols-3 gap-2">
+              {[5, 10, 20, 50, 100, 200].map(amt => (
+                <button key={amt}
+                  onClick={() => { setTopupAmount(amt); setTopupCustom(""); }}
+                  className="py-2 rounded-xl text-sm font-bold transition-all"
+                  style={topupAmount === amt && !topupCustom
+                    ? { background: accent, color: "#000" }
+                    : { background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.7)", border: "1px solid rgba(255,255,255,0.1)" }}>
+                  £{amt}
+                </button>
+              ))}
+            </div>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold" style={{ color: "rgba(255,255,255,0.4)" }}>£</span>
+              <Input type="number" placeholder="Custom amount" value={topupCustom}
+                onChange={e => setTopupCustom(e.target.value)}
+                className="pl-7"
+                style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", color: "#fff" }} />
+            </div>
+            <Button className="w-full font-bold" style={{ background: accent, color: "#000", boxShadow: `0 0 25px ${accent}50` }}
+              onClick={handleTopup} disabled={topupMutation.isPending}>
+              {topupMutation.isPending
+                ? <><Loader2 className="w-4 h-4 animate-spin" /> Redirecting…</>
+                : <><CreditCard className="w-4 h-4" /> Pay £{topupCustom ? (Number(topupCustom) || 0).toFixed(2) : topupAmount.toFixed(2)}</>}
+            </Button>
+            <p className="text-xs text-center" style={{ color: "rgba(255,255,255,0.3)" }}>Powered by Stripe. Funds added to your balance instantly.</p>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
