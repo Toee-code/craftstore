@@ -1587,17 +1587,21 @@ function EchoLayout({
           if (heroSrc) {
             const isVideo = heroSrc.startsWith("data:video/") || heroSrc.endsWith(".mp4") || heroSrc.endsWith(".webm");
             return (
-              <div className="relative w-full overflow-hidden" style={{ height: 240 }}>
+              <div className="relative w-full overflow-hidden">
                 {isVideo ? (
-                  <video src={heroSrc} autoPlay loop muted playsInline className="w-full h-full object-cover" style={{ display: "block", objectPosition: objPos }} />
+                  <video src={heroSrc} autoPlay loop muted playsInline
+                    className="w-full block"
+                    style={{ objectFit: "cover", objectPosition: objPos, maxHeight: 320 }} />
                 ) : (
-                  <img src={heroSrc} alt="banner" className="w-full h-full object-cover" style={{ objectPosition: objPos }} />
+                  <img src={heroSrc} alt="banner"
+                    className="w-full block"
+                    style={{ objectFit: "cover", objectPosition: objPos, maxHeight: 320 }} />
                 )}
               </div>
             );
           }
           return (
-            <div className="relative w-full flex items-center justify-center" style={{ height: 240, background: `linear-gradient(135deg, #111318 0%, ${accent}18 100%)` }}>
+            <div className="relative w-full flex items-center justify-center" style={{ height: 180, background: `linear-gradient(135deg, #111318 0%, ${accent}18 100%)` }}>
               <div className="text-center">
                 {data.server.logoUrl
                   ? <img src={data.server.logoUrl} alt="logo" className="w-14 h-14 object-contain mx-auto mb-2" />

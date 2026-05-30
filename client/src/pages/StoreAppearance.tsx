@@ -781,7 +781,7 @@ export default function StoreAppearance({ serverId }: Props) {
                   {/* Top area: 180px, draggable */}
                   <div
                     className="relative w-full overflow-hidden group"
-                    style={{ height: 240, cursor: "ns-resize" }}
+                    style={{ cursor: "ns-resize" }}
                     onMouseDown={(e) => {
                       e.preventDefault();
                       const rect = e.currentTarget.getBoundingClientRect();
@@ -802,10 +802,10 @@ export default function StoreAppearance({ serverId }: Props) {
                   >
                     {isVid ? (
                       <video src={watch("bannerImageUrl")} autoPlay loop muted playsInline
-                        className="w-full h-full object-cover" style={{ display: "block", objectPosition: `center ${focalY}` }} />
+                        className="w-full block" style={{ objectFit: "cover", objectPosition: `center ${focalY}`, maxHeight: 320 }} />
                     ) : (
                       <img src={watch("bannerImageUrl")} alt="Banner preview"
-                        className="w-full h-full object-cover" style={{ objectPosition: `center ${focalY}` }} />
+                        className="w-full block" style={{ objectFit: "cover", objectPosition: `center ${focalY}`, maxHeight: 320 }} />
                     )}
                     {/* Drag hint overlay */}
                     <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
