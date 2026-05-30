@@ -19,7 +19,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   ShoppingCart, Package, CheckCircle2, Loader2, AlertCircle,
-  Megaphone, Home, Trophy, ChevronRight, ChevronDown, Menu, X,
+  Megaphone, Home, Trophy, ChevronRight, ChevronDown, Menu, X, ShoppingBag,
   User, Gift, LogIn, LogOut, UserPlus, Heart, CreditCard, Zap,
   Star, TrendingUp, Shield, Sparkles, Flame
 } from "lucide-react";
@@ -1210,6 +1210,81 @@ function DonateModal({ open, onClose, serverId, serverName, accent, memberSessio
   );
 }
 
+// ─── Recent Purchases Sticky Sidebar ───────────────────────────────────────
+interface OrderEntry { id: number; minecraftUsername: string; productName?: string; amount: number; createdAt: string; status: string; }
+
+function RecentPurchasesSidebar({ serverId, accent }: { serverId: number; accent: string }) {
+  const { data: orders = [], isLoading } = useQuery<OrderEntry[]>({
+    queryKey: ["/api/servers", serverId, "orders"],
+    queryFn: () => apiRequest("GET", `/api/servers/${serverId}/orders`).then(r => r.json()),
+    staleTime: 30_000,
+    refetchInterval: 30_000,
+  });
+
+  const recent = orders
+    .filter((o: OrderEntry) => o.status === "completed")
+    .sort((a: OrderEntry, b: OrderEntry) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .slice(0, 5);
+
+  return (
+    <div style={{
+      position: "fixed",
+      top: "50%",
+      left: 24,
+      transform: "translateY(-50%)",
+      width: 220,
+      zIndex: 40,
+      background: "rgba(13,15,20,0.92)",
+      backdropFilter: "blur(20px)",
+      WebkitBackdropFilter: "blur(20px)",
+      border: "1px solid rgba(255,255,255,0.12)",
+      borderRadius: 20,
+      padding: "20px 16px",
+      boxShadow: "0 16px 60px rgba(0,0,0,0.8)",
+      pointerEvents: "none",
+    }}>
+      {/* Header */}
+      <div className="flex items-center gap-2 mb-4">
+        <ShoppingBag className="w-4 h-4 shrink-0" style={{ color: accent }} />
+        <span className="text-xs font-extrabold uppercase tracking-widest" style={{ color: accent }}>Recent Payments</span>
+      </div>
+
+      {isLoading ? (
+        <div className="flex justify-center py-6">
+          <Loader2 className="w-5 h-5 animate-spin" style={{ color: accent }} />
+        </div>
+      ) : recent.length === 0 ? (
+        <p className="text-xs text-center py-6" style={{ color: "rgba(255,255,255,0.3)" }}>No purchases yet</p>
+      ) : (
+        <div className="flex flex-col gap-3">
+          {recent.map((order: OrderEntry) => (
+            <div key={order.id} className="flex items-center gap-3">
+              {/* 2D face head */}
+              <div style={{ width: 40, height: 40, borderRadius: 6, overflow: "hidden", flexShrink: 0, background: "rgba(255,255,255,0.05)" }}>
+                <img
+                  src={`https://nmsr.nickac.dev/face/${order.minecraftUsername}`}
+                  alt={order.minecraftUsername}
+                  width={40}
+                  height={40}
+                  style={{ width: 40, height: 40, imageRendering: "pixelated", display: "block" }}
+                  onError={e => { (e.target as HTMLImageElement).src = `https://nmsr.nickac.dev/face/Steve`; }}
+                />
+              </div>
+              {/* Name + item */}
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-bold text-white truncate">{order.minecraftUsername}</p>
+                {order.productName && (
+                  <p className="text-[11px] truncate" style={{ color: "rgba(255,255,255,0.45)" }}>{order.productName}</p>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Top Customers Sticky Sidebar ───────────────────────────────────────────
 function TopCustomersSidebar({ serverId, accent }: { serverId: number; accent: string }) {
   const { data: entries = [], isLoading } = useQuery<LeaderboardEntry[]>({
@@ -2217,6 +2292,7 @@ function ThemedStore({ data }: { data: StoreData }) {
     return (
       <div style={{ background: "#0a0a0a", minHeight: "100vh", color: "#fff", fontFamily: "'Cabinet Grotesk','Inter',sans-serif" }}>
         {/* Sticky Top Customers sidebar — right side */}
+        <RecentPurchasesSidebar serverId={data.server.id} accent={accent} />
         <TopCustomersSidebar serverId={data.server.id} accent={accent} />
 
         {/* Announcement strip */}
