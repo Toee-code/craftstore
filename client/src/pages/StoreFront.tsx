@@ -1610,15 +1610,15 @@ function EchoLayout({
           if (heroSrc) {
             const isVideo = heroSrc.startsWith("data:video/") || heroSrc.endsWith(".mp4") || heroSrc.endsWith(".webm");
             return (
-              <div className="relative w-full overflow-hidden">
+              <div className="relative w-full overflow-hidden" style={{ height: 240 }}>
                 {isVideo ? (
                   <AutoVideo src={heroSrc}
-                    className="w-full block"
-                    style={{ objectFit: "cover", objectPosition: objPos, maxHeight: 320 }} />
+                    className="w-full h-full"
+                    style={{ objectFit: "cover", objectPosition: objPos, display: "block" }} />
                 ) : (
                   <img src={heroSrc} alt="banner"
-                    className="w-full block"
-                    style={{ objectFit: "cover", objectPosition: objPos, maxHeight: 320 }} />
+                    className="w-full h-full"
+                    style={{ objectFit: "cover", objectPosition: objPos }} />
                 )}
               </div>
             );
