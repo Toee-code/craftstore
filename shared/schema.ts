@@ -143,6 +143,7 @@ export const storeThemes = sqliteTable("store_themes", {
   bannerImageUrl: text("banner_image_url"),               // promotional banner image shown on store home
   bannerLinkUrl: text("banner_link_url"),                  // optional click-through URL for banner
   bannerPosition: text("banner_position"),                 // where the promo banner appears: top | below-welcome | below-featured | bottom
+  bannerFocalY: text("banner_focal_y"),                     // vertical focal point as percent string e.g. "40%"
   updatedAt: text("updated_at").notNull().default(new Date().toISOString()),
 });
 

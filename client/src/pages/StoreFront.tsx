@@ -1494,14 +1494,16 @@ function EchoLayout({
         {/* Banner image — promo banner (bannerImageUrl) takes priority, then bannerUrl, then default */}
         {(() => {
           const heroSrc = (data.theme as any).bannerImageUrl || data.theme.bannerUrl;
+          const focalY = (data.theme as any).bannerFocalY || "50%";
+          const objPos = `center ${focalY}`;
           if (heroSrc) {
             const isVideo = heroSrc.startsWith("data:video/") || heroSrc.endsWith(".mp4") || heroSrc.endsWith(".webm");
             return (
               <div className="relative w-full overflow-hidden rounded-t-2xl" style={{ height: 180 }}>
                 {isVideo ? (
-                  <video src={heroSrc} autoPlay loop muted playsInline className="w-full h-full object-cover" style={{ display: "block" }} />
+                  <video src={heroSrc} autoPlay loop muted playsInline className="w-full h-full object-cover" style={{ display: "block", objectPosition: objPos }} />
                 ) : (
-                  <img src={heroSrc} alt="banner" className="w-full h-full object-cover" />
+                  <img src={heroSrc} alt="banner" className="w-full h-full object-cover" style={{ objectPosition: objPos }} />
                 )}
               </div>
             );

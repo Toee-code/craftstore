@@ -68,6 +68,7 @@ interface ThemeForm {
   bannerImageUrl: string;
   bannerLinkUrl: string;
   bannerPosition: string;
+  bannerFocalY: string;
 }
 
 interface ServerInfoForm {
@@ -122,7 +123,7 @@ export default function StoreAppearance({ serverId }: Props) {
       bannerUrl: "", startPage: "all", announcementText: "", feeMode: "absorb",
       welcomeTitle: "", welcomeText: "",
       countdownTitle: "", countdownSubtitle: "", countdownEnd: "", ownerMinecraftUsername: "",
-      bannerImageUrl: "", bannerLinkUrl: "", bannerPosition: "top",
+      bannerImageUrl: "", bannerLinkUrl: "", bannerPosition: "top", bannerFocalY: "50%",
     },
   });
 
@@ -145,6 +146,7 @@ export default function StoreAppearance({ serverId }: Props) {
       bannerImageUrl: (theme as any).bannerImageUrl || "",
       bannerLinkUrl: (theme as any).bannerLinkUrl || "",
       bannerPosition: (theme as any).bannerPosition || "top",
+      bannerFocalY: (theme as any).bannerFocalY || "50%",
     });
     try { setCategories(JSON.parse(theme.categories || "[]")); } catch { setCategories([]); }
     try { setSubcategories(JSON.parse(theme.subcategories || "{}")); } catch { setSubcategories({}); }
@@ -763,22 +765,70 @@ export default function StoreAppearance({ serverId }: Props) {
             </div>
             <p className="text-xs text-muted-foreground">Recommended size: 1200×300px. Supports images or MP4 video (max 20MB). Leave blank to hide.</p>
           </div>
-          {watch("bannerImageUrl") && (
-            <div className="rounded-xl overflow-hidden border border-border/40 relative group">
-              {watch("bannerImageUrl").startsWith("data:video/") || watch("bannerImageUrl").endsWith(".mp4") ? (
-                <video src={watch("bannerImageUrl")} autoPlay loop muted playsInline className="w-full object-cover" style={{ maxHeight: 160 }} />
-              ) : (
-                <img src={watch("bannerImageUrl")} alt="Banner preview" className="w-full object-cover" style={{ maxHeight: 160 }} />
-              )}
-              <button
-                type="button"
-                onClick={() => setValue("bannerImageUrl", "")}
-                className="absolute top-2 right-2 bg-black/60 hover:bg-black/80 text-white rounded-full w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          )}
+          {watch("bannerImageUrl") && (() => {
+            const isVid = watch("bannerImageUrl").startsWith("data:video/") || watch("bannerImageUrl").endsWith(".mp4") || watch("bannerImageUrl").endsWith(".webm");
+            const focalY = watch("bannerFocalY") || "50%";
+            const focalPct = parseFloat(focalY);
+            return (
+              <div className="space-y-1.5">
+                <div
+                  className="rounded-xl overflow-hidden border border-border/40 relative group select-none"
+                  style={{ height: 160, cursor: "ns-resize" }}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    const container = e.currentTarget;
+                    const rect = container.getBoundingClientRect();
+                    const startY = e.clientY;
+                    const startPct = focalPct;
+                    const onMove = (mv: MouseEvent) => {
+                      const deltaY = mv.clientY - startY;
+                      // Moving up → focal point moves up (smaller %)
+                      const newPct = Math.min(100, Math.max(0, startPct + (deltaY / rect.height) * 100));
+                      setValue("bannerFocalY", `${Math.round(newPct)}%`);
+                    };
+                    const onUp = () => {
+                      window.removeEventListener("mousemove", onMove);
+                      window.removeEventListener("mouseup", onUp);
+                    };
+                    window.addEventListener("mousemove", onMove);
+                    window.addEventListener("mouseup", onUp);
+                  }}
+                >
+                  {isVid ? (
+                    <video
+                      src={watch("bannerImageUrl")}
+                      autoPlay loop muted playsInline
+                      className="w-full h-full object-cover"
+                      style={{ objectPosition: `center ${focalY}` }}
+                    />
+                  ) : (
+                    <img
+                      src={watch("bannerImageUrl")}
+                      alt="Banner preview"
+                      className="w-full h-full object-cover"
+                      style={{ objectPosition: `center ${focalY}` }}
+                    />
+                  )}
+                  {/* Drag hint */}
+                  <div className="absolute inset-0 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                    <div className="bg-black/60 rounded-lg px-3 py-1.5 flex items-center gap-1.5">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><path d="M12 5v14M5 12l7-7 7 7M5 12l7 7 7-7" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                      <span className="text-xs font-semibold text-white">Drag to reposition</span>
+                    </div>
+                  </div>
+                  {/* Clear button */}
+                  <button
+                    type="button"
+                    onClick={() => setValue("bannerImageUrl", "")}
+                    className="absolute top-2 right-2 bg-black/60 hover:bg-black/80 text-white rounded-full w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+                <p className="text-xs text-muted-foreground text-center">Drag up/down to adjust which part shows — saves with the form</p>
+              </div>
+            );
+          })()}
           <input
             ref={promoBannerFileRef}
             type="file"
