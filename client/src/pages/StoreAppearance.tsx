@@ -65,6 +65,8 @@ interface ThemeForm {
   countdownSubtitle: string;
   countdownEnd: string;
   ownerMinecraftUsername: string;
+  bannerImageUrl: string;
+  bannerLinkUrl: string;
 }
 
 interface ServerInfoForm {
@@ -115,6 +117,7 @@ export default function StoreAppearance({ serverId }: Props) {
       bannerUrl: "", startPage: "all", announcementText: "", feeMode: "absorb",
       welcomeTitle: "", welcomeText: "",
       countdownTitle: "", countdownSubtitle: "", countdownEnd: "", ownerMinecraftUsername: "",
+      bannerImageUrl: "", bannerLinkUrl: "",
     },
   });
 
@@ -134,6 +137,8 @@ export default function StoreAppearance({ serverId }: Props) {
       countdownSubtitle: (theme as any).countdownSubtitle || "",
       countdownEnd: (theme as any).countdownEnd ? (theme as any).countdownEnd.slice(0, 16) : "",
       ownerMinecraftUsername: (theme as any).ownerMinecraftUsername || "",
+      bannerImageUrl: (theme as any).bannerImageUrl || "",
+      bannerLinkUrl: (theme as any).bannerLinkUrl || "",
     });
     try { setCategories(JSON.parse(theme.categories || "[]")); } catch { setCategories([]); }
     try { setSubcategories(JSON.parse(theme.subcategories || "{}")); } catch { setSubcategories({}); }
@@ -667,6 +672,34 @@ export default function StoreAppearance({ serverId }: Props) {
               {...register("ownerMinecraftUsername")}
             />
             <p className="text-xs text-muted-foreground">Your Java username — this skin appears in the countdown banner.</p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* ── Promotional Banner ──────────────────────────────────────────────── */}
+      <Card className="bg-card border-border/60">
+        <CardHeader className="pb-3">
+          <div className="flex items-center gap-2">
+            <ImageIcon className="w-4 h-4 text-primary" />
+            <CardTitle className="text-base">Promotional Banner</CardTitle>
+          </div>
+          <CardDescription>A clickable image banner shown at the top of your store home page — great for events, sales, or announcements.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-1.5">
+            <Label>Banner image URL</Label>
+            <Input placeholder="https://i.imgur.com/your-banner.png" {...register("bannerImageUrl")} />
+            <p className="text-xs text-muted-foreground">Recommended size: 1200×300px. Paste a direct image link. Leave blank to hide.</p>
+          </div>
+          {watch("bannerImageUrl") && (
+            <div className="rounded-xl overflow-hidden border border-border/40">
+              <img src={watch("bannerImageUrl")} alt="Banner preview" className="w-full object-cover" style={{ maxHeight: 160 }} />
+            </div>
+          )}
+          <div className="space-y-1.5">
+            <Label>Click-through URL (optional)</Label>
+            <Input placeholder="https://discord.gg/yourserver" {...register("bannerLinkUrl")} />
+            <p className="text-xs text-muted-foreground">Where players go when they click the banner. Leave blank to make it non-clickable.</p>
           </div>
         </CardContent>
       </Card>

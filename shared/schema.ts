@@ -140,6 +140,8 @@ export const storeThemes = sqliteTable("store_themes", {
   countdownSubtitle: text("countdown_subtitle"),          // countdown banner subtext
   countdownEnd: text("countdown_end"),                    // ISO date string for timer
   ownerMinecraftUsername: text("owner_minecraft_username"), // MC username shown in countdown banner
+  bannerImageUrl: text("banner_image_url"),               // promotional banner image shown on store home
+  bannerLinkUrl: text("banner_link_url"),                  // optional click-through URL for banner
   updatedAt: text("updated_at").notNull().default(new Date().toISOString()),
 });
 

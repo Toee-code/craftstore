@@ -1718,6 +1718,23 @@ function StoreHome({ data, accent, onCategory }: {
 
   return (
     <div className="p-6 max-w-2xl mx-auto w-full space-y-8">
+      {/* ── Promotional Banner ──────────────────────────────────── */}
+      {(data.theme as any).bannerImageUrl && (
+        (data.theme as any).bannerLinkUrl ? (
+          <a href={(data.theme as any).bannerLinkUrl} target="_blank" rel="noopener noreferrer"
+            className="block rounded-2xl overflow-hidden transition-all hover:brightness-110 hover:scale-[1.01]"
+            style={{ border: "1px solid rgba(255,255,255,0.08)" }}>
+            <img src={(data.theme as any).bannerImageUrl} alt="Promotional banner"
+              className="w-full object-cover" style={{ maxHeight: 200, minHeight: 80 }} />
+          </a>
+        ) : (
+          <div className="rounded-2xl overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.08)" }}>
+            <img src={(data.theme as any).bannerImageUrl} alt="Promotional banner"
+              className="w-full object-cover" style={{ maxHeight: 200, minHeight: 80 }} />
+          </div>
+        )
+      )}
+
       {/* Welcome banner */}
       {(data.theme.welcomeTitle || data.theme.welcomeText) && (
         <div className="rounded-2xl p-6 relative overflow-hidden"

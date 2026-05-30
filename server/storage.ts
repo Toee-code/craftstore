@@ -193,6 +193,8 @@ const alterStatements = [
   "ALTER TABLE store_themes ADD COLUMN countdown_subtitle TEXT",
   "ALTER TABLE store_themes ADD COLUMN countdown_end TEXT",
   "ALTER TABLE store_themes ADD COLUMN owner_minecraft_username TEXT",
+  "ALTER TABLE store_themes ADD COLUMN banner_image_url TEXT",
+  "ALTER TABLE store_themes ADD COLUMN banner_link_url TEXT",
 ];
 for (const stmt of alterStatements) {
   try { sqlite.exec(stmt); } catch { /* column already exists */ }
