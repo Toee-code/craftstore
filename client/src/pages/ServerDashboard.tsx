@@ -639,6 +639,50 @@ function DomainTab({ server }: { serverId: number; server?: any }) {
 }
 
 
+function TestWebhookPanel({ serverId, hasWebhookUrl }: { serverId: number; hasWebhookUrl: boolean }) {
+  const { toast } = useToast();
+  const [username, setUsername] = useState("TestPlayer");
+  const [command, setCommand] = useState("say CraftStore webhook working!");
+  const [result, setResult] = useState<{ success: boolean; message: string } | null>(null);
+
+  const testMutation = useMutation({
+    mutationFn: () => apiRequest("POST", `/api/servers/${serverId}/test-webhook`, { minecraftUsername: username, command }).then(r => r.json()),
+    onSuccess: (data) => {
+      setResult(data);
+    },
+    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  return (
+    <div className="border border-border/60 rounded-lg p-4 space-y-3">
+      <p className="text-sm font-medium flex items-center gap-2"><Terminal className="w-4 h-4 text-primary" /> Test Webhook</p>
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <Label className="text-xs">Minecraft Username</Label>
+          <Input value={username} onChange={e => setUsername(e.target.value)} className="mt-1 text-xs font-mono h-8" />
+        </div>
+        <div>
+          <Label className="text-xs">Command to run</Label>
+          <Input value={command} onChange={e => setCommand(e.target.value)} className="mt-1 text-xs font-mono h-8" />
+        </div>
+      </div>
+      <div className="flex items-center gap-3">
+        <Button size="sm" onClick={() => { setResult(null); testMutation.mutate(); }} disabled={testMutation.isPending || !hasWebhookUrl}>
+          {testMutation.isPending ? <><Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> Sending...</> : "Send Test"}
+        </Button>
+        {!hasWebhookUrl && <p className="text-xs text-muted-foreground">Save a Webhook URL above first</p>}
+      </div>
+      {result && (
+        <div className={`text-xs rounded-md px-3 py-2 font-mono ${
+          result.success ? "bg-green-500/10 text-green-400 border border-green-500/20" : "bg-red-500/10 text-red-400 border border-red-500/20"
+        }`}>
+          {result.success ? "✓" : "✗"} {result.message}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function WebhookSecretEditor({ serverId, currentSecret, currentWebhookUrl }: { serverId: number; currentSecret: string; currentWebhookUrl: string }) {
   const [secret, setSecret] = useState(currentSecret);
   const [webhookUrl, setWebhookUrl] = useState(currentWebhookUrl);
@@ -1873,6 +1917,9 @@ export default function ServerDashboard() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <WebhookSecretEditor serverId={Number(id)} currentSecret={server?.webhookSecret || ""} currentWebhookUrl={server?.webhookUrl || ""} />
+
+                  {/* Test Webhook */}
+                  <TestWebhookPanel serverId={Number(id)} hasWebhookUrl={!!server?.webhookUrl} />
 
                   {/* Auto-generated config.yml */}
                   <div>

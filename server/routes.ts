@@ -1518,6 +1518,39 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
     }
   });
 
+  // ── Test webhook endpoint ──────────────────────────────────────────────────
+  app.post("/api/servers/:serverId/test-webhook", async (req: any, res: any) => {
+    const serverId = Number(req.params.serverId);
+    const server = storage.getServerById(serverId);
+    if (!server) return res.status(404).json({ error: "Server not found" });
+    if (!server.webhookUrl) return res.status(400).json({ error: "No webhook URL configured. Add one in Settings first." });
+    const { minecraftUsername = "TestPlayer", command = "say Welcome TestPlayer!" } = req.body;
+    const payload = {
+      event: "purchase",
+      orderId: 0,
+      minecraftUsername,
+      command,
+      product: { id: 0, name: "Test Product" },
+      productName: "Test Product",
+      secret: server.webhookSecret,
+      test: true,
+    };
+    try {
+      const response = await fetch(server.webhookUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-CraftStore-Secret": server.webhookSecret || "" },
+        body: JSON.stringify(payload),
+      });
+      if (response.ok) {
+        res.json({ success: true, message: `Webhook delivered — HTTP ${response.status}` });
+      } else {
+        res.json({ success: false, message: `Webhook failed — HTTP ${response.status}. Is port 8123 open and the plugin running?` });
+      }
+    } catch (err: any) {
+      res.json({ success: false, message: `Could not reach webhook URL: ${err.message}. Check your IP and port forward.` });
+    }
+  });
+
   // ── Analytics endpoint ───────────────────────────────────────────────────
   app.get("/api/servers/:serverId/analytics", (req: any, res: any) => {
     const serverId = Number(req.params.serverId);
