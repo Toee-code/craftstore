@@ -1845,9 +1845,49 @@ export default function ServerDashboard() {
               </Card>
 
               <Card className="bg-card border-border/60">
-                <CardHeader><CardTitle className="text-base">Webhook Configuration</CardTitle></CardHeader>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-base">Webhook Configuration</CardTitle>
+                    <a href="/CraftStorePlugin-1.0.0.jar" download="CraftStorePlugin-1.0.0.jar">
+                      <Button size="sm" variant="outline" className="gap-1.5">
+                        <Package className="w-3.5 h-3.5" /> Download Plugin
+                      </Button>
+                    </a>
+                  </div>
+                  <CardDescription>Install the plugin on your Minecraft server, then paste the generated config below into <code className="text-xs bg-muted px-1 py-0.5 rounded">plugins/CraftStorePlugin/config.yml</code></CardDescription>
+                </CardHeader>
                 <CardContent className="space-y-4">
                   <WebhookSecretEditor serverId={Number(id)} currentSecret={server?.webhookSecret || ""} />
+
+                  {/* Auto-generated config.yml */}
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <Label className="text-xs">Generated config.yml</Label>
+                      <Button
+                        size="sm" variant="ghost" className="h-6 px-2 text-xs gap-1"
+                        onClick={() => {
+                          const cfg = `webhook-secret: "${server?.webhookSecret || "your-secret-here"}"
+webhook-port: 8123
+debug: false`;
+                          navigator.clipboard.writeText(cfg);
+                        }}
+                      >
+                        <Copy className="w-3 h-3" /> Copy
+                      </Button>
+                    </div>
+                    <div className="bg-muted/30 rounded-lg p-4 text-xs font-mono text-green-400 space-y-0.5">
+                      <p className="text-muted-foreground"># CraftStorePlugin config.yml</p>
+                      <p>webhook-secret: <span className="text-yellow-400">"{server?.webhookSecret || "your-secret-here"}"</span></p>
+                      <p>webhook-port: <span className="text-blue-400">8123</span></p>
+                      <p>debug: <span className="text-blue-400">false</span></p>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1.5">
+                      Then set your Webhook URL in CraftStore to{" "}
+                      <code className="bg-muted px-1 py-0.5 rounded">http://YOUR_SERVER_IP:8123/webhook</code>
+                    </p>
+                  </div>
+
+                  {/* Example payload */}
                   <div className="bg-muted/30 rounded-lg p-4 text-xs font-mono text-muted-foreground space-y-1">
                     <p className="text-primary font-semibold mb-2">Example webhook payload:</p>
                     <p>{"{"}</p>
@@ -1855,7 +1895,7 @@ export default function ServerDashboard() {
                     <p className="pl-4">"orderId": 42,</p>
                     <p className="pl-4">"minecraftUsername": "Steve",</p>
                     <p className="pl-4">"command": "give Steve diamond_sword 1",</p>
-                    <p className="pl-4">"secret": "your-secret-here"</p>
+                    <p className="pl-4">"secret": "{server?.webhookSecret || "your-secret-here"}"</p>
                     <p>{"}"}</p>
                   </div>
                 </CardContent>
