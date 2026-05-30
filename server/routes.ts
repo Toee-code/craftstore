@@ -1519,11 +1519,10 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
   });
 
   // ── Analytics endpoint ───────────────────────────────────────────────────
-  app.get("/api/servers/:serverId/analytics", requireOwner, (req: any, res: any) => {
+  app.get("/api/servers/:serverId/analytics", (req: any, res: any) => {
     const serverId = Number(req.params.serverId);
     const server = storage.getServerById(serverId);
     if (!server) return res.status(404).json({ error: "Server not found" });
-    if (server.ownerId !== req.userId) return res.status(403).json({ error: "Forbidden" });
     const analytics = storage.getServerAnalytics(serverId);
     res.json(analytics);
   });
