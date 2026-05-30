@@ -1,16 +1,20 @@
 import { Link, useLocation } from "wouter";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuthStore } from "@/lib/auth";
 import { apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Server, Settings, LogOut, Bell, ExternalLink, ShoppingBag, Loader2 } from "lucide-react";
+import { Plus, Server, Settings, LogOut, Bell, ExternalLink, ShoppingBag, Loader2, X, ShoppingCart } from "lucide-react";
 import type { Server as ServerType, Notification } from "@shared/schema";
-import { useEffect } from "react";
+import { useEffect, useState, useRef } from "react";
 
 function NavBar({ onLogout }: { onLogout: () => void }) {
   const { user } = useAuthStore();
+  const qc = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
   const { data: notifs = [] } = useQuery<Notification[]>({
     queryKey: ["/api/notifications", user?.id],
     queryFn: () => apiRequest("GET", `/api/notifications/${user?.id}`).then(r => r.json()),
@@ -18,6 +22,24 @@ function NavBar({ onLogout }: { onLogout: () => void }) {
     refetchInterval: 15000,
   });
   const unread = notifs.filter((n: Notification) => !n.read).length;
+
+  const markRead = useMutation({
+    mutationFn: (id: number) => apiRequest("PATCH", `/api/notifications/${id}/read`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/notifications", user?.id] }),
+  });
+
+  const markAllRead = () => {
+    notifs.filter((n: Notification) => !n.read).forEach((n: Notification) => markRead.mutate(n.id));
+  };
+
+  // Close on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
 
   return (
     <header className="border-b border-border/60 bg-background/90 backdrop-blur sticky top-0 z-40">
@@ -32,8 +54,13 @@ function NavBar({ onLogout }: { onLogout: () => void }) {
           <span className="font-bold text-sm">CraftStore</span>
         </div></Link>
         <div className="flex items-center gap-2">
-          <div className="relative">
-            <Button variant="ghost" size="icon" className="relative" data-testid="button-notifications">
+          {/* Notification bell */}
+          <div className="relative" ref={ref}>
+            <Button
+              variant="ghost" size="icon" className="relative"
+              data-testid="button-notifications"
+              onClick={() => { setOpen(o => !o); if (!open && unread > 0) markAllRead(); }}
+            >
               <Bell className="w-4 h-4" />
               {unread > 0 && (
                 <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-primary rounded-full text-[10px] text-primary-foreground flex items-center justify-center font-bold">
@@ -41,7 +68,47 @@ function NavBar({ onLogout }: { onLogout: () => void }) {
                 </span>
               )}
             </Button>
+
+            {open && (
+              <div className="absolute right-0 top-10 w-80 rounded-xl border border-border/60 bg-card shadow-2xl z-50 overflow-hidden">
+                <div className="flex items-center justify-between px-4 py-3 border-b border-border/40">
+                  <span className="font-semibold text-sm">Notifications</span>
+                  <button onClick={() => setOpen(false)} className="text-muted-foreground hover:text-foreground">
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+                <div className="max-h-80 overflow-y-auto">
+                  {notifs.length === 0 ? (
+                    <div className="py-10 text-center text-sm text-muted-foreground">
+                      <Bell className="w-6 h-6 mx-auto mb-2 opacity-30" />
+                      No notifications yet
+                    </div>
+                  ) : (
+                    notifs.map((n: Notification) => (
+                      <div
+                        key={n.id}
+                        className="flex items-start gap-3 px-4 py-3 border-b border-border/30 last:border-0"
+                        style={{ background: n.read ? "transparent" : "rgba(34,197,94,0.06)" }}
+                      >
+                        <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
+                          <ShoppingCart className="w-3.5 h-3.5 text-primary" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium leading-snug">{n.title || "New purchase"}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{n.message}</p>
+                          <p className="text-[10px] text-muted-foreground/60 mt-1">
+                            {new Date(n.createdAt).toLocaleString()}
+                          </p>
+                        </div>
+                        {!n.read && <div className="w-2 h-2 rounded-full bg-primary shrink-0 mt-2" />}
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
           </div>
+
           <Button variant="ghost" size="sm" onClick={onLogout} className="gap-1.5">
             <LogOut className="w-3.5 h-3.5" /> Sign out
           </Button>
