@@ -142,6 +142,7 @@ export const storeThemes = sqliteTable("store_themes", {
   ownerMinecraftUsername: text("owner_minecraft_username"), // MC username shown in countdown banner
   bannerImageUrl: text("banner_image_url"),               // promotional banner image shown on store home
   bannerLinkUrl: text("banner_link_url"),                  // optional click-through URL for banner
+  bannerPosition: text("banner_position"),                 // where the promo banner appears: top | below-welcome | below-featured | bottom
   updatedAt: text("updated_at").notNull().default(new Date().toISOString()),
 });
 

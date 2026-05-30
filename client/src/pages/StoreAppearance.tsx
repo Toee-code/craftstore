@@ -67,6 +67,7 @@ interface ThemeForm {
   ownerMinecraftUsername: string;
   bannerImageUrl: string;
   bannerLinkUrl: string;
+  bannerPosition: string;
 }
 
 interface ServerInfoForm {
@@ -121,7 +122,7 @@ export default function StoreAppearance({ serverId }: Props) {
       bannerUrl: "", startPage: "all", announcementText: "", feeMode: "absorb",
       welcomeTitle: "", welcomeText: "",
       countdownTitle: "", countdownSubtitle: "", countdownEnd: "", ownerMinecraftUsername: "",
-      bannerImageUrl: "", bannerLinkUrl: "",
+      bannerImageUrl: "", bannerLinkUrl: "", bannerPosition: "top",
     },
   });
 
@@ -143,6 +144,7 @@ export default function StoreAppearance({ serverId }: Props) {
       ownerMinecraftUsername: (theme as any).ownerMinecraftUsername || "",
       bannerImageUrl: (theme as any).bannerImageUrl || "",
       bannerLinkUrl: (theme as any).bannerLinkUrl || "",
+      bannerPosition: (theme as any).bannerPosition || "top",
     });
     try { setCategories(JSON.parse(theme.categories || "[]")); } catch { setCategories([]); }
     try { setSubcategories(JSON.parse(theme.subcategories || "{}")); } catch { setSubcategories({}); }
@@ -788,6 +790,36 @@ export default function StoreAppearance({ serverId }: Props) {
             <Label>Click-through URL (optional)</Label>
             <Input placeholder="https://discord.gg/yourserver" {...register("bannerLinkUrl")} />
             <p className="text-xs text-muted-foreground">Where players go when they click the banner. Leave blank to make it non-clickable.</p>
+          </div>
+          <div className="space-y-2">
+            <Label className="flex items-center gap-1.5"><Layers className="w-3.5 h-3.5" /> Banner position</Label>
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { value: "top", label: "Top of page", desc: "Above everything" },
+                { value: "below-countdown", label: "Below countdown", desc: "After the timer strip" },
+                { value: "below-welcome", label: "Below welcome", desc: "After the welcome card" },
+                { value: "below-featured", label: "Below featured", desc: "After featured packages" },
+                { value: "above-categories", label: "Above categories", desc: "Just before category list" },
+                { value: "bottom", label: "Bottom of page", desc: "Below all products" },
+              ].map(opt => {
+                const selected = watch("bannerPosition") === opt.value;
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setValue("bannerPosition", opt.value)}
+                    className={`text-left px-3 py-2.5 rounded-xl border transition-all ${
+                      selected
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border/50 bg-card hover:border-border text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    <p className={`text-xs font-semibold ${selected ? "text-primary" : ""}`}>{opt.label}</p>
+                    <p className="text-[11px] opacity-60 mt-0.5">{opt.desc}</p>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </CardContent>
       </Card>

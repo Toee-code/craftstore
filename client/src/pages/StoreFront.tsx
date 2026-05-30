@@ -1441,6 +1441,32 @@ function MostPopularSection({ serverId, accent, onBuy, onGift, calcPlayerPrice, 
   );
 }
 
+// ─── Promotional Banner ──────────────────────────────────────────────────────
+function PromoBanner({ data }: { data: StoreData }) {
+  const bannerSrc = (data.theme as any).bannerImageUrl as string | undefined;
+  const bannerLink = (data.theme as any).bannerLinkUrl as string | undefined;
+  if (!bannerSrc) return null;
+  const isVideo = bannerSrc.startsWith("data:video/") || bannerSrc.endsWith(".mp4") || bannerSrc.endsWith(".webm");
+  const media = isVideo ? (
+    <video src={bannerSrc} autoPlay loop muted playsInline
+      className="w-full object-cover" style={{ maxHeight: 200, minHeight: 80, display: "block" }} />
+  ) : (
+    <img src={bannerSrc} alt="Promotional banner"
+      className="w-full object-cover" style={{ maxHeight: 200, minHeight: 80 }} />
+  );
+  return bannerLink ? (
+    <a href={bannerLink} target="_blank" rel="noopener noreferrer"
+      className="block rounded-2xl overflow-hidden mb-6 transition-all hover:brightness-110 hover:scale-[1.01]"
+      style={{ border: "1px solid rgba(255,255,255,0.08)" }}>
+      {media}
+    </a>
+  ) : (
+    <div className="rounded-2xl overflow-hidden mb-6" style={{ border: "1px solid rgba(255,255,255,0.08)" }}>
+      {media}
+    </div>
+  );
+}
+
 function EchoLayout({
   data, accent, onBuy, onGift, calcPlayerPrice, page, setPage, memberSession, onLogin,
   playerDropdownOpen, setPlayerDropdownOpen, onLogout, onTopup
@@ -1457,9 +1483,13 @@ function EchoLayout({
   const activeProducts = data.products.filter(p => p.active);
   const filteredProducts = (page === "all" || page === "home") ? activeProducts : activeProducts.filter(p => p.category === page);
   const isHome = page === "home" || page === "all";
+  const bannerPos = ((data.theme as any).bannerPosition as string) || "top";
 
   return (
     <div style={{ background: "#0a0a0a", minHeight: "100%" }}>
+
+      {/* ── Promo Banner: top ───────────────────────────────────── */}
+      {isHome && bannerPos === "top" && <PromoBanner data={data} />}
 
       {/* ── Hero banner card ──────────────────────────────────────── */}
       <div className="rounded-2xl mb-8"
@@ -1587,6 +1617,9 @@ function EchoLayout({
         </div>
       </div>
 
+      {/* ── Promo Banner: below-countdown ────────────────────────── */}
+      {isHome && bannerPos === "below-countdown" && <PromoBanner data={data} />}
+
       {/* ── Most Popular ──────────────────────────────────────────── */}
       {isHome && <MostPopularSection serverId={data.server.id} accent={accent} onBuy={onBuy} onGift={onGift} calcPlayerPrice={calcPlayerPrice} products={activeProducts} />}
 
@@ -1602,6 +1635,9 @@ function EchoLayout({
           </div>
         </div>
       )}
+
+      {/* ── Promo Banner: below-featured ─────────────────────────── */}
+      {isHome && bannerPos === "below-featured" && <PromoBanner data={data} />}
 
       {/* ── Category page products ────────────────────────────────── */}
       {!isHome && (
@@ -1622,6 +1658,9 @@ function EchoLayout({
           )}
         </div>
       )}
+
+      {/* ── Promo Banner: above-categories ─────────────────────── */}
+      {isHome && bannerPos === "above-categories" && <PromoBanner data={data} />}
 
       {/* ── Categories grid (2-col) ──────────────────────────────── */}
       {isHome && categories.length > 0 && (() => {
@@ -1664,6 +1703,9 @@ function EchoLayout({
           </p>
         </div>
       )}
+      {/* ── Promo Banner: below-welcome / bottom ───────────────── */}
+      {isHome && (bannerPos === "below-welcome" || bannerPos === "bottom") && <PromoBanner data={data} />}
+
       {/* ── Footer ────────────────────────────────────────── */}
       <footer style={{ background: "#0e1015", borderTop: "1px solid rgba(255,255,255,0.06)", marginTop: 40 }}>
         <div className="max-w-5xl mx-auto px-6 py-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
@@ -1722,31 +1764,6 @@ function StoreHome({ data, accent, onCategory }: {
 
   return (
     <div className="p-6 max-w-2xl mx-auto w-full space-y-8">
-      {/* ── Promotional Banner ──────────────────────────────────── */}
-      {(data.theme as any).bannerImageUrl && (() => {
-        const bannerSrc = (data.theme as any).bannerImageUrl as string;
-        const bannerLink = (data.theme as any).bannerLinkUrl as string | undefined;
-        const isVideo = bannerSrc.startsWith("data:video/") || bannerSrc.endsWith(".mp4") || bannerSrc.endsWith(".webm");
-        const BannerMedia = isVideo ? (
-          <video src={bannerSrc} autoPlay loop muted playsInline
-            className="w-full object-cover" style={{ maxHeight: 200, minHeight: 80, display: "block" }} />
-        ) : (
-          <img src={bannerSrc} alt="Promotional banner"
-            className="w-full object-cover" style={{ maxHeight: 200, minHeight: 80 }} />
-        );
-        return bannerLink ? (
-          <a href={bannerLink} target="_blank" rel="noopener noreferrer"
-            className="block rounded-2xl overflow-hidden transition-all hover:brightness-110 hover:scale-[1.01]"
-            style={{ border: "1px solid rgba(255,255,255,0.08)" }}>
-            {BannerMedia}
-          </a>
-        ) : (
-          <div className="rounded-2xl overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.08)" }}>
-            {BannerMedia}
-          </div>
-        );
-      })()}
-
       {/* Welcome banner */}
       {(data.theme.welcomeTitle || data.theme.welcomeText) && (
         <div className="rounded-2xl p-6 relative overflow-hidden"
