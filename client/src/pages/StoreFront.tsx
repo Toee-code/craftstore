@@ -2215,12 +2215,10 @@ function ThemedStore({ data }: { data: StoreData }) {
                         <Gift className="w-3 h-3" /> Gift
                       </button>
                     </div>
-                    <div className="rounded-2xl p-4 flex items-center justify-between" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
-                      <div className="flex-1 min-w-0 mr-3">
-                        <p className="font-bold text-sm text-white truncate">{checkout.product.name}</p>
-                        {checkout.product.description && <p className="text-xs mt-0.5 line-clamp-1" style={{ color: "rgba(255,255,255,0.45)" }}>{checkout.product.description}</p>}
-                      </div>
-                      <span className="text-xl font-extrabold shrink-0" style={{ color: accent }}>£{calcPlayerPrice(checkout.product.price).toFixed(2)}</span>
+                    <div className="rounded-2xl p-4" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                      <p className="font-bold text-sm text-white leading-snug mb-1">{checkout.product.name}</p>
+                      {checkout.product.description && <p className="text-xs mb-2" style={{ color: "rgba(255,255,255,0.45)" }}>{checkout.product.description}</p>}
+                      <span className="text-xl font-extrabold" style={{ color: accent }}>£{calcPlayerPrice(checkout.product.price).toFixed(2)}</span>
                     </div>
                     <div className="space-y-1.5">
                       <Label style={{ color: "rgba(255,255,255,0.55)", fontSize: 12 }}>
@@ -2413,11 +2411,9 @@ function ThemedStore({ data }: { data: StoreData }) {
                         <Gift className="w-3 h-3" /> Gift
                       </button>
                     </div>
-                    <div className="rounded-2xl p-4 flex items-center justify-between" style={{ background: "rgba(255,255,255,0.05)" }}>
-                      <div className="flex-1 min-w-0 mr-3">
-                        <p className="font-bold text-sm text-white truncate">{checkout.product.name}</p>
-                      </div>
-                      <span className="text-xl font-extrabold shrink-0" style={{ color: accent }}>£{calcPlayerPrice(checkout.product.price).toFixed(2)}</span>
+                    <div className="rounded-2xl p-4" style={{ background: "rgba(255,255,255,0.05)" }}>
+                      <p className="font-bold text-sm text-white leading-snug mb-1">{checkout.product.name}</p>
+                      <span className="text-xl font-extrabold" style={{ color: accent }}>£{calcPlayerPrice(checkout.product.price).toFixed(2)}</span>
                     </div>
                     <div className="space-y-1.5">
                       <Label style={{ color: "rgba(255,255,255,0.55)", fontSize: 12 }}>Your Minecraft username</Label>
@@ -2760,16 +2756,14 @@ function ThemedStore({ data }: { data: StoreData }) {
                   </div>
 
                   {/* Product summary */}
-                  <div className="rounded-2xl p-4 flex items-center justify-between" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
-                    <div className="flex-1 min-w-0 mr-3">
-                      <p className="font-bold text-sm text-white truncate">{checkout.product.name}</p>
-                      {checkout.product.description && <p className="text-xs mt-0.5 line-clamp-1" style={{ color: "rgba(255,255,255,0.45)" }}>{checkout.product.description}</p>}
-                    </div>
-                    <div className="text-right shrink-0">
+                  <div className="rounded-2xl p-4" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                    <p className="font-bold text-sm text-white leading-snug mb-1">{checkout.product.name}</p>
+                    {checkout.product.description && <p className="text-xs mb-2" style={{ color: "rgba(255,255,255,0.45)" }}>{checkout.product.description}</p>}
+                    <div className="flex items-baseline gap-2">
                       <span className="text-xl font-extrabold" style={{ color: accent, textShadow: `0 0 20px ${accent}80` }}>
                         £{calcPlayerPrice(checkout.product.price).toFixed(2)}
                       </span>
-                      {feeMode === "passthrough" && <p className="text-xs" style={{ color: "rgba(255,255,255,0.35)" }}>incl. fee</p>}
+                      {feeMode === "passthrough" && <span className="text-xs" style={{ color: "rgba(255,255,255,0.35)" }}>incl. fee</span>}
                     </div>
                   </div>
 
