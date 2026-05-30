@@ -980,12 +980,12 @@ function CountdownBanner({ title, subtitle, endDate, ownerUsername, accent }: {
     <div
       style={{
         background: `linear-gradient(135deg, ${accent}dd 0%, ${accent}99 60%, ${accent}bb 100%)`,
-        height: 160,
+        height: "clamp(110px, 28vw, 160px)",
         position: "relative",
         overflow: "hidden",
         display: "flex",
         alignItems: "center",
-        paddingRight: 24,
+        paddingRight: 16,
       }}
     >
       {/* Dark overlay */}
@@ -995,8 +995,8 @@ function CountdownBanner({ title, subtitle, endDate, ownerUsername, accent }: {
       {skinUrl && (
         <div style={{
           position: "relative",
-          width: 140,
-          height: 160,
+          width: "clamp(80px, 18vw, 140px)",
+          height: "clamp(110px, 28vw, 160px)",
           flexShrink: 0,
           zIndex: 10,
         }}>
@@ -1043,34 +1043,35 @@ function CountdownBanner({ title, subtitle, endDate, ownerUsername, accent }: {
       {/* Text block */}
       <div style={{ flex: 1, position: "relative", zIndex: 10 }}>
         <p style={{ fontSize: 10, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.12em", color: "rgba(255,255,255,0.6)", marginBottom: 2 }}>LIMITED TIME</p>
-        <p style={{ fontWeight: 800, fontSize: 20, lineHeight: 1.2, color: "#fff", textShadow: "0 1px 6px rgba(0,0,0,0.5)", margin: 0 }}>{title}</p>
-        {subtitle && <p style={{ fontSize: 12, color: "rgba(255,255,255,0.8)", marginTop: 4, margin: 0 }}>{subtitle}</p>}
+        <p style={{ fontWeight: 800, fontSize: "clamp(13px, 3.5vw, 20px)", lineHeight: 1.2, color: "#fff", textShadow: "0 1px 6px rgba(0,0,0,0.5)", margin: 0 }}>{title}</p>
+        {subtitle && <p style={{ fontSize: "clamp(9px, 2.5vw, 12px)", color: "rgba(255,255,255,0.8)", marginTop: 4, margin: 0 }}>{subtitle}</p>}
       </div>
 
       {/* Countdown digits */}
-      <div style={{ display: "flex", alignItems: "center", gap: 8, position: "relative", zIndex: 10, flexShrink: 0 }}>
+      <div className="flex items-center gap-1.5 sm:gap-2" style={{ position: "relative", zIndex: 10, flexShrink: 0 }}>
         {[
           { val: timeLeft.days, label: "Days" },
-          { val: timeLeft.hours, label: "Hours" },
-          { val: timeLeft.mins, label: "Mins" },
-          { val: timeLeft.secs, label: "Secs" },
+          { val: timeLeft.hours, label: "Hrs" },
+          { val: timeLeft.mins, label: "Min" },
+          { val: timeLeft.secs, label: "Sec" },
         ].map(({ val, label }, i) => (
-          <div key={label} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-              <div style={{
-                width: 52, height: 48,
-                background: "rgba(0,0,0,0.5)",
-                borderRadius: 8,
-                display: "flex", alignItems: "center", justifyContent: "center",
-                fontWeight: 800, fontSize: 24, color: "#fff",
-                letterSpacing: -1,
-                backdropFilter: "blur(4px)",
-              }}>
+          <div key={label} className="flex items-center gap-1.5 sm:gap-2">
+            <div className="flex flex-col items-center">
+              <div className="flex items-center justify-center font-extrabold text-white"
+                style={{
+                  width: "clamp(34px, 8vw, 52px)",
+                  height: "clamp(30px, 7vw, 48px)",
+                  fontSize: "clamp(14px, 4vw, 24px)",
+                  background: "rgba(0,0,0,0.5)",
+                  borderRadius: 8,
+                  letterSpacing: -1,
+                  backdropFilter: "blur(4px)",
+                }}>
                 {pad(val)}
               </div>
-              <span style={{ fontSize: 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "rgba(255,255,255,0.7)", marginTop: 4 }}>{label}</span>
+              <span className="font-bold uppercase text-white/70" style={{ fontSize: "clamp(7px, 1.8vw, 9px)", letterSpacing: "0.08em", marginTop: 3 }}>{label}</span>
             </div>
-            {i < 3 && <span style={{ fontWeight: 800, color: "#fff", fontSize: 18, marginBottom: 14, opacity: 0.6 }}>:</span>}
+            {i < 3 && <span className="font-extrabold text-white/60" style={{ fontSize: "clamp(12px, 3vw, 18px)", marginBottom: 14 }}>:</span>}
           </div>
         ))}
       </div>
