@@ -1866,24 +1866,27 @@ export default function ServerDashboard() {
                       <Button
                         size="sm" variant="ghost" className="h-6 px-2 text-xs gap-1"
                         onClick={() => {
-                          const cfg = `webhook-secret: "${server?.webhookSecret || "your-secret-here"}"
-webhook-port: 8123
-debug: false`;
+                          const storeUrl = `https://${window.location.hostname}`;
+                          const cfg = `# CraftStore Plugin Configuration\n# Get your server ID and secret key from your CraftStore server dashboard\n\n# Your CraftStore server ID (found in your dashboard URL: /servers/YOUR_ID)\nserver-id: "${id}"\n\n# Secret key for webhook verification (set this in your CraftStore dashboard → Settings)\nwebhook-secret: "${server?.webhookSecret || "your-secret-here"}"\n\n# Your CraftStore store URL\nstore-url: "${storeUrl}"\n\n# Port for the webhook listener (must be open/forwarded on your server)\n# CraftStore will POST purchase events to: http://YOUR_SERVER_IP:webhook-port/craftstore/webhook\nwebhook-port: 8123\n\n# How long to queue commands for offline players (in minutes, 0 = forever until they join)\noffline-queue-timeout: 0\n\n# Debug mode - logs all webhook requests\ndebug: false`;
                           navigator.clipboard.writeText(cfg);
                         }}
                       >
                         <Copy className="w-3 h-3" /> Copy
                       </Button>
                     </div>
-                    <div className="bg-muted/30 rounded-lg p-4 text-xs font-mono text-green-400 space-y-0.5">
-                      <p className="text-muted-foreground"># CraftStorePlugin config.yml</p>
-                      <p>webhook-secret: <span className="text-yellow-400">"{server?.webhookSecret || "your-secret-here"}"</span></p>
-                      <p>webhook-port: <span className="text-blue-400">8123</span></p>
-                      <p>debug: <span className="text-blue-400">false</span></p>
+                    <div className="bg-muted/30 rounded-lg p-4 text-xs font-mono space-y-0.5">
+                      <p className="text-muted-foreground"># CraftStore Plugin Configuration</p>
+                      <p className="text-muted-foreground"># Get your server ID and secret from your CraftStore dashboard</p>
+                      <p className="mt-1 text-green-400">server-id: <span className="text-yellow-400">"{id}"</span></p>
+                      <p className="text-green-400">webhook-secret: <span className="text-yellow-400">"{server?.webhookSecret || "your-secret-here"}"</span></p>
+                      <p className="text-green-400">store-url: <span className="text-yellow-400">"{window.location.hostname}"</span></p>
+                      <p className="text-green-400">webhook-port: <span className="text-blue-400">8123</span></p>
+                      <p className="text-green-400">offline-queue-timeout: <span className="text-blue-400">0</span></p>
+                      <p className="text-green-400">debug: <span className="text-blue-400">false</span></p>
                     </div>
                     <p className="text-xs text-muted-foreground mt-1.5">
                       Then set your Webhook URL in CraftStore to{" "}
-                      <code className="bg-muted px-1 py-0.5 rounded">http://YOUR_SERVER_IP:8123/webhook</code>
+                      <code className="bg-muted px-1 py-0.5 rounded">http://YOUR_SERVER_IP:8123/craftstore/webhook</code>
                     </p>
                   </div>
 
