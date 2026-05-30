@@ -1265,7 +1265,8 @@ function RecentPurchasesSidebar({ serverId, accent }: { serverId: number; accent
           borderRadius: 20,
           padding: "20px 16px",
           boxShadow: "0 16px 60px rgba(0,0,0,0.8)",
-          pointerEvents: "none",
+          pointerEvents: "auto",
+          touchAction: "pan-x",
         }}>
         {/* Header */}
         <div className="flex items-center gap-2 mb-4">
@@ -1379,7 +1380,8 @@ function TopCustomersSidebar({ serverId, accent }: { serverId: number; accent: s
           borderRadius: 24,
           padding: "24px 20px",
           boxShadow: "0 16px 60px rgba(0,0,0,0.8)",
-          pointerEvents: "none",
+          pointerEvents: "auto",
+          touchAction: "pan-x",
         }}
       >
         {/* Header */}
@@ -1399,11 +1401,11 @@ function TopCustomersSidebar({ serverId, accent }: { serverId: number; accent: s
             {top3.map((entry, i) => (
               <div key={entry.minecraftUsername} className="flex flex-col items-center gap-2">
                 <div style={{ fontSize: 28, lineHeight: 1 }}>{medals[i]}</div>
-                <div className="relative" style={{ width: 110, height: 148 }}>
+                <div className="relative" style={{ width: 90 }}>
                   <img
                     src={`https://nmsr.nickac.dev/fullbody/${entry.minecraftUsername}`}
                     alt={entry.minecraftUsername}
-                    style={{ width: 110, height: 148, objectFit: "contain", imageRendering: "pixelated", filter: i === 0 ? `drop-shadow(0 0 12px ${accent}99)` : "drop-shadow(0 2px 6px rgba(0,0,0,0.5))" }}
+                    style={{ width: 90, height: "auto", display: "block", imageRendering: "pixelated", filter: i === 0 ? `drop-shadow(0 0 12px ${accent}99)` : "drop-shadow(0 2px 6px rgba(0,0,0,0.5))" }}
                     onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
                   />
                   {i === 0 && (
