@@ -800,10 +800,11 @@ export default function StoreAppearance({ serverId }: Props) {
                       window.addEventListener("mouseup", onUp);
                     }}
                   >
-                    {isVid ? (
-                      <video src={watch("bannerImageUrl")} autoPlay loop muted playsInline
-                        className="w-full block" style={{ objectFit: "cover", objectPosition: `center ${focalY}`, maxHeight: 320 }} />
-                    ) : (
+                    {isVid ? (() => {
+                      const vRef = (el: HTMLVideoElement | null) => { if (el) { el.muted = true; el.play().catch(() => {}); } };
+                      return <video ref={vRef} src={watch("bannerImageUrl")} autoPlay loop muted playsInline
+                        className="w-full block" style={{ objectFit: "cover", objectPosition: `center ${focalY}`, maxHeight: 320 }} />;
+                    })() : (
                       <img src={watch("bannerImageUrl")} alt="Banner preview"
                         className="w-full block" style={{ objectFit: "cover", objectPosition: `center ${focalY}`, maxHeight: 320 }} />
                     )}
@@ -915,7 +916,7 @@ export default function StoreAppearance({ serverId }: Props) {
             {watch("bannerUrl") && (
               <div className="rounded-xl overflow-hidden border border-border/40 relative group mt-2">
                 {watch("bannerUrl").startsWith("data:video/") || watch("bannerUrl").endsWith(".mp4") ? (
-                  <video src={watch("bannerUrl")} autoPlay loop muted playsInline className="w-full object-cover" style={{ maxHeight: 120 }} />
+                  <video ref={(el) => { if (el) { el.muted = true; el.play().catch(() => {}); } }} src={watch("bannerUrl")} autoPlay loop muted playsInline className="w-full object-cover" style={{ maxHeight: 120 }} />
                 ) : (
                   <img src={watch("bannerUrl")} alt="Banner preview" className="w-full object-cover" style={{ maxHeight: 120 }} />
                 )}

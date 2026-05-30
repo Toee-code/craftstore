@@ -1529,6 +1529,29 @@ function MostPopularSection({ serverId, accent, onBuy, onGift, calcPlayerPrice, 
   );
 }
 
+// ─── AutoVideo — forces autoplay+muted as DOM properties for iOS Safari ─────────
+function AutoVideo({ src, className, style }: { src: string; className?: string; style?: React.CSSProperties }) {
+  const ref = useRef<HTMLVideoElement>(null);
+  useEffect(() => {
+    const v = ref.current;
+    if (!v) return;
+    v.muted = true;
+    v.play().catch(() => {});
+  }, [src]);
+  return (
+    <video
+      ref={ref}
+      src={src}
+      autoPlay
+      loop
+      muted
+      playsInline
+      className={className}
+      style={style}
+    />
+  );
+}
+
 // ─── Promotional Banner ──────────────────────────────────────────────────────
 function PromoBanner({ data }: { data: StoreData }) {
   const bannerSrc = (data.theme as any).bannerImageUrl as string | undefined;
@@ -1536,7 +1559,7 @@ function PromoBanner({ data }: { data: StoreData }) {
   if (!bannerSrc) return null;
   const isVideo = bannerSrc.startsWith("data:video/") || bannerSrc.endsWith(".mp4") || bannerSrc.endsWith(".webm");
   const media = isVideo ? (
-    <video src={bannerSrc} autoPlay loop muted playsInline
+    <AutoVideo src={bannerSrc}
       className="w-full object-cover" style={{ maxHeight: 200, minHeight: 80, display: "block" }} />
   ) : (
     <img src={bannerSrc} alt="Promotional banner"
@@ -1589,7 +1612,7 @@ function EchoLayout({
             return (
               <div className="relative w-full overflow-hidden">
                 {isVideo ? (
-                  <video src={heroSrc} autoPlay loop muted playsInline
+                  <AutoVideo src={heroSrc}
                     className="w-full block"
                     style={{ objectFit: "cover", objectPosition: objPos, maxHeight: 320 }} />
                 ) : (
@@ -2851,7 +2874,7 @@ function ThemedStore({ data }: { data: StoreData }) {
               {/* Banner image */}
               {data.theme.bannerUrl ? (
                 data.theme.bannerUrl.startsWith("data:video/") || data.theme.bannerUrl.endsWith(".mp4") || data.theme.bannerUrl.endsWith(".webm") ? (
-                  <video src={data.theme.bannerUrl} autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover" style={{ display: "block" }} />
+                  <AutoVideo src={data.theme.bannerUrl!} className="absolute inset-0 w-full h-full object-cover" style={{ display: "block" }} />
                 ) : (
                   <img src={data.theme.bannerUrl} alt="banner" className="absolute inset-0 w-full h-full object-cover" />
                 )
