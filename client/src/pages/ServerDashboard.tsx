@@ -639,13 +639,14 @@ function DomainTab({ server }: { serverId: number; server?: any }) {
 }
 
 
-function WebhookSecretEditor({ serverId, currentSecret }: { serverId: number; currentSecret: string }) {
+function WebhookSecretEditor({ serverId, currentSecret, currentWebhookUrl }: { serverId: number; currentSecret: string; currentWebhookUrl: string }) {
   const [secret, setSecret] = useState(currentSecret);
+  const [webhookUrl, setWebhookUrl] = useState(currentWebhookUrl);
   const [saved, setSaved] = useState(false);
   const queryClient = useQueryClient();
 
   const saveMutation = useMutation({
-    mutationFn: () => apiRequest("PATCH", `/api/servers/${serverId}`, { webhookSecret: secret }).then(r => r.json()),
+    mutationFn: () => apiRequest("PATCH", `/api/servers/${serverId}`, { webhookSecret: secret, webhookUrl }).then(r => r.json()),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/servers", serverId] });
       setSaved(true);
@@ -654,23 +655,37 @@ function WebhookSecretEditor({ serverId, currentSecret }: { serverId: number; cu
   });
 
   return (
-    <div>
-      <Label>Webhook Secret</Label>
-      <div className="flex gap-2 mt-1.5">
-        <Input
-          value={secret}
-          onChange={e => setSecret(e.target.value)}
-          placeholder="Enter a secret key e.g. mysecret123"
-          className="font-mono text-xs"
-        />
-        <Button size="sm" variant="outline" onClick={() => { navigator.clipboard.writeText(secret); }}>
-          <Copy className="w-3.5 h-3.5" />
-        </Button>
-        <Button size="sm" onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
-          {saved ? "Saved!" : saveMutation.isPending ? "Saving..." : "Save"}
-        </Button>
+    <div className="space-y-4">
+      <div>
+        <Label>Webhook URL</Label>
+        <div className="flex gap-2 mt-1.5">
+          <Input
+            value={webhookUrl}
+            onChange={e => setWebhookUrl(e.target.value)}
+            placeholder="http://YOUR_SERVER_IP:8123/craftstore/webhook"
+            className="font-mono text-xs"
+          />
+        </div>
+        <p className="text-xs text-muted-foreground mt-1.5">The URL CraftStore will POST purchase events to. Replace YOUR_SERVER_IP with your Minecraft server's IP address.</p>
       </div>
-      <p className="text-xs text-muted-foreground mt-1.5">Set a secret, put it in your plugin config.yml, and CraftStore will send it with every webhook so your plugin can verify it.</p>
+      <div>
+        <Label>Webhook Secret</Label>
+        <div className="flex gap-2 mt-1.5">
+          <Input
+            value={secret}
+            onChange={e => setSecret(e.target.value)}
+            placeholder="Enter a secret key e.g. mysecret123"
+            className="font-mono text-xs"
+          />
+          <Button size="sm" variant="outline" onClick={() => { navigator.clipboard.writeText(secret); }}>
+            <Copy className="w-3.5 h-3.5" />
+          </Button>
+        </div>
+        <p className="text-xs text-muted-foreground mt-1.5">Must match the webhook-secret in your plugin config.yml.</p>
+      </div>
+      <Button size="sm" onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
+        {saved ? "Saved!" : saveMutation.isPending ? "Saving..." : "Save Webhook Settings"}
+      </Button>
     </div>
   );
 }
@@ -1857,7 +1872,7 @@ export default function ServerDashboard() {
                   <CardDescription>Install the plugin on your Minecraft server, then paste the generated config below into <code className="text-xs bg-muted px-1 py-0.5 rounded">plugins/CraftStorePlugin/config.yml</code></CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <WebhookSecretEditor serverId={Number(id)} currentSecret={server?.webhookSecret || ""} />
+                  <WebhookSecretEditor serverId={Number(id)} currentSecret={server?.webhookSecret || ""} currentWebhookUrl={server?.webhookUrl || ""} />
 
                   {/* Auto-generated config.yml */}
                   <div>
