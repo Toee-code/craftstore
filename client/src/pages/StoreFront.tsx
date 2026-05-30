@@ -1499,11 +1499,11 @@ function EchoLayout({
       </div>
 
       {/* ── Featured Packages ───────────────────────────────────── */}
-      {isHome && activeProducts.length > 0 && (
+      {isHome && activeProducts.filter(p => !!(p as any).featured).length > 0 && (
         <div className="mb-10">
           <h2 className="font-extrabold text-white text-xl mb-4">Featured Packages</h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-            {activeProducts.slice(0, 8).map(p => (
+            {activeProducts.filter(p => !!(p as any).featured).map(p => (
               <EchoProductCard key={p.id} product={p} accent={accent}
                 playerPrice={calcPlayerPrice(p.price)} onBuy={onBuy} onGift={onGift} />
             ))}

@@ -17,7 +17,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   ArrowLeft, Plus, Trash2, ExternalLink, Package, Users, ShoppingCart,
-  BarChart3, Terminal, Copy, Edit3, TrendingUp, DollarSign, Paintbrush, Sparkles,
+  BarChart3, Terminal, Copy, Edit3, TrendingUp, DollarSign, Paintbrush, Sparkles, Star,
   ChevronRight, Loader2, Gift, Globe, CheckCircle2, CreditCard, XCircle, AlertCircle
 } from "lucide-react";
 import StoreAppearance from "./StoreAppearance";
@@ -450,7 +450,7 @@ function ProductImagePicker({
 interface ProductForm {
   name: string; description: string; price: number;
   command: string; category: string; stock: number; imageUrl: string;
-  imageType: string; playerHeadName: string; enchanted: boolean;
+  imageType: string; playerHeadName: string; enchanted: boolean; featured: boolean;
 }
 interface MemberForm { minecraftUsername: string; email: string; balance: number; }
 
@@ -922,7 +922,7 @@ export default function ServerDashboard() {
   };
 
   // Add product
-  const productForm = useForm<ProductForm>({ defaultValues: { imageType: "upload", playerHeadName: "", stock: -1, enchanted: false } });
+  const productForm = useForm<ProductForm>({ defaultValues: { imageType: "upload", playerHeadName: "", stock: -1, enchanted: false, featured: false } });
   const addProduct = useMutation({
     mutationFn: (data: ProductForm) =>
       apiRequest("POST", `/api/servers/${serverId}/products`, data).then(r => r.json()),
@@ -930,13 +930,13 @@ export default function ServerDashboard() {
       qc.invalidateQueries({ queryKey: ["/api/servers", serverId, "products"] });
       qc.invalidateQueries({ queryKey: ["/api/servers", serverId, "stats"] });
       setAddProductOpen(false);
-      productForm.reset({ imageType: "upload", playerHeadName: "", stock: -1, enchanted: false });
+      productForm.reset({ imageType: "upload", playerHeadName: "", stock: -1, enchanted: false, featured: false });
       toast({ title: "Product added" });
     },
   });
 
   // Edit product
-  const editForm = useForm<ProductForm>({ defaultValues: { imageType: "upload", playerHeadName: "", stock: -1, enchanted: false } });
+  const editForm = useForm<ProductForm>({ defaultValues: { imageType: "upload", playerHeadName: "", stock: -1, enchanted: false, featured: false } });
   const updateProduct = useMutation({
     mutationFn: (data: ProductForm & { id: number }) =>
       apiRequest("PATCH", `/api/products/${data.id}`, data).then(r => r.json()),
@@ -961,6 +961,7 @@ export default function ServerDashboard() {
       imageType: (p as any).imageType ?? "upload",
       playerHeadName: (p as any).playerHeadName ?? "",
       enchanted: !!(p as any).enchanted,
+      featured: !!(p as any).featured,
     });
   };
 
@@ -1280,6 +1281,19 @@ export default function ServerDashboard() {
                         <span className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform ${productForm.watch("enchanted") ? "translate-x-4" : ""}`} />
                       </button>
                     </div>
+                    {/* Featured toggle */}
+                    <div className="flex items-center justify-between rounded-xl bg-yellow-500/10 border border-yellow-500/30 px-4 py-3">
+                      <div>
+                        <p className="text-sm font-medium flex items-center gap-1.5"><Star className="w-3.5 h-3.5 text-yellow-400" /> Featured Package</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">Show this item in the Featured Packages section on the store home page</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => productForm.setValue("featured", !productForm.watch("featured"))}
+                        className={`relative w-10 h-6 rounded-full transition-colors ${productForm.watch("featured") ? "bg-yellow-500" : "bg-muted"}`}>
+                        <span className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform ${productForm.watch("featured") ? "translate-x-4" : ""}`} />
+                      </button>
+                    </div>
                     <ProductImagePicker
                       imageType={productForm.watch("imageType") || "upload"}
                       setImageType={(v) => productForm.setValue("imageType", v)}
@@ -1346,6 +1360,19 @@ export default function ServerDashboard() {
                       onClick={() => editForm.setValue("enchanted", !editForm.watch("enchanted"))}
                       className={`relative w-10 h-6 rounded-full transition-colors ${editForm.watch("enchanted") ? "bg-purple-500" : "bg-muted"}`}>
                       <span className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform ${editForm.watch("enchanted") ? "translate-x-4" : ""}`} />
+                    </button>
+                  </div>
+                  {/* Featured toggle */}
+                  <div className="flex items-center justify-between rounded-xl bg-yellow-500/10 border border-yellow-500/30 px-4 py-3">
+                    <div>
+                      <p className="text-sm font-medium flex items-center gap-1.5"><Star className="w-3.5 h-3.5 text-yellow-400" /> Featured Package</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">Show this item in the Featured Packages section on the store home page</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => editForm.setValue("featured", !editForm.watch("featured"))}
+                      className={`relative w-10 h-6 rounded-full transition-colors ${editForm.watch("featured") ? "bg-yellow-500" : "bg-muted"}`}>
+                      <span className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform ${editForm.watch("featured") ? "translate-x-4" : ""}`} />
                     </button>
                   </div>
                   <ProductImagePicker
