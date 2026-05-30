@@ -22,7 +22,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import {
-  LayoutGrid, List, Star, Plus, Trash2, Save, Eye, Loader2,
+  LayoutGrid, List, Star, Plus, Trash2, Save, Eye, Loader2, Upload,
   Palette, Type, ImageIcon, Megaphone, Home, DollarSign,
   ChevronDown, ChevronRight, MessageSquare, X, Globe, Server, Image, Layers, Timer
 } from "lucide-react";
@@ -90,7 +90,11 @@ export default function StoreAppearance({ serverId }: Props) {
   // Server info state (logo, discord, IP — stored on servers table)
   const [serverInfo, setServerInfo] = useState<ServerInfoForm>({ logoUrl: "", discordUrl: "", serverIp: "" });
   const [logoUploading, setLogoUploading] = useState(false);
+  const [bannerUploading, setBannerUploading] = useState(false);
+  const [promoBannerUploading, setPromoBannerUploading] = useState(false);
   const logoFileRef = useRef<HTMLInputElement>(null);
+  const bannerFileRef = useRef<HTMLInputElement>(null);
+  const promoBannerFileRef = useRef<HTMLInputElement>(null);
 
   const { data: theme, isLoading } = useQuery<any>({
     queryKey: ["/api/servers", serverId, "theme"],
@@ -204,6 +208,54 @@ export default function StoreAppearance({ serverId }: Props) {
       } catch {
         toast({ title: "Upload failed", variant: "destructive" });
       } finally { setLogoUploading(false); }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleBannerUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast({ title: "Please select an image file", variant: "destructive" }); return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      toast({ title: "Image too large", description: "Max 2MB", variant: "destructive" }); return;
+    }
+    setBannerUploading(true);
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const dataUrl = reader.result as string;
+      try {
+        const res = await apiRequest("POST", "/api/upload-image", { dataUrl }).then(r => r.json());
+        setValue("bannerUrl", res.url);
+        toast({ title: "Banner uploaded" });
+      } catch {
+        toast({ title: "Upload failed", variant: "destructive" });
+      } finally { setBannerUploading(false); }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handlePromoBannerUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast({ title: "Please select an image file", variant: "destructive" }); return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      toast({ title: "Image too large", description: "Max 2MB", variant: "destructive" }); return;
+    }
+    setPromoBannerUploading(true);
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const dataUrl = reader.result as string;
+      try {
+        const res = await apiRequest("POST", "/api/upload-image", { dataUrl }).then(r => r.json());
+        setValue("bannerImageUrl", res.url);
+        toast({ title: "Banner uploaded" });
+      } catch {
+        toast({ title: "Upload failed", variant: "destructive" });
+      } finally { setPromoBannerUploading(false); }
     };
     reader.readAsDataURL(file);
   };
@@ -687,15 +739,43 @@ export default function StoreAppearance({ serverId }: Props) {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-1.5">
-            <Label>Banner image URL</Label>
-            <Input placeholder="https://i.imgur.com/your-banner.png" {...register("bannerImageUrl")} />
-            <p className="text-xs text-muted-foreground">Recommended size: 1200×300px. Paste a direct image link. Leave blank to hide.</p>
+            <Label>Banner image</Label>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="shrink-0 gap-1.5"
+                disabled={promoBannerUploading}
+                onClick={() => promoBannerFileRef.current?.click()}
+              >
+                {promoBannerUploading
+                  ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Uploading…</>
+                  : <><Upload className="w-3.5 h-3.5" /> Upload Image</>}
+              </Button>
+              <Input placeholder="…or paste image URL" {...register("bannerImageUrl")} />
+            </div>
+            <p className="text-xs text-muted-foreground">Recommended size: 1200×300px. Upload or paste a direct image link. Leave blank to hide.</p>
           </div>
           {watch("bannerImageUrl") && (
-            <div className="rounded-xl overflow-hidden border border-border/40">
+            <div className="rounded-xl overflow-hidden border border-border/40 relative group">
               <img src={watch("bannerImageUrl")} alt="Banner preview" className="w-full object-cover" style={{ maxHeight: 160 }} />
+              <button
+                type="button"
+                onClick={() => setValue("bannerImageUrl", "")}
+                className="absolute top-2 right-2 bg-black/60 hover:bg-black/80 text-white rounded-full w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
             </div>
           )}
+          <input
+            ref={promoBannerFileRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handlePromoBannerUpload}
+          />
           <div className="space-y-1.5">
             <Label>Click-through URL (optional)</Label>
             <Input placeholder="https://discord.gg/yourserver" {...register("bannerLinkUrl")} />
@@ -715,8 +795,42 @@ export default function StoreAppearance({ serverId }: Props) {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-1.5">
-            <Label className="flex items-center gap-1.5"><ImageIcon className="w-3.5 h-3.5" /> Banner image URL</Label>
-            <Input placeholder="https://i.imgur.com/your-banner.png" {...register("bannerUrl")} />
+            <Label className="flex items-center gap-1.5"><ImageIcon className="w-3.5 h-3.5" /> Banner image</Label>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="shrink-0 gap-1.5"
+                disabled={bannerUploading}
+                onClick={() => bannerFileRef.current?.click()}
+              >
+                {bannerUploading
+                  ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Uploading…</>
+                  : <><Upload className="w-3.5 h-3.5" /> Upload Image</>}
+              </Button>
+              <Input placeholder="…or paste image URL" {...register("bannerUrl")} />
+            </div>
+            {watch("bannerUrl") && (
+              <div className="rounded-xl overflow-hidden border border-border/40 relative group mt-2">
+                <img src={watch("bannerUrl")} alt="Banner preview" className="w-full object-cover" style={{ maxHeight: 120 }} />
+                <button
+                  type="button"
+                  onClick={() => setValue("bannerUrl", "")}
+                  className="absolute top-2 right-2 bg-black/60 hover:bg-black/80 text-white rounded-full w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
+            <input
+              ref={bannerFileRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleBannerUpload}
+            />
+            <p className="text-xs text-muted-foreground">Shown as the hero image on your store card. Upload or paste a link. Leave blank to show the default icon.</p>
           </div>
           <div className="space-y-1.5">
             <Label>Announcement text</Label>
