@@ -1825,6 +1825,28 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
   });
 
   // Admin: revoke a subdomain claim by server id
+  // Admin: manually create an order (for backfilling missed donations/purchases)
+  app.post("/api/admin/orders", requireAdmin, (req, res) => {
+    try {
+      const { serverId, productId, minecraftUsername, amount, platformFee, status } = req.body;
+      if (!serverId || !minecraftUsername || !amount) return res.status(400).json({ error: "serverId, minecraftUsername, amount required" });
+      let member = storage.getMemberByUsername(Number(serverId), minecraftUsername);
+      if (!member) member = storage.createMember({ serverId: Number(serverId), minecraftUsername, balance: 0, totalSpent: 0 });
+      const order = storage.createOrder({
+        serverId: Number(serverId),
+        productId: productId ? Number(productId) : 1,
+        memberId: member.id,
+        minecraftUsername,
+        amount: Number(amount),
+        platformFee: platformFee ? Number(platformFee) : Math.round(Number(amount) * 0.2 * 100) / 100,
+        status: status || "completed",
+        webhookDelivered: false,
+      });
+      storage.updateMemberTotalSpent(member.id, Number(amount));
+      res.json({ success: true, order, member });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
   app.delete("/api/admin/subdomains/:serverId", requireAdmin, (req, res) => {
     try {
       storage.revokeSubdomain(Number(req.params.serverId));
