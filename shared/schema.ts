@@ -96,6 +96,8 @@ export const orders = sqliteTable("orders", {
   stripePaymentIntentId: text("stripe_payment_intent_id"),
   webhookDelivered: integer("webhook_delivered", { mode: "boolean" }).default(false),
   webhookRetryCount: integer("webhook_retry_count").notNull().default(0),
+  creatorCodeUsed: text("creator_code_used"),
+  creatorCodeDiscount: integer("creator_code_discount").notNull().default(0),
   createdAt: text("created_at").notNull().default(new Date().toISOString()),
 });
 
@@ -265,3 +267,21 @@ export const memberSessions = sqliteTable("member_sessions", {
 });
 
 export type MemberSessionRow = typeof memberSessions.$inferSelect;
+
+// ─── Creator Codes ────────────────────────────────────────────────────────────
+// Creators get a % of sales when buyers enter their code at checkout
+export const creatorCodes = sqliteTable("creator_codes", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  serverId: integer("server_id").notNull(),
+  code: text("code").notNull(),                // e.g. "TOEE10"
+  creatorName: text("creator_name").notNull(),
+  rewardPercent: integer("reward_percent").notNull().default(10), // % of sale credited to creator (earnings tracking)
+  discountPercent: integer("discount_percent").notNull().default(0), // % buyer discount (0 = no discount)
+  totalEarned: integer("total_earned").notNull().default(0),     // total pence/cents earned
+  active: integer("active").notNull().default(1),
+  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+});
+
+export const insertCreatorCodeSchema = createInsertSchema(creatorCodes).omit({ id: true, createdAt: true, totalEarned: true });
+export type InsertCreatorCode = z.infer<typeof insertCreatorCodeSchema>;
+export type CreatorCode = typeof creatorCodes.$inferSelect;

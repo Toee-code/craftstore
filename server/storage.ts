@@ -205,6 +205,20 @@ const alterStatements = [
   // v9 — preorder
   "ALTER TABLE products ADD COLUMN preorder INTEGER DEFAULT 0",
   "ALTER TABLE products ADD COLUMN preorder_release_date TEXT",
+  // v10 — creator codes
+  "ALTER TABLE orders ADD COLUMN creator_code_used TEXT",
+  "ALTER TABLE orders ADD COLUMN creator_code_discount INTEGER DEFAULT 0",
+  `CREATE TABLE IF NOT EXISTS creator_codes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    server_id INTEGER NOT NULL,
+    code TEXT NOT NULL,
+    creator_name TEXT NOT NULL,
+    reward_percent INTEGER NOT NULL DEFAULT 10,
+    discount_percent INTEGER NOT NULL DEFAULT 0,
+    total_earned INTEGER NOT NULL DEFAULT 0,
+    active INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`,
 ];
 for (const stmt of alterStatements) {
   try { sqlite.exec(stmt); } catch { /* column already exists */ }
@@ -993,5 +1007,23 @@ export const storage: IStorage = {
   },
   deleteExpiredMemberSessions() {
     db.delete(memberSessions).where(sql`expires_at < ${new Date().toISOString()}`).run();
+  },
+  // ── Creator Codes ──────────────────────────────────────────────────────────
+  createCreatorCode(data: InsertCreatorCode): CreatorCode {
+    return db.insert(creatorCodes).values(data).returning().get() as CreatorCode;
+  },
+  getCreatorCodesByServer(serverId: number): CreatorCode[] {
+    return db.select().from(creatorCodes).where(eq(creatorCodes.serverId, serverId)).all() as CreatorCode[];
+  },
+  getCreatorCodeByCode(serverId: number, code: string): CreatorCode | undefined {
+    return db.select().from(creatorCodes)
+      .where(sql`server_id = ${serverId} AND upper(code) = upper(${code}) AND active = 1`)
+      .get() as CreatorCode | undefined;
+  },
+  updateCreatorCodeEarnings(id: number, earned: number) {
+    db.update(creatorCodes).set({ totalEarned: sql`total_earned + ${earned}` }).where(eq(creatorCodes.id, id)).run();
+  },
+  deleteCreatorCode(id: number) {
+    db.delete(creatorCodes).where(eq(creatorCodes.id, id)).run();
   },
 };

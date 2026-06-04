@@ -358,6 +358,7 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
     res.json(result);
   });
 
+
   // Most purchased products
   app.get("/api/servers/:serverId/most-purchased", (req, res) => {
     const serverId = Number(req.params.serverId);
@@ -365,10 +366,53 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
     res.json(storage.getMostPurchased(serverId, limit));
   });
 
+  // ── Creator Codes ──────────────────────────────────────────────────────────
+  // List codes for a server
+  app.get("/api/servers/:serverId/creator-codes", (req, res) => {
+    const serverId = Number(req.params.serverId);
+    res.json(storage.getCreatorCodesByServer(serverId));
+  });
+
+  // Create a new creator code
+  app.post("/api/servers/:serverId/creator-codes", (req, res) => {
+    const serverId = Number(req.params.serverId);
+    const { code, creatorName, rewardPercent, discountPercent } = req.body;
+    if (!code || !creatorName) return res.status(400).json({ error: "code and creatorName required" });
+    // Check uniqueness within server
+    const existing = storage.getCreatorCodeByCode(serverId, code);
+    if (existing) return res.status(409).json({ error: "Code already exists for this server" });
+    const created = storage.createCreatorCode({
+      serverId,
+      code: code.toUpperCase(),
+      creatorName,
+      rewardPercent: Number(rewardPercent) || 10,
+      discountPercent: Number(discountPercent) || 0,
+      active: 1,
+    });
+    res.json(created);
+  });
+
+  // Delete a creator code
+  app.delete("/api/creator-codes/:id", (req, res) => {
+    const id = Number(req.params.id);
+    storage.deleteCreatorCode(id);
+    res.json({ success: true });
+  });
+
+  // Validate a creator code (player-facing — returns discount % if valid)
+  app.post("/api/servers/:serverId/validate-creator-code", (req, res) => {
+    const serverId = Number(req.params.serverId);
+    const { code } = req.body;
+    if (!code) return res.status(400).json({ error: "code required" });
+    const cc = storage.getCreatorCodeByCode(serverId, code);
+    if (!cc) return res.status(404).json({ error: "Invalid or inactive code" });
+    res.json({ valid: true, creatorName: cc.creatorName, discountPercent: cc.discountPercent, rewardPercent: cc.rewardPercent });
+  });
+
   // Public purchase endpoint (player-facing store)
   app.post("/api/purchase", async (req, res) => {
     try {
-      const { productId, minecraftUsername, serverId } = req.body;
+      const { productId, minecraftUsername, serverId, creatorCode } = req.body;
       if (!productId || !minecraftUsername || !serverId) {
         return res.status(400).json({ error: "Missing required fields" });
       }
@@ -383,12 +427,23 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
       const theme = storage.getStoreTheme(Number(serverId));
       const feeMode = theme?.feeMode || "absorb";
 
-      // Player price: passthrough = base + 20%, absorb = base price
+      // Creator code discount
+      let creatorCodeRecord: any = null;
+      let creatorDiscount = 0;
+      if (creatorCode) {
+        creatorCodeRecord = storage.getCreatorCodeByCode(Number(serverId), creatorCode);
+        if (creatorCodeRecord) creatorDiscount = creatorCodeRecord.discountPercent || 0;
+      }
+
+      // Player price: passthrough = base + 20%, absorb = base price, then apply creator discount
       const basePrice = product.price;
       const platformFee = Math.round(basePrice * PLATFORM_FEE_RATE * 100) / 100;
-      const playerPrice = feeMode === "passthrough"
+      const priceBeforeDiscount = feeMode === "passthrough"
         ? Math.round((basePrice + platformFee) * 100) / 100
         : basePrice;
+      const playerPrice = creatorDiscount > 0
+        ? Math.round(priceBeforeDiscount * (1 - creatorDiscount / 100) * 100) / 100
+        : priceBeforeDiscount;
 
       // Check member balance — auto-create member record if they have a valid account
       let member = storage.getMemberByUsername(Number(serverId), minecraftUsername);
@@ -414,7 +469,13 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
         platformFee,
         status: "pending",
         webhookDelivered: false,
+        creatorCodeUsed: creatorCodeRecord ? creatorCodeRecord.code : null,
+        creatorCodeDiscount: creatorDiscount,
       });
+      // Credit creator code earnings
+      if (creatorCodeRecord) {
+        storage.updateCreatorCodeEarnings(creatorCodeRecord.id, Math.round(playerPrice * (creatorCodeRecord.rewardPercent / 100) * 100));
+      }
 
       // Fire push notification to server owner
     try {
@@ -648,7 +709,7 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
   // ── Direct product purchase via Stripe Checkout ────────────────────────────
   app.post("/api/stripe/product-checkout", async (req, res) => {
     try {
-      const { productId, serverId, minecraftUsername } = req.body;
+      const { productId, serverId, minecraftUsername, creatorCode } = req.body;
       if (!productId || !serverId || !minecraftUsername) {
         return res.status(400).json({ error: "productId, serverId and minecraftUsername required" });
       }
@@ -663,9 +724,20 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
       const feeMode = theme?.feeMode || "absorb";
       const basePrice = product.price;
       const platformFee = Math.round(basePrice * PLATFORM_FEE_RATE * 100) / 100;
-      const playerPrice = feeMode === "passthrough"
+      const priceBeforeDiscount = feeMode === "passthrough"
         ? Math.round((basePrice + platformFee) * 100) / 100
         : basePrice;
+
+      // Creator code discount
+      let ccRecord: any = null;
+      let ccDiscount = 0;
+      if (creatorCode) {
+        ccRecord = storage.getCreatorCodeByCode(Number(serverId), creatorCode);
+        if (ccRecord) ccDiscount = ccRecord.discountPercent || 0;
+      }
+      const playerPrice = ccDiscount > 0
+        ? Math.round(priceBeforeDiscount * (1 - ccDiscount / 100) * 100) / 100
+        : priceBeforeDiscount;
 
       const baseUrl = getBaseUrl(req);
 
@@ -673,7 +745,8 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
       if (!stripe) {
         let member = storage.getMemberByUsername(Number(serverId), minecraftUsername);
         if (!member) member = storage.createMember({ serverId: Number(serverId), minecraftUsername, balance: 0, totalSpent: 0 });
-        const order = storage.createOrder({ serverId: Number(serverId), productId: Number(productId), memberId: member.id, minecraftUsername, amount: playerPrice, platformFee, status: "completed", webhookDelivered: false });
+        const order = storage.createOrder({ serverId: Number(serverId), productId: Number(productId), memberId: member.id, minecraftUsername, amount: playerPrice, platformFee, status: "completed", webhookDelivered: false, creatorCodeUsed: ccRecord ? ccRecord.code : null, creatorCodeDiscount: ccDiscount });
+        if (ccRecord) storage.updateCreatorCodeEarnings(ccRecord.id, Math.round(playerPrice * (ccRecord.rewardPercent / 100) * 100));
         storage.updateMemberTotalSpent(member.id, playerPrice);
         if (server.webhookUrl) {
           const command = product.command.replace("%player%", minecraftUsername).replace("{player}", minecraftUsername);
@@ -728,7 +801,7 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
         presetId: 0, // not a preset
         serverId: Number(serverId),
         status: "pending",
-        metadata: JSON.stringify({ type: "product_purchase", productId, minecraftUsername }),
+        metadata: JSON.stringify({ type: "product_purchase", productId, minecraftUsername, creatorCode: creatorCode || null }),
       } as any);
 
       res.json({ url: session.url, sessionId: session.id });
@@ -751,7 +824,7 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
         const meta = stripeSession.metadata || {};
         if (meta.type !== "product_purchase") return res.status(400).json({ error: "Wrong session type" });
 
-        const { productId, serverId, minecraftUsername } = meta;
+        const { productId, serverId, minecraftUsername, creatorCode: savedCode } = meta;
         const product = storage.getProductById(Number(productId));
         const server = storage.getServerById(Number(serverId));
         if (!product || !server) return res.status(404).json({ error: "Product or server not found" });
@@ -760,9 +833,19 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
         const feeMode = theme?.feeMode || "absorb";
         const basePrice = product.price;
         const platformFee = Math.round(basePrice * PLATFORM_FEE_RATE * 100) / 100;
-        const playerPrice = feeMode === "passthrough"
+        const priceBeforeDiscount = feeMode === "passthrough"
           ? Math.round((basePrice + platformFee) * 100) / 100
           : basePrice;
+        // Re-apply creator code discount from metadata
+        let confirmCC: any = null;
+        let confirmCCDiscount = 0;
+        if (savedCode) {
+          confirmCC = storage.getCreatorCodeByCode(Number(serverId), savedCode);
+          if (confirmCC) confirmCCDiscount = confirmCC.discountPercent || 0;
+        }
+        const playerPrice = confirmCCDiscount > 0
+          ? Math.round(priceBeforeDiscount * (1 - confirmCCDiscount / 100) * 100) / 100
+          : priceBeforeDiscount;
 
         let member = storage.getMemberByUsername(Number(serverId), minecraftUsername);
         if (!member) member = storage.createMember({ serverId: Number(serverId), minecraftUsername, balance: 0, totalSpent: 0 });
@@ -776,7 +859,10 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
           platformFee,
           status: "pending",
           webhookDelivered: false,
+          creatorCodeUsed: confirmCC ? confirmCC.code : null,
+          creatorCodeDiscount: confirmCCDiscount,
         });
+        if (confirmCC) storage.updateCreatorCodeEarnings(confirmCC.id, Math.round(playerPrice * (confirmCC.rewardPercent / 100) * 100));
         storage.updateMemberTotalSpent(member.id, playerPrice);
 
         // Fire webhook to Minecraft server
@@ -909,11 +995,118 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
     }
     if (event.type === "checkout.session.completed") {
       const session = event.data.object as Stripe.Checkout.Session;
-      // Balance top-up
-      if (session.metadata?.type === "balance_topup") {
-        const { serverId, minecraftUsername, amount } = session.metadata;
+      const meta = session.metadata || {};
+
+      // ── Balance top-up ──────────────────────────────────────────────────
+      if (meta.type === "balance_topup") {
+        const { serverId, minecraftUsername, amount } = meta;
         const member = storage.getMemberByUsername(Number(serverId), minecraftUsername);
         if (member) storage.updateMemberBalance(member.id, (member.balance ?? 0) + Number(amount));
+
+      // ── Direct product purchase via Stripe ──────────────────────────────
+      } else if (meta.type === "product_purchase") {
+        // Server-side fulfilment — handles the case where the browser redirect
+        // doesn't call /api/stripe/product-confirm (e.g. tab closed, mobile)
+        const { productId, serverId, minecraftUsername, creatorCode: savedCode } = meta;
+        // Check if order already created (by product-confirm)
+        const existingOrders = storage.getOrdersByServer(Number(serverId))
+          .filter((o: any) => o.stripePaymentIntentId === session.payment_intent ||
+                              (o.minecraftUsername === minecraftUsername && o.productId === Number(productId) &&
+                               Math.abs(new Date(o.createdAt).getTime() - Date.now()) < 5 * 60 * 1000));
+        if (existingOrders.length === 0) {
+          // No order yet — create it now
+          const product = storage.getProductById(Number(productId));
+          const server = storage.getServerById(Number(serverId));
+          if (product && server) {
+            const theme = storage.getStoreTheme(Number(serverId));
+            const feeMode = theme?.feeMode || "absorb";
+            const basePrice = product.price;
+            const platformFee = Math.round(basePrice * PLATFORM_FEE_RATE * 100) / 100;
+            const priceBeforeDiscount = feeMode === "passthrough"
+              ? Math.round((basePrice + platformFee) * 100) / 100
+              : basePrice;
+            let webhookCC: any = null;
+            let webhookCCDiscount = 0;
+            if (savedCode) {
+              webhookCC = storage.getCreatorCodeByCode(Number(serverId), savedCode);
+              if (webhookCC) webhookCCDiscount = webhookCC.discountPercent || 0;
+            }
+            const playerPrice = webhookCCDiscount > 0
+              ? Math.round(priceBeforeDiscount * (1 - webhookCCDiscount / 100) * 100) / 100
+              : priceBeforeDiscount;
+
+            let member = storage.getMemberByUsername(Number(serverId), minecraftUsername);
+            if (!member) member = storage.createMember({ serverId: Number(serverId), minecraftUsername, balance: 0, totalSpent: 0 });
+
+            const order = storage.createOrder({
+              serverId: Number(serverId),
+              productId: Number(productId),
+              memberId: member.id,
+              minecraftUsername,
+              amount: playerPrice,
+              platformFee,
+              status: "pending",
+              webhookDelivered: false,
+              creatorCodeUsed: webhookCC ? webhookCC.code : null,
+              creatorCodeDiscount: webhookCCDiscount,
+            });
+            if (webhookCC) storage.updateCreatorCodeEarnings(webhookCC.id, Math.round(playerPrice * (webhookCC.rewardPercent / 100) * 100));
+            storage.updateMemberTotalSpent(member.id, playerPrice);
+
+            // Fire Minecraft webhook
+            if (server.webhookUrl) {
+              const command = product.command.replace("%player%", minecraftUsername).replace("{player}", minecraftUsername);
+              const commands = command.split("\n").map((c: string) => c.trim()).filter(Boolean);
+              try {
+                const wResp = await fetch(server.webhookUrl, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json", "X-CraftStore-Secret": server.webhookSecret || "" },
+                  body: JSON.stringify({ event: "purchase", orderId: order.id, minecraftUsername, command, commands, preorder: !!(product as any).preorder, preorderReleaseDate: (product as any).preorderReleaseDate || null, product: { id: product.id, name: product.name }, productName: product.name, secret: server.webhookSecret }),
+                });
+                storage.updateOrderStatus(order.id, wResp.ok ? "completed" : "failed", wResp.ok);
+              } catch {
+                storage.updateOrderStatus(order.id, "failed", false);
+              }
+            } else {
+              storage.updateOrderStatus(order.id, "completed", false);
+            }
+
+            // Push notification
+            try {
+              const tokens = storage.getDeviceTokensForServer(Number(serverId));
+              if (tokens.length > 0) {
+                await sendPushNotifications(tokens, "💰 New Purchase!", `${minecraftUsername} bought ${product.name} for £${playerPrice.toFixed(2)}`, { serverId, orderId: order.id, productName: product.name, minecraftUsername });
+              }
+            } catch {}
+          }
+        }
+
+      // ── Donation ────────────────────────────────────────────────────────
+      } else if (meta.type === "donation") {
+        const { serverId, playerName, amount } = meta;
+        const server = storage.getServerById(Number(serverId));
+        if (server) {
+          // Create a donation order record so it shows in the dashboard
+          let member = storage.getMemberByUsername(Number(serverId), playerName);
+          if (!member) member = storage.createMember({ serverId: Number(serverId), minecraftUsername: playerName, balance: 0, totalSpent: 0 });
+          const donationAmount = Number(amount);
+          const platformFee = Math.round(donationAmount * PLATFORM_FEE_RATE * 100) / 100;
+          storage.updateMemberTotalSpent(member.id, donationAmount);
+          // Push notification to server owner
+          try {
+            const tokens = storage.getDeviceTokensForServer(Number(serverId));
+            if (tokens.length > 0) {
+              await sendPushNotifications(tokens, "💝 New Donation!", `${playerName} donated £${donationAmount.toFixed(2)} to ${server.name}`, { serverId, playerName, amount: String(donationAmount) });
+            }
+          } catch {}
+          // In-app notification
+          const owner = storage.getUserById(server.ownerId);
+          if (owner) {
+            storage.createNotification({ userId: owner.id, message: `${playerName} donated £${donationAmount.toFixed(2)} to ${server.name}`, read: false });
+          }
+        }
+
+      // ── Preset purchase ─────────────────────────────────────────────────
       } else {
         const dbSession = storage.getCheckoutSession(session.id);
         if (dbSession && dbSession.status !== "completed") {
