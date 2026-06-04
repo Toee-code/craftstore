@@ -1903,6 +1903,17 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 
+  // Directly set creator code totalEarned
+  app.post("/api/admin/creator-codes/:id/set-earned", requireAdmin, (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      const { totalEarned } = req.body;
+      if (totalEarned === undefined) return res.status(400).json({ error: "totalEarned required" });
+      sqlite.prepare("UPDATE creator_codes SET total_earned = ? WHERE id = ?").run(Number(totalEarned), id);
+      res.json({ success: true, id, totalEarned });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
   // Patch an order's amount + fix member totalSpent + fix creator code earnings
   app.post("/api/admin/orders/:orderId/fix-amount", requireAdmin, (req, res) => {
     try {
