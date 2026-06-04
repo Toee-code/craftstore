@@ -7,10 +7,12 @@ import { Label } from "@/components/ui/label";
 import { Loader2, CheckCircle2, Tag, DollarSign, AlertCircle } from "lucide-react";
 
 export default function CreatorClaim() {
-  // Parse ?code=XXX&server=1 from hash query string
+  // Parse ?code=XXX&server=1 — wouter puts query params into window.location.search
+  // when navigating via hash router, so check both places
   const [location] = useLocation();
   const params = new URLSearchParams(
-    window.location.hash.includes("?") ? window.location.hash.split("?")[1] : ""
+    window.location.search ||
+    (window.location.hash.includes("?") ? window.location.hash.split("?")[1] : "")
   );
 
   const [code, setCode] = useState(params.get("code") || "");
