@@ -24,6 +24,19 @@ export default function CreatorClaim() {
   const [submitted, setSubmitted] = useState(false);
   const [submitLoading, setSubmitLoading] = useState(false);
   const [submitError, setSubmitError] = useState("");
+  const [username, setUsername] = useState("");
+  const [usernameVerified, setUsernameVerified] = useState(false);
+  const [usernameError, setUsernameError] = useState("");
+
+  const verifyUsername = () => {
+    if (!info) return;
+    if (username.trim().toLowerCase() === info.creatorName.toLowerCase()) {
+      setUsernameVerified(true);
+      setUsernameError("");
+    } else {
+      setUsernameError("Username doesn't match — make sure you enter the exact Minecraft username linked to this code.");
+    }
+  };
 
   // Auto-lookup if code + server pre-filled from URL
   useEffect(() => {
@@ -114,7 +127,7 @@ export default function CreatorClaim() {
                 <Input
                   placeholder="e.g. BILLY10"
                   value={code}
-                  onChange={e => { setCode(e.target.value.toUpperCase()); setInfo(null); setInfoError(""); }}
+                  onChange={e => { setCode(e.target.value.toUpperCase()); setInfo(null); setInfoError(""); setUsernameVerified(false); setUsername(""); setUsernameError(""); }}
                   style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", color: "#fff", fontFamily: "monospace", fontWeight: 700, letterSpacing: 1 }}
                 />
               </div>
@@ -173,8 +186,42 @@ export default function CreatorClaim() {
               </div>
             )}
 
-            {/* Step 2: PayPal + submit */}
-            {info && !info.hasPendingClaim && info.totalEarned > 0 && (
+            {/* Step 2: Verify Minecraft username */}
+            {info && !info.hasPendingClaim && info.totalEarned > 0 && !usernameVerified && (
+              <div style={{ marginBottom: 16 }}>
+                <Label style={{ color: "rgba(255,255,255,0.5)", fontSize: 11, marginBottom: 4, display: "block" }}>
+                  Verify Your Minecraft Username
+                </Label>
+                <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 12, marginBottom: 8, lineHeight: 1.5 }}>
+                  Enter the Minecraft username linked to this creator code to prove it's you.
+                </p>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <Input
+                    placeholder="YourMinecraftName"
+                    value={username}
+                    onChange={e => { setUsername(e.target.value); setUsernameError(""); }}
+                    onKeyDown={e => e.key === "Enter" && verifyUsername()}
+                    style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", color: "#fff", flex: 1 }}
+                  />
+                  <Button
+                    onClick={verifyUsername}
+                    disabled={!username.trim()}
+                    style={{ background: "rgba(99,102,241,0.2)", border: "1px solid rgba(99,102,241,0.4)", color: "#818cf8", fontWeight: 700, whiteSpace: "nowrap" }}
+                    variant="ghost"
+                  >
+                    Verify
+                  </Button>
+                </div>
+                {usernameError && (
+                  <p style={{ color: "#ef4444", fontSize: 12, marginTop: 8, display: "flex", alignItems: "center", gap: 6 }}>
+                    <AlertCircle style={{ width: 12, height: 12, flexShrink: 0 }} /> {usernameError}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Step 3: PayPal + submit */}
+            {info && !info.hasPendingClaim && info.totalEarned > 0 && usernameVerified && (
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                 <div>
                   <Label style={{ color: "rgba(255,255,255,0.5)", fontSize: 11, marginBottom: 4, display: "block" }}>PayPal Email <span style={{ color: "rgba(255,255,255,0.3)" }}>(we'll send payment here)</span></Label>
