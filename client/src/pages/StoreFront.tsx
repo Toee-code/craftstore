@@ -1397,14 +1397,14 @@ function TopCustomersSidebar({ serverId, accent }: { serverId: number; accent: s
         ) : top3.length === 0 ? (
           <p className="text-sm text-center py-10" style={{ color: "rgba(255,255,255,0.3)" }}>No purchases yet</p>
         ) : (
-          // ── Podium layout: 2nd | 1st | 3rd ──
+          // ── Podium layout: 2nd | 1st | 3rd (always 3 slots, ghost Steve if empty) ──
           (() => {
-            const podiumOrder = top3.length >= 3
-              ? [top3[1], top3[0], top3[2]]
-              : top3.length === 2
-                ? [top3[1], top3[0]]
-                : [top3[0]];
-            const podiumRanks = top3.length >= 3 ? [1, 0, 2] : top3.length === 2 ? [1, 0] : [0];
+            const ghost = { minecraftUsername: "MHF_Steve", total: 0, rank: 99, isGhost: true };
+            const p1 = top3[0] || ghost;
+            const p2 = top3[1] || ghost;
+            const p3 = top3[2] || ghost;
+            const podiumOrder = [{ ...p2, isGhost: !top3[1] }, { ...p1, isGhost: !top3[0] }, { ...p3, isGhost: !top3[2] }] as any[];
+            const podiumRanks = [1, 0, 2];
             const podiumHeights = [56, 80, 40]; // platform block heights for 2nd, 1st, 3rd
             const medalColors = ["#fbbf24", "#94a3b8", "#cd7f32"];
             const podiumBg = ["rgba(148,163,184,0.18)", `${accent}28`, "rgba(205,127,50,0.18)"];
@@ -1416,27 +1416,31 @@ function TopCustomersSidebar({ serverId, accent }: { serverId: number; accent: s
                   const rank = podiumRanks[col]; // 0=1st,1=2nd,2=3rd
                   const platH = podiumHeights[col];
                   const skinW = skinSizes[col];
+                  const isGhost = entry.isGhost;
                   return (
-                    <div key={entry.minecraftUsername} style={{ display: "flex", flexDirection: "column", alignItems: "center", flex: 1 }}>
+                    <div key={col} style={{ display: "flex", flexDirection: "column", alignItems: "center", flex: 1, opacity: isGhost ? 0.35 : 1 }}>
                       {/* Medal badge */}
                       <div style={{
                         width: 22, height: 22, borderRadius: "50%",
-                        background: medalColors[rank],
+                        background: isGhost ? "rgba(255,255,255,0.1)" : medalColors[rank],
                         display: "flex", alignItems: "center", justifyContent: "center",
-                        fontSize: 11, fontWeight: 900, color: rank === 0 ? "#7c5200" : rank === 1 ? "#2d3748" : "#5c3010",
-                        boxShadow: `0 0 8px ${medalColors[rank]}80`,
+                        fontSize: 11, fontWeight: 900,
+                        color: isGhost ? "rgba(255,255,255,0.4)" : rank === 0 ? "#7c5200" : rank === 1 ? "#2d3748" : "#5c3010",
+                        boxShadow: isGhost ? "none" : `0 0 8px ${medalColors[rank]}80`,
                         marginBottom: 4, flexShrink: 0,
                       }}>{rank + 1}</div>
                       {/* Skin */}
                       <div style={{ position: "relative", width: skinW, marginBottom: 0 }}>
-                        {rank === 0 && (
+                        {rank === 0 && !isGhost && (
                           <div style={{ position: "absolute", inset: -4, borderRadius: 12, background: `radial-gradient(ellipse at center, ${accent}30 0%, transparent 70%)`, pointerEvents: "none" }} />
                         )}
                         <img
-                          src={`https://nmsr.nickac.dev/fullbody/${entry.minecraftUsername}`}
+                          src={`https://nmsr.nickac.dev/fullbody/${isGhost ? "MHF_Steve" : entry.minecraftUsername}`}
                           alt={entry.minecraftUsername}
                           style={{ width: skinW, height: "auto", display: "block", imageRendering: "pixelated",
-                            filter: rank === 0 ? `drop-shadow(0 0 10px ${accent}99)` : "drop-shadow(0 2px 8px rgba(0,0,0,0.7))",
+                            filter: isGhost
+                              ? "grayscale(1) brightness(0.6)"
+                              : rank === 0 ? `drop-shadow(0 0 10px ${accent}99)` : "drop-shadow(0 2px 8px rgba(0,0,0,0.7))",
                           }}
                           onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
                         />
@@ -1444,21 +1448,27 @@ function TopCustomersSidebar({ serverId, accent }: { serverId: number; accent: s
                       {/* Platform block */}
                       <div style={{
                         width: "100%", height: platH,
-                        background: podiumBg[col],
-                        border: `1px solid ${podiumBorder[col]}`,
+                        background: isGhost ? "rgba(255,255,255,0.04)" : podiumBg[col],
+                        border: `1px solid ${isGhost ? "rgba(255,255,255,0.1)" : podiumBorder[col]}`,
                         borderRadius: "8px 8px 4px 4px",
                         display: "flex", flexDirection: "column",
                         alignItems: "center", justifyContent: "center",
                         padding: "6px 4px",
                         gap: 2,
                       }}>
-                        <p style={{ fontSize: 10, fontWeight: 800, color: "#fff", textAlign: "center", lineHeight: 1.2,
-                          maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                          textShadow: rank === 0 ? `0 0 8px ${accent}` : "none"
-                        }}>{entry.minecraftUsername}</p>
-                        <p style={{ fontSize: 11, fontWeight: 900, color: medalColors[rank],
-                          textShadow: `0 0 8px ${medalColors[rank]}80`
-                        }}>£{entry.total.toFixed(2)}</p>
+                        {isGhost ? (
+                          <p style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.35)", textAlign: "center" }}>?</p>
+                        ) : (
+                          <>
+                            <p style={{ fontSize: 10, fontWeight: 800, color: "#fff", textAlign: "center", lineHeight: 1.2,
+                              maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                              textShadow: rank === 0 ? `0 0 8px ${accent}` : "none"
+                            }}>{entry.minecraftUsername}</p>
+                            <p style={{ fontSize: 11, fontWeight: 900, color: medalColors[rank],
+                              textShadow: `0 0 8px ${medalColors[rank]}80`
+                            }}>£{entry.total.toFixed(2)}</p>
+                          </>
+                        )}
                       </div>
                     </div>
                   );
