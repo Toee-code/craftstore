@@ -1700,8 +1700,8 @@ function EchoLayout({
                 </button>
                 {/* Click-based dropdown */}
                 {playerDropdownOpen && (
-                  <div className="absolute right-0 top-full mt-2 rounded-xl"
-                    style={{ background: "#1a1d24", border: "1px solid rgba(255,255,255,0.1)", minWidth: 180, boxShadow: "0 8px 32px rgba(0,0,0,0.7)", zIndex: 9999, overflow: "hidden" }}>
+                  <div className="absolute right-0 bottom-full mb-2 rounded-xl"
+                    style={{ background: "#1a1d24", border: "1px solid rgba(255,255,255,0.1)", minWidth: 180, boxShadow: "0 -8px 32px rgba(0,0,0,0.7)", zIndex: 9999, overflow: "hidden" }}>
                     <button
                       onClick={() => { setPlayerDropdownOpen(false); setPage("profile"); }}
                       className="w-full flex items-center gap-2 px-4 py-3 text-sm font-medium hover:bg-white/5 transition-colors rounded-t-xl"
