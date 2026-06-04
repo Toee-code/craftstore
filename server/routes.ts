@@ -492,8 +492,10 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
       console.error('[push] notification error:', pushErr);
     }
 
-    // Fire webhook if configured
-      if (server.webhookUrl) {
+    // Fire webhook if configured (skip for preorders — hold as pending until release date)
+      if ((product as any).preorder) {
+        storage.updateOrderStatus(order.id, "pending", false);
+      } else if (server.webhookUrl) {
         const command = product.command.replace("{player}", minecraftUsername);
         const commands = command.split("\n").map((c: string) => c.trim()).filter(Boolean);
         const payload = {
@@ -502,8 +504,8 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
           minecraftUsername,
           command,
           commands,
-          preorder: !!(product as any).preorder,
-          preorderReleaseDate: (product as any).preorderReleaseDate || null,
+          preorder: false,
+          preorderReleaseDate: null,
           product: { id: product.id, name: product.name },
           secret: server.webhookSecret,
         };
@@ -556,7 +558,7 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
   app.get("/api/servers/:serverId/stats", (req, res) => {
     const serverId = Number(req.params.serverId);
     const allOrders = storage.getOrdersByServer(serverId);
-    const completedOrders = allOrders.filter(o => o.status === "completed" || o.status === "failed");
+    const completedOrders = allOrders.filter(o => o.status === "completed" || o.status === "failed" || o.status === "pending");
     const revenue = completedOrders.reduce((sum, o) => sum + o.amount, 0);
     const platformRevenue = completedOrders.reduce((sum, o) => sum + (o.platformFee || 0), 0);
     const membersList = storage.getMembersByServer(serverId);
@@ -921,15 +923,17 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
         if (confirmCC) storage.updateCreatorCodeEarnings(confirmCC.id, Math.round(playerPrice * (confirmCC.rewardPercent / 100) * 100));
         storage.updateMemberTotalSpent(member.id, playerPrice);
 
-        // Fire webhook to Minecraft server
-        if (server.webhookUrl) {
+        // Fire webhook to Minecraft server (skip for preorders)
+        if ((product as any).preorder) {
+          storage.updateOrderStatus(order.id, "pending", false);
+        } else if (server.webhookUrl) {
           const command = product.command.replace("%player%", minecraftUsername).replace("{player}", minecraftUsername);
           const commands = command.split("\n").map((c: string) => c.trim()).filter(Boolean);
           try {
             const wResp = await fetch(server.webhookUrl, {
               method: "POST",
               headers: { "Content-Type": "application/json", "X-CraftStore-Secret": server.webhookSecret || "" },
-              body: JSON.stringify({ event: "purchase", orderId: order.id, minecraftUsername, command, commands, preorder: !!(product as any).preorder, preorderReleaseDate: (product as any).preorderReleaseDate || null, product: { id: product.id, name: product.name }, productName: product.name, secret: server.webhookSecret }),
+              body: JSON.stringify({ event: "purchase", orderId: order.id, minecraftUsername, command, commands, preorder: false, preorderReleaseDate: null, product: { id: product.id, name: product.name }, productName: product.name, secret: server.webhookSecret }),
             });
             storage.updateOrderStatus(order.id, wResp.ok ? "completed" : "failed", wResp.ok);
           } catch {
@@ -1109,15 +1113,17 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
             if (webhookCC) storage.updateCreatorCodeEarnings(webhookCC.id, Math.round(playerPrice * (webhookCC.rewardPercent / 100) * 100));
             storage.updateMemberTotalSpent(member.id, playerPrice);
 
-            // Fire Minecraft webhook
-            if (server.webhookUrl) {
+            // Fire Minecraft webhook (skip for preorders)
+            if ((product as any).preorder) {
+              storage.updateOrderStatus(order.id, "pending", false);
+            } else if (server.webhookUrl) {
               const command = product.command.replace("%player%", minecraftUsername).replace("{player}", minecraftUsername);
               const commands = command.split("\n").map((c: string) => c.trim()).filter(Boolean);
               try {
                 const wResp = await fetch(server.webhookUrl, {
                   method: "POST",
                   headers: { "Content-Type": "application/json", "X-CraftStore-Secret": server.webhookSecret || "" },
-                  body: JSON.stringify({ event: "purchase", orderId: order.id, minecraftUsername, command, commands, preorder: !!(product as any).preorder, preorderReleaseDate: (product as any).preorderReleaseDate || null, product: { id: product.id, name: product.name }, productName: product.name, secret: server.webhookSecret }),
+                  body: JSON.stringify({ event: "purchase", orderId: order.id, minecraftUsername, command, commands, preorder: false, preorderReleaseDate: null, product: { id: product.id, name: product.name }, productName: product.name, secret: server.webhookSecret }),
                 });
                 storage.updateOrderStatus(order.id, wResp.ok ? "completed" : "failed", wResp.ok);
               } catch {
@@ -1353,7 +1359,7 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
       if (!member) return res.status(404).json({ error: "Member not found" });
       // Orders
       const allOrders = storage.getOrdersByServer(serverId);
-      const myOrders = allOrders.filter((o: any) => o.minecraftUsername === username && (o.status === "completed" || o.status === "failed"));
+      const myOrders = allOrders.filter((o: any) => o.minecraftUsername === username && (o.status === "completed" || o.status === "failed" || o.status === "pending"));
       // Gifts received (via gift_orders)
       const giftRows = (storage as any).getGiftsReceivedByUsername
         ? (storage as any).getGiftsReceivedByUsername(serverId, username)
@@ -1464,7 +1470,7 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
     if (!member) return res.status(404).json({ error: "Member not found" });
     const allOrders = storage.getOrdersByServer(serverId);
     const memberOrders = allOrders.filter(o => o.minecraftUsername === username);
-    const completedOrders = memberOrders.filter(o => o.status === "completed" || o.status === "failed");
+    const completedOrders = memberOrders.filter(o => o.status === "completed" || o.status === "failed" || o.status === "pending");
     const totalSpent = completedOrders.reduce((s, o) => s + o.amount, 0);
     const productsList = storage.getProductsByServer(serverId);
     const productMap: Record<number, string> = {};
