@@ -19,7 +19,7 @@ import {
   ArrowLeft, Plus, Trash2, ExternalLink, Package, Users, ShoppingCart,
   BarChart3, Terminal, Copy, Edit3, TrendingUp, DollarSign, Paintbrush, Sparkles, Star,
   ChevronRight, Loader2, Gift, Globe, CheckCircle2, CreditCard, XCircle, AlertCircle,
-  Activity
+  Activity, Tag, Percent, PlusCircle, CheckCircle2 as Check2, X
 } from "lucide-react";
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell
@@ -1107,6 +1107,168 @@ function AnalyticsTab({ serverId }: { serverId: number }) {
   );
 }
 
+// ─── Creator Codes Tab ────────────────────────────────────────────────────────
+function CreatorCodesTab({ serverId }: { serverId: number }) {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const [form, setForm] = useState({ code: "", creatorName: "", rewardPercent: "10", discountPercent: "0" });
+  const [adding, setAdding] = useState(false);
+
+  const { data: codes = [], isLoading } = useQuery<any[]>({
+    queryKey: ["/api/servers/creator-codes", serverId],
+    queryFn: () => apiRequest("GET", `/api/servers/${serverId}/creator-codes`).then(r => r.json()),
+  });
+
+  const createMutation = useMutation({
+    mutationFn: () => apiRequest("POST", `/api/servers/${serverId}/creator-codes`, {
+      code: form.code.trim().toUpperCase(),
+      creatorName: form.creatorName.trim(),
+      rewardPercent: Number(form.rewardPercent) || 10,
+      discountPercent: Number(form.discountPercent) || 0,
+    }).then(r => r.json().then(d => { if (!r.ok) throw new Error(d.error); return d; })),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/servers/creator-codes", serverId] });
+      setForm({ code: "", creatorName: "", rewardPercent: "10", discountPercent: "0" });
+      setAdding(false);
+      toast({ title: "Creator code added" });
+    },
+    onError: (e: any) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) => apiRequest("DELETE", `/api/creator-codes/${id}`).then(r => r.json()),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/servers/creator-codes", serverId] });
+      toast({ title: "Code deleted" });
+    },
+  });
+
+  const totalEarned = codes.reduce((s: number, c: any) => s + (c.totalEarned || 0), 0);
+
+  return (
+    <div className="space-y-6">
+      {/* Stats */}
+      <div className="grid grid-cols-2 gap-4">
+        <Card>
+          <CardContent className="pt-5">
+            <p className="text-xs text-muted-foreground mb-1">Active Codes</p>
+            <p className="text-3xl font-extrabold">{codes.filter((c: any) => c.active).length}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-5">
+            <p className="text-xs text-muted-foreground mb-1">Total Creator Earnings</p>
+            <p className="text-3xl font-extrabold">£{(totalEarned / 100).toFixed(2)}</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Add code form */}
+      {adding ? (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">New Creator Code</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs">Code <span className="text-muted-foreground">(e.g. TOEE10)</span></Label>
+                <Input
+                  placeholder="TOEE10"
+                  value={form.code}
+                  onChange={e => setForm(p => ({ ...p, code: e.target.value.toUpperCase() }))}
+                  className="font-mono"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Creator name</Label>
+                <Input
+                  placeholder="ToeeOnTT"
+                  value={form.creatorName}
+                  onChange={e => setForm(p => ({ ...p, creatorName: e.target.value }))}
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs">Reward % <span className="text-muted-foreground">(creator earns this % of each sale)</span></Label>
+                <Input
+                  type="number" min="0" max="100"
+                  value={form.rewardPercent}
+                  onChange={e => setForm(p => ({ ...p, rewardPercent: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Discount % <span className="text-muted-foreground">(buyer gets this % off — 0 for no discount)</span></Label>
+                <Input
+                  type="number" min="0" max="100"
+                  value={form.discountPercent}
+                  onChange={e => setForm(p => ({ ...p, discountPercent: e.target.value }))}
+                />
+              </div>
+            </div>
+            <div className="flex gap-2 pt-1">
+              <Button size="sm" onClick={() => createMutation.mutate()} disabled={!form.code.trim() || !form.creatorName.trim() || createMutation.isPending}>
+                {createMutation.isPending ? <><Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />Saving…</> : "Save Code"}
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => setAdding(false)}>Cancel</Button>
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
+        <Button className="gap-2" onClick={() => setAdding(true)}>
+          <PlusCircle className="w-4 h-4" /> Add Creator Code
+        </Button>
+      )}
+
+      {/* Codes list */}
+      {isLoading ? (
+        <div className="flex items-center gap-2 text-muted-foreground text-sm"><Loader2 className="w-4 h-4 animate-spin" /> Loading…</div>
+      ) : codes.length === 0 ? (
+        <Card>
+          <CardContent className="py-12 text-center">
+            <Tag className="w-10 h-10 mx-auto mb-3 text-muted-foreground/40" />
+            <p className="text-muted-foreground text-sm">No creator codes yet. Add one above.</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-3">
+          {codes.map((cc: any) => (
+            <Card key={cc.id}>
+              <CardContent className="py-4 flex items-center gap-4">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-mono font-extrabold text-base tracking-wider text-primary">{cc.code}</span>
+                    <Badge variant="outline" className="text-xs">{cc.creatorName}</Badge>
+                    {cc.discountPercent > 0 && (
+                      <Badge className="text-xs gap-1 bg-green-500/15 text-green-600 border-green-500/30">
+                        <Percent className="w-2.5 h-2.5" />{cc.discountPercent}% buyer discount
+                      </Badge>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-4 mt-1.5 flex-wrap">
+                    <span className="text-xs text-muted-foreground">Earns <span className="font-bold text-foreground">{cc.rewardPercent}%</span> per sale</span>
+                    <span className="text-xs text-muted-foreground">Total earned: <span className="font-bold text-foreground">£{(cc.totalEarned / 100).toFixed(2)}</span></span>
+                  </div>
+                </div>
+                <Button
+                  size="sm" variant="ghost"
+                  className="text-destructive hover:text-destructive hover:bg-destructive/10 shrink-0"
+                  onClick={() => deleteMutation.mutate(cc.id)}
+                  disabled={deleteMutation.isPending}
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+
 export default function ServerDashboard() {
   const { id } = useParams<{ id: string }>();
   const serverId = Number(id);
@@ -1409,6 +1571,9 @@ export default function ServerDashboard() {
             <TabsTrigger value="settings" data-testid="tab-settings">Settings</TabsTrigger>
             <TabsTrigger value="analytics" data-testid="tab-analytics" className="gap-1.5">
               <Activity className="w-3.5 h-3.5" /> Analytics
+            </TabsTrigger>
+            <TabsTrigger value="creator-codes" data-testid="tab-creator-codes" className="gap-1.5">
+              <Tag className="w-3.5 h-3.5" /> Creator Codes
             </TabsTrigger>
           </TabsList>
 
@@ -2177,6 +2342,11 @@ export default function ServerDashboard() {
           {/* ── Analytics Tab ─────────────────────────────────────────────── */}
           <TabsContent value="analytics">
             <AnalyticsTab serverId={Number(id)} />
+          </TabsContent>
+
+          {/* ── Creator Codes Tab ──────────────────────────────────────────── */}
+          <TabsContent value="creator-codes">
+            <CreatorCodesTab serverId={Number(id)} />
           </TabsContent>
         </Tabs>
       </main>

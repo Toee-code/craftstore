@@ -2032,6 +2032,9 @@ function ThemedStore({ data }: { data: StoreData }) {
   const [checkout, setCheckout] = useState<CheckoutState>({ open: false, product: null, mode: "buy", paymentMode: "balance" });
   const [purchased, setPurchased] = useState(false);
   const [directPayLoading, setDirectPayLoading] = useState(false);
+  const [creatorCode, setCreatorCode] = useState("");
+  const [codeValidation, setCodeValidation] = useState<{ valid: boolean; creatorName: string; discountPercent: number } | null>(null);
+  const [codeLoading, setCodeLoading] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [memberSession, setMemberSessionRaw] = useState<MemberSession | null>(null);
@@ -2111,6 +2114,14 @@ function ThemedStore({ data }: { data: StoreData }) {
   };
 
   const feeMode = data.theme.feeMode || "absorb";
+  const calcPlayerPriceWithCode = (basePrice: number) => {
+    const after = calcPlayerPrice(basePrice);
+    if (codeValidation?.valid && codeValidation.discountPercent > 0) {
+      return Math.round(after * (1 - codeValidation.discountPercent / 100) * 100) / 100;
+    }
+    return after;
+  };
+
   const calcPlayerPrice = (basePrice: number) => {
     if (feeMode === "passthrough") return Math.round((basePrice * 1.2) * 100) / 100;
     return basePrice;
@@ -2140,7 +2151,7 @@ function ThemedStore({ data }: { data: StoreData }) {
 
   const purchaseMutation = useMutation({
     mutationFn: ({ productId, minecraftUsername }: { productId: number; minecraftUsername: string }) =>
-      apiRequest("POST", "/api/purchase", { productId, minecraftUsername, serverId: data.server.id })
+      apiRequest("POST", "/api/purchase", { productId, minecraftUsername, serverId: data.server.id, creatorCode: creatorCode.trim() || undefined })
         .then(async r => { if (!r.ok) { const e = await r.json(); throw new Error(e.error || "Purchase failed"); } return r.json(); }),
     onSuccess: () => setPurchased(true),
     onError: (err: Error) => toast({ title: "Purchase failed", description: err.message, variant: "destructive" }),
@@ -2158,7 +2169,7 @@ function ThemedStore({ data }: { data: StoreData }) {
     if (!username.trim() || !checkout.product) return;
     setDirectPayLoading(true);
     try {
-      const r = await apiRequest("POST", "/api/stripe/product-checkout", { productId: checkout.product.id, serverId: data.server.id, minecraftUsername: username.trim() });
+      const r = await apiRequest("POST", "/api/stripe/product-checkout", { productId: checkout.product.id, serverId: data.server.id, minecraftUsername: username.trim(), creatorCode: creatorCode.trim() || undefined });
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || "Failed to create checkout");
       if (d.url) { window.location.href = d.url; }
@@ -2168,15 +2179,28 @@ function ThemedStore({ data }: { data: StoreData }) {
     } finally { setDirectPayLoading(false); }
   };
 
+  const validateCreatorCode = async (code: string) => {
+    if (!code.trim()) { setCodeValidation(null); return; }
+    setCodeLoading(true);
+    try {
+      const r = await apiRequest("POST", `/api/servers/${data.server.id}/validate-creator-code`, { code: code.trim() });
+      if (r.ok) { const d = await r.json(); setCodeValidation({ valid: true, creatorName: d.creatorName, discountPercent: d.discountPercent }); }
+      else { setCodeValidation({ valid: false, creatorName: "", discountPercent: 0 }); }
+    } catch { setCodeValidation({ valid: false, creatorName: "", discountPercent: 0 }); }
+    finally { setCodeLoading(false); }
+  };
+
   const handleBuy = (product: Product) => {
     setCheckout({ open: true, product, mode: "buy", paymentMode: "balance" });
     setPurchased(false); setGiftRecipient(""); setGiftMessage("");
+    setCreatorCode(""); setCodeValidation(null);
     if (memberSession) setUsername(memberSession.minecraftUsername);
   };
 
   const handleGift = (product: Product) => {
     setCheckout({ open: true, product, mode: "gift", paymentMode: "balance" });
     setPurchased(false); setGiftRecipient(""); setGiftMessage("");
+    setCreatorCode(""); setCodeValidation(null);
     if (memberSession) setUsername(memberSession.minecraftUsername);
   };
 
@@ -2592,7 +2616,7 @@ function ThemedStore({ data }: { data: StoreData }) {
                     <div className="rounded-2xl p-4" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}>
                       <p className="font-bold text-sm text-white leading-snug mb-1">{checkout.product.name}</p>
                       {checkout.product.description && <p className="text-xs mb-2" style={{ color: "rgba(255,255,255,0.45)" }}>{checkout.product.description}</p>}
-                      <span className="text-xl font-extrabold" style={{ color: accent }}>£{calcPlayerPrice(checkout.product.price).toFixed(2)}</span>
+                      <span className="text-xl font-extrabold" style={{ color: accent }}>£{calcPlayerPriceWithCode(checkout.product.price).toFixed(2)}</span>
                     </div>
                     <div className="space-y-1.5">
                       <Label style={{ color: "rgba(255,255,255,0.55)", fontSize: 12 }}>
@@ -2601,6 +2625,29 @@ function ThemedStore({ data }: { data: StoreData }) {
                       <Input placeholder="Steve" value={username} onChange={e => setUsername(e.target.value)}
                         style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", color: "#fff" }} />
                     </div>
+                    {checkout.mode !== "gift" && (
+                      <div className="space-y-1.5">
+                        <Label style={{ color: "rgba(255,255,255,0.55)", fontSize: 12 }}>Creator code <span style={{ color: "rgba(255,255,255,0.3)" }}>(optional)</span></Label>
+                        <div className="flex gap-2">
+                          <Input
+                            placeholder="e.g. TOEE10"
+                            value={creatorCode}
+                            onChange={e => { setCreatorCode(e.target.value.toUpperCase()); setCodeValidation(null); }}
+                            onBlur={() => validateCreatorCode(creatorCode)}
+                            style={{ background: "rgba(255,255,255,0.06)", border: `1px solid ${codeValidation?.valid ? "#22c55e" : codeValidation === null ? "rgba(255,255,255,0.12)" : "#ef4444"}`, color: "#fff", flex: 1 }}
+                          />
+                          {codeLoading && <div className="flex items-center px-2"><Loader2 className="w-4 h-4 animate-spin" style={{ color: "rgba(255,255,255,0.4)" }} /></div>}
+                        </div>
+                        {codeValidation?.valid && (
+                          <p className="text-xs font-bold" style={{ color: "#22c55e" }}>
+                            ✓ {codeValidation.creatorName}{codeValidation.discountPercent > 0 ? ` — ${codeValidation.discountPercent}% off applied!` : ""}
+                          </p>
+                        )}
+                        {codeValidation?.valid === false && (
+                          <p className="text-xs" style={{ color: "#ef4444" }}>Invalid or inactive code</p>
+                        )}
+                      </div>
+                    )}
                     {checkout.mode === "gift" && (
                       <>
                         <div className="space-y-1.5">
@@ -2619,7 +2666,7 @@ function ThemedStore({ data }: { data: StoreData }) {
                     {checkout.paymentMode === "card" ? (
                       <Button className="w-full font-bold gap-2" style={{ background: accent, color: "#fff" }}
                         disabled={!username.trim() || directPayLoading} onClick={handleDirectPay}>
-                        {directPayLoading ? <><Loader2 className="w-4 h-4 animate-spin" />Redirecting…</> : <><CreditCard className="w-4 h-4" />Pay £{calcPlayerPrice(checkout.product.price).toFixed(2)} with Card</>}
+                        {directPayLoading ? <><Loader2 className="w-4 h-4 animate-spin" />Redirecting…</> : <><CreditCard className="w-4 h-4" />Pay £{calcPlayerPriceWithCode(checkout.product.price).toFixed(2)} with Card</>}
                       </Button>
                     ) : (
                       <Button className="w-full font-bold" style={{ background: accent, color: "#fff" }}
@@ -2628,8 +2675,8 @@ function ThemedStore({ data }: { data: StoreData }) {
                         {isPurchasePending
                           ? <><Loader2 className="w-4 h-4 animate-spin mr-2" />Processing…</>
                           : checkout.mode === "gift"
-                            ? `Send Gift — £${calcPlayerPrice(checkout.product.price).toFixed(2)}`
-                            : `Confirm — £${calcPlayerPrice(checkout.product.price).toFixed(2)}`}
+                            ? `Send Gift — £${calcPlayerPriceWithCode(checkout.product.price).toFixed(2)}`
+                            : `Confirm — £${calcPlayerPriceWithCode(checkout.product.price).toFixed(2)}`}
                       </Button>
                     )}
                   </div>
@@ -2788,7 +2835,7 @@ function ThemedStore({ data }: { data: StoreData }) {
                     </div>
                     <div className="rounded-2xl p-4" style={{ background: "rgba(255,255,255,0.05)" }}>
                       <p className="font-bold text-sm text-white leading-snug mb-1">{checkout.product.name}</p>
-                      <span className="text-xl font-extrabold" style={{ color: accent }}>£{calcPlayerPrice(checkout.product.price).toFixed(2)}</span>
+                      <span className="text-xl font-extrabold" style={{ color: accent }}>£{calcPlayerPriceWithCode(checkout.product.price).toFixed(2)}</span>
                     </div>
                     <div className="space-y-1.5">
                       <Label style={{ color: "rgba(255,255,255,0.55)", fontSize: 12 }}>Your Minecraft username</Label>
@@ -2805,7 +2852,7 @@ function ThemedStore({ data }: { data: StoreData }) {
                     {checkout.paymentMode === "card" ? (
                       <Button className="w-full font-bold gap-2" style={{ background: accent, color: "#fff" }}
                         disabled={!username.trim() || directPayLoading} onClick={handleDirectPay}>
-                        {directPayLoading ? <><Loader2 className="w-4 h-4 animate-spin" />Redirecting…</> : <><CreditCard className="w-4 h-4" />Pay £{calcPlayerPrice(checkout.product.price).toFixed(2)} by Card</>}
+                        {directPayLoading ? <><Loader2 className="w-4 h-4 animate-spin" />Redirecting…</> : <><CreditCard className="w-4 h-4" />Pay £{calcPlayerPriceWithCode(checkout.product.price).toFixed(2)} by Card</>}
                       </Button>
                     ) : (
                       <Button className="w-full font-bold" style={{ background: accent, color: "#fff" }}
@@ -2813,7 +2860,7 @@ function ThemedStore({ data }: { data: StoreData }) {
                         onClick={confirmPurchase}>
                         {isPurchasePending
                           ? <><Loader2 className="w-4 h-4 animate-spin mr-2" />Processing…</>
-                          : `Confirm — £${calcPlayerPrice(checkout.product.price).toFixed(2)}`}
+                          : `Confirm — £${calcPlayerPriceWithCode(checkout.product.price).toFixed(2)}`}
                       </Button>
                     )}
                   </div>
@@ -3230,7 +3277,7 @@ function ThemedStore({ data }: { data: StoreData }) {
                       data-testid="button-pay-by-card">
                       {directPayLoading
                         ? <><Loader2 className="w-4 h-4 animate-spin" />Redirecting…</>
-                        : <><CreditCard className="w-4 h-4" />Pay £{calcPlayerPrice(checkout.product.price).toFixed(2)} with Card</>}
+                        : <><CreditCard className="w-4 h-4" />Pay £{calcPlayerPriceWithCode(checkout.product.price).toFixed(2)} with Card</>}
                     </Button>
                   ) : (
                     <Button className="w-full font-bold"
@@ -3241,8 +3288,8 @@ function ThemedStore({ data }: { data: StoreData }) {
                       {isPurchasePending
                         ? <><Loader2 className="w-4 h-4 animate-spin mr-2" />Processing…</>
                         : checkout.mode === "gift"
-                          ? `Send Gift — £${calcPlayerPrice(checkout.product.price).toFixed(2)}`
-                          : `Confirm — £${calcPlayerPrice(checkout.product.price).toFixed(2)}`}
+                          ? `Send Gift — £${calcPlayerPriceWithCode(checkout.product.price).toFixed(2)}`
+                          : `Confirm — £${calcPlayerPriceWithCode(checkout.product.price).toFixed(2)}`}
                     </Button>
                   )}
                 </div>
