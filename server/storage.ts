@@ -17,6 +17,9 @@ import {
   type MemberAccount, type InsertMemberAccount,
   type GiftOrder, type InsertGiftOrder,
   type OwnerSession, type MemberSessionRow,
+  creatorCodes,
+  type CreatorCode,
+  type InsertCreatorCode,
 } from "@shared/schema";
 
 // Use DB_PATH env var (set by render.yaml disk mount), then Railway, then local
