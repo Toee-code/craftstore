@@ -1332,7 +1332,9 @@ export default function ServerDashboard() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["/api/servers", serverId, "members"] }),
   });
 
-  const storeUrl = `${window.location.origin}${window.location.pathname}#/store/${serverId}`;
+  const ROOT_DOMAIN = "craftstore.org.uk";
+  const storeSlug = server?.name ? nameToSlug(server.name) : "";
+  const storeUrl = storeSlug ? `https://${storeSlug}.${ROOT_DOMAIN}` : `${window.location.origin}${window.location.pathname}#/store/${serverId}`;
 
   // Show spinner while session hydrates or user is null (redirect fires via useEffect)
   if (!hydrated || !user) return <div className="min-h-screen bg-background flex items-center justify-center"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>;
