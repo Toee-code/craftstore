@@ -1592,9 +1592,9 @@ function EchoLayout({
 }) {
   const categories: string[] = (() => { try { return JSON.parse(data.theme.categories || "[]"); } catch { return []; } })();
   const worlds: string[] = (() => { try { return JSON.parse((data.theme as any).worlds || "[]"); } catch { return []; } })();
-  const [selectedWorld, setSelectedWorld] = useState<string | null>(null);
+  const [selectedWorld, setSelectedWorld] = useState<string | null>(() => worlds[0] ?? null);
   const activeProducts = data.products.filter(p => p.active);
-  // Filter by world: if a world is selected, show products tagged to that world OR untagged (null/empty)
+  // Filter by world: if worlds are configured, always show only the selected world's items (+ untagged)
   const worldFiltered = (worlds.length > 0 && selectedWorld)
     ? activeProducts.filter(p => !(p as any).world || (p as any).world === selectedWorld)
     : activeProducts;
@@ -1737,27 +1737,10 @@ function EchoLayout({
         <div className="mb-8">
           <p className="text-xs font-semibold uppercase tracking-widest mb-3" style={{ color: "rgba(255,255,255,0.35)" }}>Select your world</p>
           <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${worlds.length}, 1fr)` }}>
-            {/* "All" pill */}
-            <button
-              onClick={() => setSelectedWorld(null)}
-              className="relative flex flex-col items-center justify-center gap-1.5 rounded-2xl py-4 px-3 transition-all font-bold text-sm"
-              style={{
-                background: selectedWorld === null ? `${accent}22` : "#13161c",
-                border: selectedWorld === null ? `2px solid ${accent}` : "2px solid rgba(255,255,255,0.07)",
-                color: selectedWorld === null ? accent : "rgba(255,255,255,0.45)",
-                boxShadow: selectedWorld === null ? `0 0 20px ${accent}30` : "none",
-              }}
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 22, height: 22 }}>
-                <circle cx="12" cy="12" r="10" /><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-              </svg>
-              <span>All Worlds</span>
-              {selectedWorld === null && <span className="absolute top-2 right-2 w-2 h-2 rounded-full" style={{ background: accent }} />}
-            </button>
             {worlds.map((w) => (
               <button
                 key={w}
-                onClick={() => setSelectedWorld(w === selectedWorld ? null : w)}
+                onClick={() => setSelectedWorld(w)}
                 className="relative flex flex-col items-center justify-center gap-1.5 rounded-2xl py-4 px-3 transition-all font-bold text-sm"
                 style={{
                   background: selectedWorld === w ? `${accent}22` : "#13161c",
