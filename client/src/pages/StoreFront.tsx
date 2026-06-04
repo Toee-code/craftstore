@@ -19,7 +19,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   ShoppingCart, Package, CheckCircle2, Loader2, AlertCircle,
-  Megaphone, Home, Trophy, ChevronRight, ChevronDown, Menu, X, ShoppingBag,
+  Megaphone, Home, Trophy, ChevronRight, ChevronLeft, ChevronDown, Menu, X, ShoppingBag,
   User, Gift, LogIn, LogOut, UserPlus, Heart, CreditCard, Zap,
   Star, TrendingUp, Shield, Sparkles, Flame, Plus
 } from "lucide-react";
@@ -1797,7 +1797,16 @@ function EchoLayout({
       {/* ── Category page products ────────────────────────────────── */}
       {!isHome && (
         <div className="mb-10">
-          <h2 className="font-extrabold text-white text-xl mb-4 capitalize">{page}</h2>
+          <div className="flex items-center gap-3 mb-4">
+            <button
+              onClick={() => setPage(data.theme.startPage || "home")}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-semibold transition-all hover:brightness-110"
+              style={{ background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.7)", border: "1px solid rgba(255,255,255,0.1)" }}
+            >
+              <ChevronLeft className="w-4 h-4" /> Back
+            </button>
+            <h2 className="font-extrabold text-white text-xl capitalize">{page === "all" ? "All Items" : page}</h2>
+          </div>
           {filteredProducts.length === 0 ? (
             <div className="text-center py-20 rounded-2xl" style={{ border: "2px dashed rgba(255,255,255,0.07)" }}>
               <Package className="w-10 h-10 mx-auto mb-3" style={{ color: "rgba(255,255,255,0.15)" }} />
