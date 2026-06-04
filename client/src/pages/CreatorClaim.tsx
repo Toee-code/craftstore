@@ -18,7 +18,7 @@ export default function CreatorClaim() {
   const [code, setCode] = useState(params.get("code") || "");
   const [serverId, setServerId] = useState(params.get("server") || "");
   const [paypalEmail, setPaypalEmail] = useState("");
-  const [info, setInfo] = useState<{ creatorName: string; totalEarned: number; hasPendingClaim: boolean } | null>(null);
+  const [info, setInfo] = useState<{ creatorName: string; totalEarned: number; hasPendingClaim: boolean; serverName: string } | null>(null);
   const [infoError, setInfoError] = useState("");
   const [infoLoading, setInfoLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -109,17 +109,18 @@ export default function CreatorClaim() {
 
             {/* Step 1: Code lookup */}
             <div style={{ marginBottom: 16 }}>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
-                <div>
-                  <Label style={{ color: "rgba(255,255,255,0.5)", fontSize: 11, marginBottom: 4, display: "block" }}>Your Creator Code</Label>
-                  <Input
-                    placeholder="e.g. BILLY10"
-                    value={code}
-                    onChange={e => { setCode(e.target.value.toUpperCase()); setInfo(null); setInfoError(""); }}
-                    style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", color: "#fff", fontFamily: "monospace", fontWeight: 700, letterSpacing: 1 }}
-                  />
-                </div>
-                <div>
+              <div style={{ marginBottom: 10 }}>
+                <Label style={{ color: "rgba(255,255,255,0.5)", fontSize: 11, marginBottom: 4, display: "block" }}>Your Creator Code</Label>
+                <Input
+                  placeholder="e.g. BILLY10"
+                  value={code}
+                  onChange={e => { setCode(e.target.value.toUpperCase()); setInfo(null); setInfoError(""); }}
+                  style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", color: "#fff", fontFamily: "monospace", fontWeight: 700, letterSpacing: 1 }}
+                />
+              </div>
+              {/* Show server ID field only if not pre-filled from URL */}
+              {!params.get("server") && (
+                <div style={{ marginBottom: 10 }}>
                   <Label style={{ color: "rgba(255,255,255,0.5)", fontSize: 11, marginBottom: 4, display: "block" }}>Server ID</Label>
                   <Input
                     placeholder="1"
@@ -128,7 +129,7 @@ export default function CreatorClaim() {
                     style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", color: "#fff" }}
                   />
                 </div>
-              </div>
+              )}
               <Button
                 style={{ width: "100%", background: "rgba(255,255,255,0.08)", color: "#fff", border: "1px solid rgba(255,255,255,0.12)" }}
                 onClick={lookupCode}
@@ -150,6 +151,10 @@ export default function CreatorClaim() {
                 background: "rgba(99,102,241,0.08)", border: "1px solid rgba(99,102,241,0.25)",
                 borderRadius: 12, padding: "14px 16px", marginBottom: 16,
               }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                  <span style={{ color: "rgba(255,255,255,0.6)", fontSize: 12 }}>Server</span>
+                  <span style={{ color: "#fff", fontWeight: 700, fontSize: 14 }}>{info.serverName}</span>
+                </div>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
                   <span style={{ color: "rgba(255,255,255,0.6)", fontSize: 12 }}>Creator</span>
                   <span style={{ color: "#fff", fontWeight: 700, fontSize: 14 }}>{info.creatorName}</span>

@@ -714,7 +714,8 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
     const cc = storage.getCreatorCodeByCode(Number(serverId), String(code));
     if (!cc) return res.status(404).json({ error: "Invalid or inactive code" });
     const pending = storage.getCreatorCodePayoutsByCode(cc.id).filter((p: any) => p.status === "pending");
-    res.json({ creatorName: cc.creatorName, code: cc.code, totalEarned: cc.totalEarned, hasPendingClaim: pending.length > 0 });
+    const serverObj = storage.getServerById(Number(serverId));
+    res.json({ creatorName: cc.creatorName, code: cc.code, totalEarned: cc.totalEarned, hasPendingClaim: pending.length > 0, serverName: serverObj?.name || `Server ${serverId}` });
   });
 
   // Public: creator submits a payout request
