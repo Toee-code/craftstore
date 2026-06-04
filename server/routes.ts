@@ -1,6 +1,6 @@
 import type { Express } from "express";
 import type { Server as HttpServer } from "http";
-import { storage } from "./storage";
+import { storage, sqlite } from "./storage";
 import { insertUserSchema, insertServerSchema, insertProductSchema, insertMemberSchema, insertOrderSchema } from "@shared/schema";
 import crypto from "crypto";
 import Stripe from "stripe";
@@ -1915,8 +1915,7 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
       const order = orders.find((o: any) => o.id === orderId);
       if (!order) return res.status(404).json({ error: "Order not found" });
       // Update order row
-      const db = (storage as any).db;
-      db.prepare("UPDATE orders SET creatorCodeUsed = ?, creatorCodeDiscount = ? WHERE id = ?")
+      sqlite.prepare("UPDATE orders SET creatorCodeUsed = ?, creatorCodeDiscount = ? WHERE id = ?")
         .run(cc.code, cc.discountPercent, orderId);
       // Add earnings
       const earning = Math.round(order.amount * (cc.rewardPercent / 100) * 100);

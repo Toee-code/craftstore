@@ -31,7 +31,7 @@ const DB_PATH = process.env.DB_PATH
   || "craftstore.db";
 
 console.log(`[CraftStore] Opening database at: ${DB_PATH}`);
-const sqlite = new Database(DB_PATH);
+export const sqlite = new Database(DB_PATH);
 
 // Enable WAL mode for crash safety and better write performance
 // WAL ensures completed transactions survive crashes/restarts
