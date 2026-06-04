@@ -1225,7 +1225,7 @@ function RecentPurchasesSidebar({ serverId, accent }: { serverId: number; accent
   });
 
   const recent = orders
-    .filter((o: OrderEntry) => o.status === "completed")
+    .filter((o: OrderEntry) => o.status === "completed" || o.status === "failed")
     .sort((a: OrderEntry, b: OrderEntry) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     .slice(0, 5);
 

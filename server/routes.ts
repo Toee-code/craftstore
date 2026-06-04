@@ -556,7 +556,7 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
   app.get("/api/servers/:serverId/stats", (req, res) => {
     const serverId = Number(req.params.serverId);
     const allOrders = storage.getOrdersByServer(serverId);
-    const completedOrders = allOrders.filter(o => o.status === "completed");
+    const completedOrders = allOrders.filter(o => o.status === "completed" || o.status === "failed");
     const revenue = completedOrders.reduce((sum, o) => sum + o.amount, 0);
     const platformRevenue = completedOrders.reduce((sum, o) => sum + (o.platformFee || 0), 0);
     const membersList = storage.getMembersByServer(serverId);
@@ -1352,7 +1352,7 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
       if (!member) return res.status(404).json({ error: "Member not found" });
       // Orders
       const allOrders = storage.getOrdersByServer(serverId);
-      const myOrders = allOrders.filter((o: any) => o.minecraftUsername === username && o.status === "completed");
+      const myOrders = allOrders.filter((o: any) => o.minecraftUsername === username && (o.status === "completed" || o.status === "failed"));
       // Gifts received (via gift_orders)
       const giftRows = (storage as any).getGiftsReceivedByUsername
         ? (storage as any).getGiftsReceivedByUsername(serverId, username)
@@ -1463,7 +1463,7 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
     if (!member) return res.status(404).json({ error: "Member not found" });
     const allOrders = storage.getOrdersByServer(serverId);
     const memberOrders = allOrders.filter(o => o.minecraftUsername === username);
-    const completedOrders = memberOrders.filter(o => o.status === "completed");
+    const completedOrders = memberOrders.filter(o => o.status === "completed" || o.status === "failed");
     const totalSpent = completedOrders.reduce((s, o) => s + o.amount, 0);
     const productsList = storage.getProductsByServer(serverId);
     const productMap: Record<number, string> = {};
