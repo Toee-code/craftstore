@@ -199,6 +199,9 @@ const alterStatements = [
   "ALTER TABLE store_themes ADD COLUMN banner_focal_y TEXT DEFAULT '50%'",
   // v7 — webhook retry
   "ALTER TABLE orders ADD COLUMN webhook_retry_count INTEGER NOT NULL DEFAULT 0",
+  // v8 — world selector
+  "ALTER TABLE products ADD COLUMN world TEXT",
+  "ALTER TABLE store_themes ADD COLUMN worlds TEXT DEFAULT '[]'",
 ];
 for (const stmt of alterStatements) {
   try { sqlite.exec(stmt); } catch { /* column already exists */ }

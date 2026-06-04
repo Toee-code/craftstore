@@ -55,6 +55,7 @@ export const products = sqliteTable("products", {
   featured: integer("featured").default(0),             // 1 = show in Featured Packages on home page
   category: text("category"),
   subcategory: text("subcategory"),            // NEW: subcategory within a category
+  world: text("world"),                         // e.g. "SMP", "Builderville" — null = all worlds
   command: text("command").notNull(),
   stock: integer("stock").default(-1),
   active: integer("active", { mode: "boolean" }).default(true),
@@ -145,6 +146,7 @@ export const storeThemes = sqliteTable("store_themes", {
   bannerLinkUrl: text("banner_link_url"),                  // optional click-through URL for banner
   bannerPosition: text("banner_position"),                 // where the promo banner appears: top | below-welcome | below-featured | bottom
   bannerFocalY: text("banner_focal_y"),                     // vertical focal point as percent string e.g. "40%"
+  worlds: text("worlds"),                                   // JSON array of world names e.g. ["SMP","Builderville"]
   updatedAt: text("updated_at").notNull().default(new Date().toISOString()),
 });
 

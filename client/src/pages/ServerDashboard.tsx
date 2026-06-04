@@ -1296,6 +1296,7 @@ export default function ServerDashboard() {
       playerHeadName: (p as any).playerHeadName ?? "",
       enchanted: !!(p as any).enchanted,
       featured: !!(p as any).featured,
+      world: (p as any).world ?? "",
     });
   };
 
@@ -1611,6 +1612,19 @@ export default function ServerDashboard() {
                         <Input type="number" {...productForm.register("stock", { valueAsNumber: true })} />
                       </div>
                     </div>
+                    {(() => { const wl: string[] = (() => { try { return JSON.parse(theme?.worlds || "[]"); } catch { return []; } })(); return wl.length > 0 ? (
+                      <div className="space-y-1.5">
+                        <Label className="flex items-center gap-1.5">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3.5 h-3.5"><rect x="2" y="3" width="20" height="14" rx="3" /><path d="M8 21h8M12 17v4" /></svg>
+                          World
+                        </Label>
+                        <select className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm" {...productForm.register("world" as any)}>
+                          <option value="">All worlds</option>
+                          {wl.map((w: string) => <option key={w} value={w}>{w}</option>)}
+                        </select>
+                        <p className="text-xs text-muted-foreground">Only show this item when that world is selected on the store</p>
+                      </div>
+                    ) : null; })()}
                     {/* Enchanted toggle */}
                     <div className="flex items-center justify-between rounded-xl bg-purple-500/10 border border-purple-500/30 px-4 py-3">
                       <div>
@@ -1696,6 +1710,19 @@ export default function ServerDashboard() {
                       <Input type="number" {...editForm.register("stock", { valueAsNumber: true })} />
                     </div>
                   </div>
+                  {(() => { const wl: string[] = (() => { try { return JSON.parse(theme?.worlds || "[]"); } catch { return []; } })(); return wl.length > 0 ? (
+                    <div className="space-y-1.5">
+                      <Label className="flex items-center gap-1.5">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3.5 h-3.5"><rect x="2" y="3" width="20" height="14" rx="3" /><path d="M8 21h8M12 17v4" /></svg>
+                        World
+                      </Label>
+                      <select className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm" {...editForm.register("world" as any)}>
+                        <option value="">All worlds</option>
+                        {wl.map((w: string) => <option key={w} value={w}>{w}</option>)}
+                      </select>
+                      <p className="text-xs text-muted-foreground">Only show this item when that world is selected on the store</p>
+                    </div>
+                  ) : null; })()}
                   {/* Enchanted toggle */}
                   <div className="flex items-center justify-between rounded-xl bg-purple-500/10 border border-purple-500/30 px-4 py-3">
                     <div>

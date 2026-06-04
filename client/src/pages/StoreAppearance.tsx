@@ -85,6 +85,8 @@ export default function StoreAppearance({ serverId }: Props) {
   const [newCategory, setNewCategory] = useState("");
   const [categories, setCategories] = useState<string[]>([]);
   const [subcategories, setSubcategories] = useState<Record<string, string[]>>({});
+  const [worlds, setWorlds] = useState<string[]>([]);
+  const [newWorld, setNewWorld] = useState("");
   const [expandedCat, setExpandedCat] = useState<string | null>(null);
   const [newSubcat, setNewSubcat] = useState<Record<string, string>>({});
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -150,6 +152,7 @@ export default function StoreAppearance({ serverId }: Props) {
     });
     try { setCategories(JSON.parse(theme.categories || "[]")); } catch { setCategories([]); }
     try { setSubcategories(JSON.parse(theme.subcategories || "{}")); } catch { setSubcategories({}); }
+    try { setWorlds(JSON.parse((theme as any).worlds || "[]")); } catch { setWorlds([]); }
   }, [theme]);
 
   const selectedScheme = watch("colorScheme");
@@ -169,6 +172,7 @@ export default function StoreAppearance({ serverId }: Props) {
         ...data,
         categories: JSON.stringify(categories),
         subcategories: JSON.stringify(subcategories),
+        worlds: JSON.stringify(worlds),
       }).then(r => r.json()),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["/api/servers", serverId, "theme"] });
@@ -648,6 +652,49 @@ export default function StoreAppearance({ serverId }: Props) {
           <p className="text-xs text-muted-foreground mt-2">
             "Store Home" shows your server info and category overview. "All Items" shows all products immediately.
           </p>
+        </CardContent>
+      </Card>
+
+      {/* ── World Selector ───────────────────────────────────────────────── */}
+      <Card className="bg-card border-border/60">
+        <CardHeader className="pb-3">
+          <div className="flex items-center gap-2">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-4 h-4 text-primary"><rect x="2" y="3" width="20" height="14" rx="3" /><path d="M8 21h8M12 17v4" /></svg>
+            <CardTitle className="text-base">World Selector</CardTitle>
+          </div>
+          <CardDescription>Add your server's worlds. Players will see a selector on the store letting them filter items by world.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex gap-2">
+            <input
+              value={newWorld}
+              onChange={e => setNewWorld(e.target.value)}
+              onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); const w = newWorld.trim(); if (w && !worlds.includes(w)) { setWorlds([...worlds, w]); setNewWorld(""); } } }}
+              placeholder="e.g. SMP, Builderville, Creative…"
+              className="flex-1 h-9 rounded-md border border-input bg-background px-3 text-sm"
+            />
+            <button
+              type="button"
+              onClick={() => { const w = newWorld.trim(); if (w && !worlds.includes(w)) { setWorlds([...worlds, w]); setNewWorld(""); } }}
+              className="h-9 px-4 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors">
+              Add World
+            </button>
+          </div>
+          {worlds.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {worlds.map(w => (
+                <div key={w} className="flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-medium" style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.12)" }}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3 h-3 opacity-60"><rect x="2" y="3" width="20" height="14" rx="3" /><path d="M8 21h8M12 17v4" /></svg>
+                  {w}
+                  <button type="button" onClick={() => setWorlds(worlds.filter(x => x !== w))} className="ml-1 opacity-50 hover:opacity-100 transition-opacity">×</button>
+                </div>
+              ))}
+            </div>
+          )}
+          {worlds.length === 0 && (
+            <p className="text-xs text-muted-foreground">No worlds added yet. Add worlds to show a selector on your store.</p>
+          )}
+          <p className="text-xs text-muted-foreground">Worlds appear as cards above the shop. When a player picks one, only items tagged to that world (or untagged) are shown.</p>
         </CardContent>
       </Card>
 
