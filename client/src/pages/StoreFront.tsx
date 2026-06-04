@@ -1592,21 +1592,22 @@ function EchoLayout({
 }) {
   const categories: string[] = (() => { try { return JSON.parse(data.theme.categories || "[]"); } catch { return []; } })();
   const worlds: string[] = (() => { try { return JSON.parse((data.theme as any).worlds || "[]"); } catch { return []; } })();
-  const [selectedWorld, setSelectedWorld] = useState<string | null>(() => {
-    // Restore from URL hash param first, fall back to first world
-    const params = new URLSearchParams(window.location.hash.includes("?") ? window.location.hash.split("?")[1] : "");
-    const urlWorld = params.get("world");
-    if (urlWorld && worlds.includes(urlWorld)) return urlWorld;
-    return worlds[0] ?? null;
-  });
+  const [selectedWorld, setSelectedWorld] = useState<string | null>(null);
 
-  // Persist selected world into URL hash so it survives page nav
+  // Once worlds list is available, restore from sessionStorage or default to first world
   useEffect(() => {
-    if (!selectedWorld) return;
-    const hashBase = window.location.hash.split("?")[0] || "#/";
-    const params = new URLSearchParams(window.location.hash.includes("?") ? window.location.hash.split("?")[1] : "");
-    params.set("world", selectedWorld);
-    window.history.replaceState(null, "", window.location.pathname + hashBase + "?" + params.toString());
+    if (worlds.length === 0) return;
+    const saved = sessionStorage.getItem("craftstore_world_" + data.server.id);
+    if (saved && worlds.includes(saved)) {
+      setSelectedWorld(saved);
+    } else {
+      setSelectedWorld(worlds[0]);
+    }
+  }, [worlds.join(",")]);
+
+  // Persist selection to sessionStorage whenever it changes
+  useEffect(() => {
+    if (selectedWorld) sessionStorage.setItem("craftstore_world_" + data.server.id, selectedWorld);
   }, [selectedWorld]);
   const activeProducts = data.products.filter(p => p.active);
   // Filter by world: if worlds are configured, always show only the selected world's items (+ untagged)
