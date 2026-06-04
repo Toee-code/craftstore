@@ -498,6 +498,7 @@ function ProductCard({ product, accent, playerPrice, onBuy, onGift }: {
   onBuy: (p: Product) => void; onGift: (p: Product) => void;
 }) {
   const [hovered, setHovered] = useState(false);
+  const soldOut = product.stock === 0;
 
   return (
     <div
@@ -561,25 +562,14 @@ function ProductCard({ product, accent, playerPrice, onBuy, onGift }: {
           <span className="text-xl font-extrabold" style={{ color: accent, textShadow: `0 0 20px ${accent}80` }}>
             £{playerPrice.toFixed(2)}
           </span>
-          <div className="flex gap-1.5">
-            <button
-              onClick={() => onBuy(product)}
-              className="px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5"
-              style={{ background: accent, color: "#000", boxShadow: hovered ? `0 0 20px ${accent}60` : "none" }}
-              data-testid={`button-buy-${product.id}`}
-            >
-              <ShoppingCart className="w-3 h-3" /> Buy
-            </button>
-            <button
-              onClick={() => onGift(product)}
-              className="p-1.5 rounded-xl transition-all"
-              style={{ background: "rgba(255,255,255,0.08)", color: accent, border: `1px solid ${accent}20` }}
-              title="Gift this item"
-              data-testid={`button-gift-${product.id}`}
-            >
-              <Gift className="w-3.5 h-3.5" />
-            </button>
-          </div>
+          {soldOut ? (
+            <span className="px-3 py-1.5 rounded-xl text-xs font-bold" style={{ background: "rgba(255,68,68,0.12)", color: "#ff4444", border: "1.5px solid #ff444440" }}>Sold Out</span>
+          ) : (
+            <div className="flex gap-1.5">
+              <button onClick={() => onBuy(product)} className="px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5" style={{ background: accent, color: "#000", boxShadow: hovered ? `0 0 20px ${accent}60` : "none" }} data-testid={`button-buy-${product.id}`}><ShoppingCart className="w-3 h-3" /> Buy</button>
+              <button onClick={() => onGift(product)} className="p-1.5 rounded-xl transition-all" style={{ background: "rgba(255,255,255,0.08)", color: accent, border: `1px solid ${accent}20` }} title="Gift this item" data-testid={`button-gift-${product.id}`}><Gift className="w-3.5 h-3.5" /></button>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -604,6 +594,7 @@ function DonutProductCard({
 }) {
   const [qty, setQty] = useState<1 | 5 | 10 | 20>(1);
   const [hovered, setHovered] = useState(false);
+  const soldOut = product.stock === 0;
   const QTYS: (1 | 5 | 10 | 20)[] = [1, 5, 10, 20];
 
   return (
@@ -693,32 +684,17 @@ function DonutProductCard({
         </div>
 
         {/* Buy + Gift row */}
-        <div className="flex gap-1.5">
-          <button
-            onClick={() => onBuy(product)}
-            className="flex-1 py-2.5 rounded-xl font-extrabold text-sm transition-all flex items-center justify-center gap-1.5"
-            style={{
-              background: accent,
-              color: "#fff",
-              boxShadow: hovered ? `0 0 20px ${accent}70` : `0 0 10px ${accent}30`,
-            }}
-            data-testid={`button-donut-buy-${product.id}`}
-          >
-            <ShoppingCart className="w-4 h-4" /> Add to Cart
-          </button>
-          <button
-            onClick={() => onGift(product)}
-            className="px-2.5 rounded-xl transition-all hover:opacity-80"
-            style={{ background: "rgba(255,255,255,0.08)", color: accent, border: `1px solid ${accent}25` }}
-            title="Gift this item"
-            data-testid={`button-donut-gift-${product.id}`}
-          >
-            <Gift className="w-4 h-4" />
-          </button>
-        </div>
+        {soldOut ? (
+          <div className="w-full py-2.5 rounded-xl font-extrabold text-sm text-center" style={{ background: "rgba(255,68,68,0.12)", color: "#ff4444", border: "1.5px solid #ff444440" }}>Sold Out</div>
+        ) : (
+          <div className="flex gap-1.5">
+            <button onClick={() => onBuy(product)} className="flex-1 py-2.5 rounded-xl font-extrabold text-sm transition-all flex items-center justify-center gap-1.5" style={{ background: accent, color: "#fff", boxShadow: hovered ? `0 0 20px ${accent}70` : `0 0 10px ${accent}30` }} data-testid={`button-donut-buy-${product.id}`}><ShoppingCart className="w-4 h-4" /> Add to Cart</button>
+            <button onClick={() => onGift(product)} className="px-2.5 rounded-xl transition-all hover:opacity-80" style={{ background: "rgba(255,255,255,0.08)", color: accent, border: `1px solid ${accent}25` }} title="Gift this item" data-testid={`button-donut-gift-${product.id}`}><Gift className="w-4 h-4" /></button>
+          </div>
+        )}
 
         {/* Stock */}
-        {product.stock != null && product.stock > 0 && product.stock !== -1 && (
+        {!soldOut && product.stock != null && product.stock > 0 && product.stock !== -1 && (
           <p className="text-center text-xs mt-2" style={{ color: (product.stock ?? 99) < 5 ? "#f87171" : "rgba(255,255,255,0.3)" }}>
             <span style={{ color: (product.stock ?? 99) < 5 ? "#f87171" : accent }}>●</span> {product.stock} left
           </p>
@@ -851,9 +827,10 @@ function EchoProductCard({
   product: Product; accent: string; playerPrice: number;
   onBuy: (p: Product) => void; onGift: (p: Product) => void;
 }) {
+  const soldOut = product.stock === 0;
   return (
     <div className="rounded-2xl flex flex-col overflow-hidden transition-all duration-200 hover:-translate-y-1"
-      style={{ background: "#16191f", border: "1px solid rgba(255,255,255,0.07)" }}
+      style={{ background: "#16191f", border: "1px solid rgba(255,255,255,0.07)", opacity: soldOut ? 0.65 : 1 }}
       data-testid={`card-echo-product-${product.id}`}>
 
       {/* Product image */}
@@ -865,13 +842,15 @@ function EchoProductCard({
               objectFit: product.imageType === "playerhead" || product.imageType === "minecraft_item" ? "contain" : "cover",
               imageRendering: "pixelated",
               padding: product.imageType === "playerhead" || product.imageType === "minecraft_item" ? 12 : 0,
-              filter: "drop-shadow(0 4px 12px rgba(0,0,0,0.5))",
+              filter: soldOut ? "grayscale(1) drop-shadow(0 4px 12px rgba(0,0,0,0.5))" : "drop-shadow(0 4px 12px rgba(0,0,0,0.5))",
             }} />
           {!!product.enchanted && <img src={imgUrl} aria-hidden className="enchant-glint" style={{ objectFit: "cover", width: "100%", height: "100%" }} />}
+          {soldOut && <div className="absolute inset-0 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.55)" }}><span className="font-black text-xs px-2.5 py-1 rounded-md uppercase tracking-widest" style={{ background: "rgba(0,0,0,0.75)", color: "#ff4444", border: "1.5px solid #ff4444" }}>Sold Out</span></div>}
         </div>
       ) : (
-        <div className="w-full flex items-center justify-center" style={{ height: 120, borderRadius: "16px 16px 0 0", background: `${accent}15` }}>
+        <div className="w-full flex items-center justify-center relative" style={{ height: 120, borderRadius: "16px 16px 0 0", background: `${accent}15` }}>
           <Package className="w-10 h-10" style={{ color: `${accent}70` }} />
+          {soldOut && <div className="absolute inset-0 flex items-center justify-center rounded-t-2xl" style={{ background: "rgba(0,0,0,0.55)" }}><span className="font-black text-xs px-2.5 py-1 rounded-md uppercase tracking-widest" style={{ background: "rgba(0,0,0,0.75)", color: "#ff4444", border: "1.5px solid #ff4444" }}>Sold Out</span></div>}
         </div>
       ); })()}
 
@@ -884,21 +863,14 @@ function EchoProductCard({
       </div>
 
       <div className="px-3 pb-3 pt-2 flex flex-col gap-2">
-        <button
-          onClick={() => onBuy(product)}
-          className="w-full py-2 rounded-lg font-bold text-sm text-white transition-all hover:brightness-110"
-          style={{ background: accent }}
-          data-testid={`button-echo-buy-${product.id}`}>
-          Add to Basket
-        </button>
-        {/* Gift row — flat grey, same height as EchoSMP */}
-        <button
-          onClick={() => onGift(product)}
-          className="w-full py-1.5 rounded-lg text-xs font-medium flex items-center justify-center gap-1 transition-all hover:brightness-110"
-          style={{ background: "rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.45)" }}
-          data-testid={`button-echo-gift-${product.id}`}>
-          <Gift className="w-3 h-3" />
-        </button>
+        {soldOut ? (
+          <div className="w-full py-2 rounded-lg font-bold text-sm text-center" style={{ background: "rgba(255,68,68,0.12)", color: "#ff4444", border: "1.5px solid #ff444440" }}>Sold Out</div>
+        ) : (
+          <>
+            <button onClick={() => onBuy(product)} className="w-full py-2 rounded-lg font-bold text-sm text-white transition-all hover:brightness-110" style={{ background: accent }} data-testid={`button-echo-buy-${product.id}`}>Add to Basket</button>
+            <button onClick={() => onGift(product)} className="w-full py-1.5 rounded-lg text-xs font-medium flex items-center justify-center gap-1 transition-all hover:brightness-110" style={{ background: "rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.45)" }} data-testid={`button-echo-gift-${product.id}`}><Gift className="w-3 h-3" /></button>
+          </>
+        )}
       </div>
     </div>
   );
