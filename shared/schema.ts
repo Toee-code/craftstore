@@ -56,6 +56,8 @@ export const products = sqliteTable("products", {
   category: text("category"),
   subcategory: text("subcategory"),            // NEW: subcategory within a category
   world: text("world"),                         // e.g. "SMP", "Builderville" — null = all worlds
+  preorder: integer("preorder").default(0),      // 1 = pre-order item (payment taken now, command fires on release)
+  preorderReleaseDate: text("preorder_release_date"), // ISO date string e.g. "2024-12-25"
   command: text("command").notNull(),
   stock: integer("stock").default(-1),
   active: integer("active", { mode: "boolean" }).default(true),

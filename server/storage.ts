@@ -202,6 +202,9 @@ const alterStatements = [
   // v8 — world selector
   "ALTER TABLE products ADD COLUMN world TEXT",
   "ALTER TABLE store_themes ADD COLUMN worlds TEXT DEFAULT '[]'",
+  // v9 — preorder
+  "ALTER TABLE products ADD COLUMN preorder INTEGER DEFAULT 0",
+  "ALTER TABLE products ADD COLUMN preorder_release_date TEXT",
 ];
 for (const stmt of alterStatements) {
   try { sqlite.exec(stmt); } catch { /* column already exists */ }

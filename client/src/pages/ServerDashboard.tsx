@@ -581,7 +581,7 @@ function ProductImagePicker({
 interface ProductForm {
   name: string; description: string; price: number;
   command: string; category: string; stock: number; imageUrl: string;
-  imageType: string; playerHeadName: string; enchanted: boolean; featured: boolean;
+  imageType: string; playerHeadName: string; enchanted: boolean; featured: boolean; preorder: boolean; preorderReleaseDate: string;
 }
 interface MemberForm { minecraftUsername: string; email: string; balance: number; }
 
@@ -1256,7 +1256,7 @@ export default function ServerDashboard() {
   };
 
   // Add product
-  const productForm = useForm<ProductForm>({ defaultValues: { imageType: "upload", playerHeadName: "", stock: -1, enchanted: false, featured: false } });
+  const productForm = useForm<ProductForm>({ defaultValues: { imageType: "upload", playerHeadName: "", stock: -1, enchanted: false, featured: false, preorder: false, preorderReleaseDate: "" } });
   const addProduct = useMutation({
     mutationFn: (data: ProductForm) =>
       apiRequest("POST", `/api/servers/${serverId}/products`, data).then(r => r.json()),
@@ -1264,13 +1264,13 @@ export default function ServerDashboard() {
       qc.invalidateQueries({ queryKey: ["/api/servers", serverId, "products"] });
       qc.invalidateQueries({ queryKey: ["/api/servers", serverId, "stats"] });
       setAddProductOpen(false);
-      productForm.reset({ imageType: "upload", playerHeadName: "", stock: -1, enchanted: false, featured: false });
+      productForm.reset({ imageType: "upload", playerHeadName: "", stock: -1, enchanted: false, featured: false, preorder: false, preorderReleaseDate: "" });
       toast({ title: "Product added" });
     },
   });
 
   // Edit product
-  const editForm = useForm<ProductForm>({ defaultValues: { imageType: "upload", playerHeadName: "", stock: -1, enchanted: false, featured: false } });
+  const editForm = useForm<ProductForm>({ defaultValues: { imageType: "upload", playerHeadName: "", stock: -1, enchanted: false, featured: false, preorder: false, preorderReleaseDate: "" } });
   const updateProduct = useMutation({
     mutationFn: (data: ProductForm & { id: number }) =>
       apiRequest("PATCH", `/api/products/${data.id}`, data).then(r => r.json()),
@@ -1297,6 +1297,8 @@ export default function ServerDashboard() {
       enchanted: !!(p as any).enchanted,
       featured: !!(p as any).featured,
       world: (p as any).world ?? "",
+      preorder: !!(p as any).preorder,
+      preorderReleaseDate: (p as any).preorderReleaseDate ?? "",
     });
   };
 
@@ -1653,6 +1655,25 @@ export default function ServerDashboard() {
                         <span className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform ${productForm.watch("featured") ? "translate-x-4" : ""}`} />
                       </button>
                     </div>
+                    {/* Pre-Order toggle */}
+                    <div className="rounded-xl border border-blue-500/30 bg-blue-500/10 px-4 py-3 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium flex items-center gap-1.5"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3.5 h-3.5 text-blue-400"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Pre-Order</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">Players pay now — item delivered when released</p>
+                        </div>
+                        <button type="button" onClick={() => productForm.setValue("preorder", !productForm.watch("preorder"))} className={`relative w-10 h-6 rounded-full transition-colors ${productForm.watch("preorder") ? "bg-blue-500" : "bg-muted"}`}>
+                          <span className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform ${productForm.watch("preorder") ? "translate-x-4" : ""}`} />
+                        </button>
+                      </div>
+                      {productForm.watch("preorder") && (
+                        <div className="space-y-1.5">
+                          <Label className="text-xs">Release Date (optional)</Label>
+                          <Input type="date" {...productForm.register("preorderReleaseDate")} className="h-8 text-sm" />
+                          <p className="text-xs text-muted-foreground">Shown on the store as the expected availability date</p>
+                        </div>
+                      )}
+                    </div>
                     <ProductImagePicker
                       imageType={productForm.watch("imageType") || "upload"}
                       setImageType={(v) => productForm.setValue("imageType", v)}
@@ -1750,6 +1771,25 @@ export default function ServerDashboard() {
                       className={`relative w-10 h-6 rounded-full transition-colors ${editForm.watch("featured") ? "bg-yellow-500" : "bg-muted"}`}>
                       <span className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform ${editForm.watch("featured") ? "translate-x-4" : ""}`} />
                     </button>
+                  </div>
+                  {/* Pre-Order toggle */}
+                  <div className="rounded-xl border border-blue-500/30 bg-blue-500/10 px-4 py-3 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium flex items-center gap-1.5"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3.5 h-3.5 text-blue-400"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Pre-Order</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">Players pay now — item delivered when released</p>
+                      </div>
+                      <button type="button" onClick={() => editForm.setValue("preorder", !editForm.watch("preorder"))} className={`relative w-10 h-6 rounded-full transition-colors ${editForm.watch("preorder") ? "bg-blue-500" : "bg-muted"}`}>
+                        <span className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform ${editForm.watch("preorder") ? "translate-x-4" : ""}`} />
+                      </button>
+                    </div>
+                    {editForm.watch("preorder") && (
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Release Date (optional)</Label>
+                        <Input type="date" {...editForm.register("preorderReleaseDate")} className="h-8 text-sm" />
+                        <p className="text-xs text-muted-foreground">Shown on the store as the expected availability date</p>
+                      </div>
+                    )}
                   </div>
                   <ProductImagePicker
                     imageType={editForm.watch("imageType") || "upload"}

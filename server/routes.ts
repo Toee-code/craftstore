@@ -439,6 +439,8 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
           minecraftUsername,
           command,
           commands,
+          preorder: !!(product as any).preorder,
+          preorderReleaseDate: (product as any).preorderReleaseDate || null,
           product: { id: product.id, name: product.name },
           secret: server.webhookSecret,
         };
@@ -675,7 +677,7 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
           const command = product.command.replace("%player%", minecraftUsername).replace("{player}", minecraftUsername);
           const commands = command.split("\n").map((c: string) => c.trim()).filter(Boolean);
           try {
-            await fetch(server.webhookUrl, { method: "POST", headers: { "Content-Type": "application/json", "X-CraftStore-Secret": server.webhookSecret || "" }, body: JSON.stringify({ event: "purchase", orderId: order.id, minecraftUsername, command, commands, product: { id: product.id, name: product.name }, productName: product.name, secret: server.webhookSecret }) });
+            await fetch(server.webhookUrl, { method: "POST", headers: { "Content-Type": "application/json", "X-CraftStore-Secret": server.webhookSecret || "" }, body: JSON.stringify({ event: "purchase", orderId: order.id, minecraftUsername, command, commands, preorder: !!(product as any).preorder, preorderReleaseDate: (product as any).preorderReleaseDate || null, product: { id: product.id, name: product.name }, productName: product.name, secret: server.webhookSecret }) });
             storage.updateOrderStatus(order.id, "completed", true);
           } catch { storage.updateOrderStatus(order.id, "failed", false); }
         }
@@ -783,7 +785,7 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
             const wResp = await fetch(server.webhookUrl, {
               method: "POST",
               headers: { "Content-Type": "application/json", "X-CraftStore-Secret": server.webhookSecret || "" },
-              body: JSON.stringify({ event: "purchase", orderId: order.id, minecraftUsername, command, commands, product: { id: product.id, name: product.name }, productName: product.name, secret: server.webhookSecret }),
+              body: JSON.stringify({ event: "purchase", orderId: order.id, minecraftUsername, command, commands, preorder: !!(product as any).preorder, preorderReleaseDate: (product as any).preorderReleaseDate || null, product: { id: product.id, name: product.name }, productName: product.name, secret: server.webhookSecret }),
             });
             storage.updateOrderStatus(order.id, wResp.ok ? "completed" : "failed", wResp.ok);
           } catch {
@@ -1280,7 +1282,8 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
         const payload = {
           event: "gift_purchase", orderId: order.id,
           minecraftUsername: recipientUsername, senderUsername,
-          command, commands, product: { id: product.id, name: product.name },
+          command, commands, preorder: !!(product as any).preorder, preorderReleaseDate: (product as any).preorderReleaseDate || null,
+          product: { id: product.id, name: product.name },
           secret: server.webhookSecret,
         };
         try {

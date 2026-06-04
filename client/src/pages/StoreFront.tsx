@@ -499,6 +499,8 @@ function ProductCard({ product, accent, playerPrice, onBuy, onGift }: {
 }) {
   const [hovered, setHovered] = useState(false);
   const soldOut = product.stock === 0;
+  const isPreorder = !!(product as any).preorder;
+  const releaseDate = fmtRelease((product as any).preorderReleaseDate);
 
   return (
     <div
@@ -541,6 +543,11 @@ function ProductCard({ product, accent, playerPrice, onBuy, onGift }: {
             </span>
           </div>
         )}
+        {isPreorder && !soldOut && (
+          <div className="absolute top-3 right-3">
+            <span className="text-[10px] font-black px-2 py-0.5 rounded uppercase tracking-widest" style={{ background: "rgba(59,130,246,0.9)", color: "#fff" }}>Pre-Order</span>
+          </div>
+        )}
         {/* Glow overlay on hover */}
         <div className="absolute inset-0 pointer-events-none transition-opacity duration-300"
           style={{ background: `linear-gradient(to bottom, transparent 40%, ${accent}15)`, opacity: hovered ? 1 : 0 }} />
@@ -549,6 +556,7 @@ function ProductCard({ product, accent, playerPrice, onBuy, onGift }: {
       {/* Content */}
       <div className="p-4 flex flex-col flex-1">
         <h3 className="font-bold text-sm leading-tight mb-1" style={{ color: "rgba(255,255,255,0.92)" }}>{product.name}</h3>
+        {isPreorder && releaseDate && <p className="text-[10px] mb-1 font-medium" style={{ color: "#60a5fa" }}>Releases {releaseDate}</p>}
         {product.subcategory && <p className="text-xs mb-1" style={{ color: accent + "99" }}>{product.subcategory}</p>}
         {product.description && (
           <p className="text-xs mb-3 line-clamp-2 flex-1" style={{ color: "rgba(255,255,255,0.45)" }}>{product.description}</p>
@@ -566,7 +574,7 @@ function ProductCard({ product, accent, playerPrice, onBuy, onGift }: {
             <span className="px-3 py-1.5 rounded-xl text-xs font-bold" style={{ background: "rgba(255,68,68,0.12)", color: "#ff4444", border: "1.5px solid #ff444440" }}>Sold Out</span>
           ) : (
             <div className="flex gap-1.5">
-              <button onClick={() => onBuy(product)} className="px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5" style={{ background: accent, color: "#000", boxShadow: hovered ? `0 0 20px ${accent}60` : "none" }} data-testid={`button-buy-${product.id}`}><ShoppingCart className="w-3 h-3" /> Buy</button>
+              <button onClick={() => onBuy(product)} className="px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5" style={{ background: isPreorder ? "#2563eb" : accent, color: isPreorder ? "#fff" : "#000", boxShadow: hovered ? `0 0 20px ${accent}60` : "none" }} data-testid={`button-buy-${product.id}`}>{isPreorder ? <>⏱ Pre-Order</> : <><ShoppingCart className="w-3 h-3" /> Buy</>}</button>
               <button onClick={() => onGift(product)} className="p-1.5 rounded-xl transition-all" style={{ background: "rgba(255,255,255,0.08)", color: accent, border: `1px solid ${accent}20` }} title="Gift this item" data-testid={`button-gift-${product.id}`}><Gift className="w-3.5 h-3.5" /></button>
             </div>
           )}
@@ -595,6 +603,8 @@ function DonutProductCard({
   const [qty, setQty] = useState<1 | 5 | 10 | 20>(1);
   const [hovered, setHovered] = useState(false);
   const soldOut = product.stock === 0;
+  const isPreorder = !!(product as any).preorder;
+  const releaseDate = fmtRelease((product as any).preorderReleaseDate);
   const QTYS: (1 | 5 | 10 | 20)[] = [1, 5, 10, 20];
 
   return (
@@ -617,6 +627,12 @@ function DonutProductCard({
             style={{ background: "#f97316", color: "#fff", letterSpacing: "0.04em" }}>
             ★ Most Popular
           </span>
+        </div>
+      )}
+      {/* Pre-Order badge */}
+      {isPreorder && !soldOut && (
+        <div className="absolute -top-2.5 left-4 z-10">
+          <span className="text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-widest" style={{ background: "#2563eb", color: "#fff" }}>⏱ Pre-Order</span>
         </div>
       )}
 
@@ -655,6 +671,7 @@ function DonutProductCard({
         <h3 className="font-extrabold text-base text-center mb-0.5" style={{ color: "#fff" }}>
           {product.name}
         </h3>
+        {isPreorder && releaseDate && <p className="text-[10px] text-center font-medium mb-1" style={{ color: "#60a5fa" }}>Releases {releaseDate}</p>}
         {product.description && (
           <p className="text-xs text-center mb-2 line-clamp-2" style={{ color: "rgba(255,255,255,0.45)" }}>
             {product.description}
@@ -688,7 +705,7 @@ function DonutProductCard({
           <div className="w-full py-2.5 rounded-xl font-extrabold text-sm text-center" style={{ background: "rgba(255,68,68,0.12)", color: "#ff4444", border: "1.5px solid #ff444440" }}>Sold Out</div>
         ) : (
           <div className="flex gap-1.5">
-            <button onClick={() => onBuy(product)} className="flex-1 py-2.5 rounded-xl font-extrabold text-sm transition-all flex items-center justify-center gap-1.5" style={{ background: accent, color: "#fff", boxShadow: hovered ? `0 0 20px ${accent}70` : `0 0 10px ${accent}30` }} data-testid={`button-donut-buy-${product.id}`}><ShoppingCart className="w-4 h-4" /> Add to Cart</button>
+            <button onClick={() => onBuy(product)} className="flex-1 py-2.5 rounded-xl font-extrabold text-sm transition-all flex items-center justify-center gap-1.5" style={{ background: isPreorder ? "#2563eb" : accent, color: "#fff", boxShadow: hovered ? `0 0 20px ${isPreorder ? "#2563eb" : accent}70` : `0 0 10px ${isPreorder ? "#2563eb" : accent}30` }} data-testid={`button-donut-buy-${product.id}`}>{isPreorder ? <>⏱ Pre-Order</> : <><ShoppingCart className="w-4 h-4" /> Add to Cart</>}</button>
             <button onClick={() => onGift(product)} className="px-2.5 rounded-xl transition-all hover:opacity-80" style={{ background: "rgba(255,255,255,0.08)", color: accent, border: `1px solid ${accent}25` }} title="Gift this item" data-testid={`button-donut-gift-${product.id}`}><Gift className="w-4 h-4" /></button>
           </div>
         )}
@@ -821,6 +838,12 @@ function DonutLayout({
  */
 // EchoSMP product card — desktop style: small card, floating image on transparent bg,
 // bold name, muted price, cyan "Add to Basket", flat grey gift row below
+function fmtRelease(d: string | null | undefined) {
+  if (!d) return null;
+  try { return new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }); }
+  catch { return d; }
+}
+
 function EchoProductCard({
   product, accent, playerPrice, onBuy, onGift
 }: {
@@ -828,9 +851,11 @@ function EchoProductCard({
   onBuy: (p: Product) => void; onGift: (p: Product) => void;
 }) {
   const soldOut = product.stock === 0;
+  const isPreorder = !!(product as any).preorder;
+  const releaseDate = fmtRelease((product as any).preorderReleaseDate);
   return (
     <div className="rounded-2xl flex flex-col overflow-hidden transition-all duration-200 hover:-translate-y-1"
-      style={{ background: "#16191f", border: "1px solid rgba(255,255,255,0.07)", opacity: soldOut ? 0.65 : 1 }}
+      style={{ background: "#16191f", border: isPreorder ? "1px solid rgba(59,130,246,0.35)" : "1px solid rgba(255,255,255,0.07)", opacity: soldOut ? 0.65 : 1 }}
       data-testid={`card-echo-product-${product.id}`}>
 
       {/* Product image */}
@@ -846,17 +871,20 @@ function EchoProductCard({
             }} />
           {!!product.enchanted && <img src={imgUrl} aria-hidden className="enchant-glint" style={{ objectFit: "cover", width: "100%", height: "100%" }} />}
           {soldOut && <div className="absolute inset-0 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.55)" }}><span className="font-black text-xs px-2.5 py-1 rounded-md uppercase tracking-widest" style={{ background: "rgba(0,0,0,0.75)", color: "#ff4444", border: "1.5px solid #ff4444" }}>Sold Out</span></div>}
+          {!soldOut && isPreorder && <div className="absolute top-2 left-2"><span className="font-black text-[10px] px-2 py-0.5 rounded uppercase tracking-widest" style={{ background: "rgba(59,130,246,0.9)", color: "#fff" }}>Pre-Order</span></div>}
         </div>
       ) : (
         <div className="w-full flex items-center justify-center relative" style={{ height: 120, borderRadius: "16px 16px 0 0", background: `${accent}15` }}>
           <Package className="w-10 h-10" style={{ color: `${accent}70` }} />
           {soldOut && <div className="absolute inset-0 flex items-center justify-center rounded-t-2xl" style={{ background: "rgba(0,0,0,0.55)" }}><span className="font-black text-xs px-2.5 py-1 rounded-md uppercase tracking-widest" style={{ background: "rgba(0,0,0,0.75)", color: "#ff4444", border: "1.5px solid #ff4444" }}>Sold Out</span></div>}
+          {!soldOut && isPreorder && <div className="absolute top-2 left-2"><span className="font-black text-[10px] px-2 py-0.5 rounded uppercase tracking-widest" style={{ background: "rgba(59,130,246,0.9)", color: "#fff" }}>Pre-Order</span></div>}
         </div>
       ); })()}
 
       {/* Text + CTA */}
       <div className="px-4 pb-1 pt-2">
         <h3 className="font-bold text-white text-sm leading-snug">{product.name}</h3>
+        {isPreorder && releaseDate && <p className="text-[10px] mt-0.5 font-medium" style={{ color: "#60a5fa" }}>Releases {releaseDate}</p>}
         <p className="text-sm font-semibold mt-0.5" style={{ color: "rgba(255,255,255,0.55)" }}>
           £{playerPrice.toFixed(2)}
         </p>
@@ -867,7 +895,7 @@ function EchoProductCard({
           <div className="w-full py-2 rounded-lg font-bold text-sm text-center" style={{ background: "rgba(255,68,68,0.12)", color: "#ff4444", border: "1.5px solid #ff444440" }}>Sold Out</div>
         ) : (
           <>
-            <button onClick={() => onBuy(product)} className="w-full py-2 rounded-lg font-bold text-sm text-white transition-all hover:brightness-110" style={{ background: accent }} data-testid={`button-echo-buy-${product.id}`}>Add to Basket</button>
+            <button onClick={() => onBuy(product)} className="w-full py-2 rounded-lg font-bold text-sm text-white transition-all hover:brightness-110" style={{ background: isPreorder ? "#2563eb" : accent }} data-testid={`button-echo-buy-${product.id}`}>{isPreorder ? "⏱ Pre-Order" : "Add to Basket"}</button>
             <button onClick={() => onGift(product)} className="w-full py-1.5 rounded-lg text-xs font-medium flex items-center justify-center gap-1 transition-all hover:brightness-110" style={{ background: "rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.45)" }} data-testid={`button-echo-gift-${product.id}`}><Gift className="w-3 h-3" /></button>
           </>
         )}
