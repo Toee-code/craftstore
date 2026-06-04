@@ -278,6 +278,7 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
       // Convert boolean fields → integer for SQLite
       if (typeof body.enchanted === "boolean") body.enchanted = body.enchanted ? 1 : 0;
       if (typeof body.featured === "boolean") body.featured = body.featured ? 1 : 0;
+      if (typeof body.preorder === "boolean") body.preorder = body.preorder ? 1 : 0;
       const parsed = insertProductSchema.parse(body);
       res.json(storage.createProduct(parsed));
     } catch (e: any) {
@@ -290,6 +291,7 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
     // Convert boolean fields → integer for SQLite
     if (typeof body.enchanted === "boolean") body.enchanted = body.enchanted ? 1 : 0;
     if (typeof body.featured === "boolean") body.featured = body.featured ? 1 : 0;
+    if (typeof body.preorder === "boolean") body.preorder = body.preorder ? 1 : 0;
     const product = storage.updateProduct(Number(req.params.id), body);
     if (!product) return res.status(404).json({ error: "Not found" });
     res.json(product);
