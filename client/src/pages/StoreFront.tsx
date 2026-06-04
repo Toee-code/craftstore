@@ -2898,6 +2898,29 @@ function ThemedStore({ data }: { data: StoreData }) {
                       <Input placeholder="Steve" value={username} onChange={e => setUsername(e.target.value)}
                         style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", color: "#fff" }} />
                     </div>
+                    {checkout.mode !== "gift" && (
+                      <div className="space-y-1.5">
+                        <Label style={{ color: "rgba(255,255,255,0.55)", fontSize: 12 }}>Creator code <span style={{ color: "rgba(255,255,255,0.3)" }}>(optional)</span></Label>
+                        <div className="flex gap-2">
+                          <Input
+                            placeholder="e.g. TOEE10"
+                            value={creatorCode}
+                            onChange={e => { setCreatorCode(e.target.value.toUpperCase()); setCodeValidation(null); }}
+                            onBlur={() => validateCreatorCode(creatorCode)}
+                            style={{ background: "rgba(255,255,255,0.06)", border: `1px solid ${codeValidation?.valid ? "#22c55e" : codeValidation === null ? "rgba(255,255,255,0.12)" : "#ef4444"}`, color: "#fff", flex: 1 }}
+                          />
+                          {codeLoading && <div className="flex items-center px-2"><Loader2 className="w-4 h-4 animate-spin" style={{ color: "rgba(255,255,255,0.4)" }} /></div>}
+                        </div>
+                        {codeValidation?.valid && (
+                          <p className="text-xs font-bold" style={{ color: "#22c55e" }}>
+                            ✓ {codeValidation.creatorName}{codeValidation.discountPercent > 0 ? ` — ${codeValidation.discountPercent}% off applied!` : ""}
+                          </p>
+                        )}
+                        {codeValidation?.valid === false && (
+                          <p className="text-xs" style={{ color: "#ef4444" }}>Invalid or inactive code</p>
+                        )}
+                      </div>
+                    )}
                     {checkout.mode === "gift" && (
                       <div className="space-y-1.5">
                         <Label style={{ color: "rgba(255,255,255,0.55)", fontSize: 12 }}>Recipient username</Label>
@@ -3295,6 +3318,29 @@ function ThemedStore({ data }: { data: StoreData }) {
                       style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", color: "#fff" }}
                       data-testid="input-checkout-username" />
                   </div>
+                    {checkout.mode !== "gift" && (
+                      <div className="space-y-1.5">
+                        <Label style={{ color: "rgba(255,255,255,0.55)", fontSize: 12 }}>Creator code <span style={{ color: "rgba(255,255,255,0.3)" }}>(optional)</span></Label>
+                        <div className="flex gap-2">
+                          <Input
+                            placeholder="e.g. TOEE10"
+                            value={creatorCode}
+                            onChange={e => { setCreatorCode(e.target.value.toUpperCase()); setCodeValidation(null); }}
+                            onBlur={() => validateCreatorCode(creatorCode)}
+                            style={{ background: "rgba(255,255,255,0.06)", border: `1px solid ${codeValidation?.valid ? "#22c55e" : codeValidation === null ? "rgba(255,255,255,0.12)" : "#ef4444"}`, color: "#fff", flex: 1 }}
+                          />
+                          {codeLoading && <div className="flex items-center px-2"><Loader2 className="w-4 h-4 animate-spin" style={{ color: "rgba(255,255,255,0.4)" }} /></div>}
+                        </div>
+                        {codeValidation?.valid && (
+                          <p className="text-xs font-bold" style={{ color: "#22c55e" }}>
+                            ✓ {codeValidation.creatorName}{codeValidation.discountPercent > 0 ? ` — ${codeValidation.discountPercent}% off applied!` : ""}
+                          </p>
+                        )}
+                        {codeValidation?.valid === false && (
+                          <p className="text-xs" style={{ color: "#ef4444" }}>Invalid or inactive code</p>
+                        )}
+                      </div>
+                    )}
 
                   {/* Gift fields */}
                   {checkout.mode === "gift" && (

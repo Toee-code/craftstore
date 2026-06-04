@@ -285,3 +285,23 @@ export const creatorCodes = sqliteTable("creator_codes", {
 export const insertCreatorCodeSchema = createInsertSchema(creatorCodes).omit({ id: true, createdAt: true, totalEarned: true });
 export type InsertCreatorCode = z.infer<typeof insertCreatorCodeSchema>;
 export type CreatorCode = typeof creatorCodes.$inferSelect;
+
+// ─── Creator Code Payouts ─────────────────────────────────────────────────────
+// Creators submit a claim; owner reviews and marks paid
+export const creatorCodePayouts = sqliteTable("creator_code_payouts", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  creatorCodeId: integer("creator_code_id").notNull(),
+  serverId: integer("server_id").notNull(),
+  creatorName: text("creator_name").notNull(),
+  code: text("code").notNull(),
+  amountRequested: integer("amount_requested").notNull(), // pence
+  paypalEmail: text("paypal_email").notNull(),
+  status: text("status").notNull().default("pending"), // pending | approved | rejected | paid
+  ownerNote: text("owner_note"),
+  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+  resolvedAt: text("resolved_at"),
+});
+
+export const insertCreatorCodePayoutSchema = createInsertSchema(creatorCodePayouts).omit({ id: true, createdAt: true, resolvedAt: true });
+export type InsertCreatorCodePayout = z.infer<typeof insertCreatorCodePayoutSchema>;
+export type CreatorCodePayout = typeof creatorCodePayouts.$inferSelect;

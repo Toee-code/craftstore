@@ -1113,11 +1113,31 @@ function CreatorCodesTab({ serverId }: { serverId: number }) {
   const { toast } = useToast();
   const [form, setForm] = useState({ code: "", creatorName: "", rewardPercent: "10", discountPercent: "0" });
   const [adding, setAdding] = useState(false);
+  const [payoutsTab, setPayoutsTab] = useState<"codes" | "payouts">("codes");
 
   const { data: codes = [], isLoading } = useQuery<any[]>({
     queryKey: ["/api/servers/creator-codes", serverId],
     queryFn: () => apiRequest("GET", `/api/servers/${serverId}/creator-codes`).then(r => r.json()),
   });
+
+  const { data: payouts = [] } = useQuery<any[]>({
+    queryKey: ["/api/servers/creator-payouts", serverId],
+    queryFn: () => apiRequest("GET", `/api/servers/${serverId}/creator-payouts`).then(r => r.json()),
+    refetchInterval: 30_000,
+  });
+
+  const payoutMutation = useMutation({
+    mutationFn: ({ id, status, ownerNote }: { id: number; status: string; ownerNote?: string }) =>
+      apiRequest("PATCH", `/api/creator-payouts/${id}`, { status, ownerNote }).then(r => r.json()),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/servers/creator-payouts", serverId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/servers/creator-codes", serverId] });
+      toast({ title: "Payout updated" });
+    },
+  });
+
+  const claimUrl = `${window.location.origin}/#/creator-claim?server=${serverId}`;
+  const pendingPayouts = payouts.filter((p: any) => p.status === "pending");
 
   const createMutation = useMutation({
     mutationFn: () => apiRequest("POST", `/api/servers/${serverId}/creator-codes`, {
@@ -1148,7 +1168,7 @@ function CreatorCodesTab({ serverId }: { serverId: number }) {
   return (
     <div className="space-y-6">
       {/* Stats */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-3 gap-4">
         <Card>
           <CardContent className="pt-5">
             <p className="text-xs text-muted-foreground mb-1">Active Codes</p>
@@ -1157,11 +1177,45 @@ function CreatorCodesTab({ serverId }: { serverId: number }) {
         </Card>
         <Card>
           <CardContent className="pt-5">
-            <p className="text-xs text-muted-foreground mb-1">Total Creator Earnings</p>
+            <p className="text-xs text-muted-foreground mb-1">Total Owed</p>
             <p className="text-3xl font-extrabold">£{(totalEarned / 100).toFixed(2)}</p>
           </CardContent>
         </Card>
+        <Card>
+          <CardContent className="pt-5">
+            <p className="text-xs text-muted-foreground mb-1">Pending Claims</p>
+            <p className="text-3xl font-extrabold">{pendingPayouts.length}</p>
+          </CardContent>
+        </Card>
       </div>
+
+      {/* Claim link to share with creators */}
+      <Card>
+        <CardContent className="pt-4 pb-4">
+          <p className="text-xs font-semibold mb-2 text-muted-foreground">Share this link with your creators so they can claim earnings:</p>
+          <div className="flex gap-2">
+            <Input readOnly value={claimUrl} className="font-mono text-xs" />
+            <Button size="sm" variant="outline" onClick={() => { navigator.clipboard.writeText(claimUrl); toast({ title: "Link copied" }); }}>
+              <Copy className="w-3.5 h-3.5" />
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Sub-tab toggle */}
+      <div className="flex rounded-lg overflow-hidden border border-border" style={{ width: "fit-content" }}>
+        <button onClick={() => setPayoutsTab("codes")}
+          className={`px-4 py-1.5 text-sm font-semibold transition-colors ${payoutsTab === "codes" ? "bg-primary text-primary-foreground" : "bg-transparent text-muted-foreground hover:text-foreground"}`}>
+          Codes
+        </button>
+        <button onClick={() => setPayoutsTab("payouts")}
+          className={`px-4 py-1.5 text-sm font-semibold transition-colors flex items-center gap-2 ${payoutsTab === "payouts" ? "bg-primary text-primary-foreground" : "bg-transparent text-muted-foreground hover:text-foreground"}`}>
+          Payout Requests {pendingPayouts.length > 0 && <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-red-500 text-white text-xs font-bold">{pendingPayouts.length}</span>}
+        </button>
+      </div>
+
+      {/* ── Codes sub-tab ── */}
+      {payoutsTab === "codes" && (<>
 
       {/* Add code form */}
       {adding ? (
@@ -1259,6 +1313,56 @@ function CreatorCodesTab({ serverId }: { serverId: number }) {
                 >
                   <Trash2 className="w-4 h-4" />
                 </Button>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+      </>)} {/* end codes sub-tab */}
+
+      {/* ── Payouts sub-tab ── */}
+      {payoutsTab === "payouts" && (
+        <div className="space-y-3">
+          {payouts.length === 0 ? (
+            <Card>
+              <CardContent className="py-12 text-center">
+                <DollarSign className="w-10 h-10 mx-auto mb-3 text-muted-foreground/40" />
+                <p className="text-muted-foreground text-sm">No payout requests yet.</p>
+              </CardContent>
+            </Card>
+          ) : payouts.map((p: any) => (
+            <Card key={p.id}>
+              <CardContent className="py-4">
+                <div className="flex items-start justify-between gap-3 flex-wrap">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap mb-1">
+                      <span className="font-mono font-extrabold text-sm text-primary">{p.code}</span>
+                      <span className="text-sm font-semibold">{p.creatorName}</span>
+                      <Badge variant={p.status === "paid" ? "default" : p.status === "rejected" ? "destructive" : p.status === "approved" ? "outline" : "secondary"}
+                        className="text-xs capitalize">{p.status}</Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground">Requesting <span className="font-bold text-foreground text-sm">£{(p.amountRequested / 100).toFixed(2)}</span> via PayPal</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">PayPal: <span className="font-mono text-foreground">{p.paypalEmail}</span></p>
+                    {p.ownerNote && <p className="text-xs text-muted-foreground mt-0.5">Note: {p.ownerNote}</p>}
+                    <p className="text-xs text-muted-foreground mt-0.5">{new Date(p.createdAt).toLocaleDateString()}</p>
+                  </div>
+                  {p.status === "pending" && (
+                    <div className="flex gap-2 flex-shrink-0">
+                      <Button size="sm"
+                        className="bg-green-600 hover:bg-green-700 text-white gap-1"
+                        disabled={payoutMutation.isPending}
+                        onClick={() => payoutMutation.mutate({ id: p.id, status: "paid" })}>
+                        <Check2 className="w-3.5 h-3.5" /> Mark Paid
+                      </Button>
+                      <Button size="sm" variant="ghost"
+                        className="text-destructive hover:text-destructive hover:bg-destructive/10 gap-1"
+                        disabled={payoutMutation.isPending}
+                        onClick={() => payoutMutation.mutate({ id: p.id, status: "rejected" })}>
+                        <X className="w-3.5 h-3.5" /> Reject
+                      </Button>
+                    </div>
+                  )}
+                </div>
               </CardContent>
             </Card>
           ))}

@@ -15,6 +15,7 @@ import DomainSuccess from "@/pages/DomainSuccess";
 import AdminPanel from "@/pages/AdminPanel";
 import PlayerProfile from "@/pages/PlayerProfile";
 import NotFound from "@/pages/not-found";
+import CreatorClaim from "@/pages/CreatorClaim";
 import { useEffect, useState } from "react";
 import { useAuthStore } from "@/lib/auth";
 
@@ -93,6 +94,7 @@ export default function App() {
           <Route path="/preset-success" component={PresetSuccess} />
           <Route path="/domain-success" component={DomainSuccess} />
           <Route path="/admin" component={AdminPanel} />
+          <Route path="/creator-claim" component={CreatorClaim} />
           <Route component={NotFound} />
         </Switch>
       </Router>

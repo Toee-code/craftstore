@@ -20,6 +20,9 @@ import {
   creatorCodes,
   type CreatorCode,
   type InsertCreatorCode,
+  creatorCodePayouts,
+  type CreatorCodePayout,
+  type InsertCreatorCodePayout,
 } from "@shared/schema";
 
 // Use DB_PATH env var (set by render.yaml disk mount), then Railway, then local
@@ -222,6 +225,20 @@ const alterStatements = [
     active INTEGER NOT NULL DEFAULT 1,
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`,
+  `CREATE TABLE IF NOT EXISTS creator_code_payouts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    creator_code_id INTEGER NOT NULL,
+    server_id INTEGER NOT NULL,
+    creator_name TEXT NOT NULL,
+    code TEXT NOT NULL,
+    amount_requested INTEGER NOT NULL,
+    paypal_email TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending',
+    owner_note TEXT,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    resolved_at TEXT
+  )`,
+  "ALTER TABLE creator_codes ADD COLUMN paid_out INTEGER NOT NULL DEFAULT 0",
 ];
 for (const stmt of alterStatements) {
   try { sqlite.exec(stmt); } catch { /* column already exists */ }
@@ -1028,5 +1045,31 @@ export const storage: IStorage = {
   },
   deleteCreatorCode(id: number) {
     db.delete(creatorCodes).where(eq(creatorCodes.id, id)).run();
+  },
+
+  // ── Creator Code Payouts ───────────────────────────────────────────────────
+  createCreatorCodePayout(data: InsertCreatorCodePayout): CreatorCodePayout {
+    return db.insert(creatorCodePayouts).values(data).returning().get() as CreatorCodePayout;
+  },
+  getCreatorCodePayoutsByServer(serverId: number): CreatorCodePayout[] {
+    return db.select().from(creatorCodePayouts).where(eq(creatorCodePayouts.serverId, serverId))
+      .orderBy(desc(creatorCodePayouts.createdAt)).all() as CreatorCodePayout[];
+  },
+  getCreatorCodePayoutsByCode(creatorCodeId: number): CreatorCodePayout[] {
+    return db.select().from(creatorCodePayouts).where(eq(creatorCodePayouts.creatorCodeId, creatorCodeId)).all() as CreatorCodePayout[];
+  },
+  updateCreatorCodePayoutStatus(id: number, status: string, ownerNote?: string) {
+    db.update(creatorCodePayouts).set({
+      status,
+      ownerNote: ownerNote || null,
+      resolvedAt: new Date().toISOString(),
+    }).where(eq(creatorCodePayouts.id, id)).run();
+    // If marking as paid, record paidOut on the code
+    if (status === "paid") {
+      const payout = db.select().from(creatorCodePayouts).where(eq(creatorCodePayouts.id, id)).get() as CreatorCodePayout | undefined;
+      if (payout) {
+        db.update(creatorCodes).set({ totalEarned: sql`total_earned - ${payout.amountRequested}` }).where(eq(creatorCodes.id, payout.creatorCodeId)).run();
+      }
+    }
   },
 };
