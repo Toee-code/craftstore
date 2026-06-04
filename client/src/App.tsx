@@ -1,5 +1,13 @@
 import { Switch, Route, Router, useLocation } from "wouter";
-import { useHashLocation } from "wouter/use-hash-location";
+import { useHashLocation as _useHashLocation } from "wouter/use-hash-location";
+// Custom hash location hook that strips query string from the path
+// so "/creator-claim?server=1" matches the route "/creator-claim"
+function useHashLocation(opts?: any): [string, (to: string, opts?: any) => void] {
+  const [loc, nav] = _useHashLocation(opts);
+  // Strip query string from path portion
+  const path = loc.split("?")[0];
+  return [path, nav];
+}
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Toaster } from "@/components/ui/toaster";
