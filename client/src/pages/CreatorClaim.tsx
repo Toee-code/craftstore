@@ -113,7 +113,7 @@ export default function CreatorClaim() {
                 <div>
                   <Label style={{ color: "rgba(255,255,255,0.5)", fontSize: 11, marginBottom: 4, display: "block" }}>Your Creator Code</Label>
                   <Input
-                    placeholder="TOEE10"
+                    placeholder="e.g. BILLY10"
                     value={code}
                     onChange={e => { setCode(e.target.value.toUpperCase()); setInfo(null); setInfoError(""); }}
                     style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", color: "#fff", fontFamily: "monospace", fontWeight: 700, letterSpacing: 1 }}

@@ -19,7 +19,7 @@ import {
   ArrowLeft, Plus, Trash2, ExternalLink, Package, Users, ShoppingCart,
   BarChart3, Terminal, Copy, Edit3, TrendingUp, DollarSign, Paintbrush, Sparkles, Star,
   ChevronRight, Loader2, Gift, Globe, CheckCircle2, CreditCard, XCircle, AlertCircle,
-  Activity, Tag, Percent, PlusCircle, CheckCircle2 as Check2, X
+  Activity, Tag, Percent, PlusCircle, CheckCircle2 as Check2, X, Link2
 } from "lucide-react";
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell
@@ -1305,6 +1305,18 @@ function CreatorCodesTab({ serverId }: { serverId: number }) {
                     <span className="text-xs text-muted-foreground">Total earned: <span className="font-bold text-foreground">£{(cc.totalEarned / 100).toFixed(2)}</span></span>
                   </div>
                 </div>
+                <Button
+                  size="sm" variant="ghost"
+                  className="text-muted-foreground hover:text-foreground shrink-0"
+                  title="Copy creator claim link"
+                  onClick={() => {
+                    const link = `${window.location.origin}/#/creator-claim?server=${serverId}&code=${encodeURIComponent(cc.code)}`;
+                    navigator.clipboard.writeText(link);
+                    toast({ title: "Link copied", description: `Claim link for ${cc.code} copied to clipboard` });
+                  }}
+                >
+                  <Link2 className="w-4 h-4" />
+                </Button>
                 <Button
                   size="sm" variant="ghost"
                   className="text-destructive hover:text-destructive hover:bg-destructive/10 shrink-0"
