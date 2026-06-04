@@ -1592,7 +1592,22 @@ function EchoLayout({
 }) {
   const categories: string[] = (() => { try { return JSON.parse(data.theme.categories || "[]"); } catch { return []; } })();
   const worlds: string[] = (() => { try { return JSON.parse((data.theme as any).worlds || "[]"); } catch { return []; } })();
-  const [selectedWorld, setSelectedWorld] = useState<string | null>(() => worlds[0] ?? null);
+  const [selectedWorld, setSelectedWorld] = useState<string | null>(() => {
+    // Restore from URL hash param first, fall back to first world
+    const params = new URLSearchParams(window.location.hash.includes("?") ? window.location.hash.split("?")[1] : "");
+    const urlWorld = params.get("world");
+    if (urlWorld && worlds.includes(urlWorld)) return urlWorld;
+    return worlds[0] ?? null;
+  });
+
+  // Persist selected world into URL hash so it survives page nav
+  useEffect(() => {
+    if (!selectedWorld) return;
+    const hashBase = window.location.hash.split("?")[0] || "#/";
+    const params = new URLSearchParams(window.location.hash.includes("?") ? window.location.hash.split("?")[1] : "");
+    params.set("world", selectedWorld);
+    window.history.replaceState(null, "", window.location.pathname + hashBase + "?" + params.toString());
+  }, [selectedWorld]);
   const activeProducts = data.products.filter(p => p.active);
   // Filter by world: if worlds are configured, always show only the selected world's items (+ untagged)
   const worldFiltered = (worlds.length > 0 && selectedWorld)
