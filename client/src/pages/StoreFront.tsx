@@ -1397,29 +1397,75 @@ function TopCustomersSidebar({ serverId, accent }: { serverId: number; accent: s
         ) : top3.length === 0 ? (
           <p className="text-sm text-center py-10" style={{ color: "rgba(255,255,255,0.3)" }}>No purchases yet</p>
         ) : (
-          <div className="flex flex-col gap-5">
-            {top3.map((entry, i) => (
-              <div key={entry.minecraftUsername} className="flex flex-col items-center gap-2">
-                <div style={{ fontSize: 28, lineHeight: 1 }}>{medals[i]}</div>
-                <div className="relative" style={{ width: 90 }}>
-                  <img
-                    src={`https://nmsr.nickac.dev/fullbody/${entry.minecraftUsername}`}
-                    alt={entry.minecraftUsername}
-                    style={{ width: 90, height: "auto", display: "block", imageRendering: "pixelated", filter: i === 0 ? `drop-shadow(0 0 12px ${accent}99)` : "drop-shadow(0 2px 6px rgba(0,0,0,0.5))" }}
-                    onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
-                  />
-                  {i === 0 && (
-                    <div style={{ position: "absolute", inset: 0, borderRadius: 12, boxShadow: `0 0 32px ${accent}60`, pointerEvents: "none" }} />
-                  )}
-                </div>
-                <p className="text-base font-bold text-center truncate w-full" style={{ color: i === 0 ? "#fff" : "rgba(255,255,255,0.75)" }}>{entry.minecraftUsername}</p>
-                <p className="text-base font-extrabold" style={{ color: accent, textShadow: i === 0 ? `0 0 16px ${accent}80` : "none" }}>£{entry.total.toFixed(2)}</p>
-                {i < 2 && top3[i + 1] && (
-                  <div style={{ width: "75%", height: 1, background: "rgba(255,255,255,0.08)", marginTop: 4 }} />
-                )}
+          // ── Podium layout: 2nd | 1st | 3rd ──
+          (() => {
+            const podiumOrder = top3.length >= 3
+              ? [top3[1], top3[0], top3[2]]
+              : top3.length === 2
+                ? [top3[1], top3[0]]
+                : [top3[0]];
+            const podiumRanks = top3.length >= 3 ? [1, 0, 2] : top3.length === 2 ? [1, 0] : [0];
+            const podiumHeights = [56, 80, 40]; // platform block heights for 2nd, 1st, 3rd
+            const medalColors = ["#fbbf24", "#94a3b8", "#cd7f32"];
+            const podiumBg = ["rgba(148,163,184,0.18)", `${accent}28`, "rgba(205,127,50,0.18)"];
+            const podiumBorder = ["rgba(148,163,184,0.35)", `${accent}70`, "rgba(205,127,50,0.35)"];
+            const skinSizes = [72, 90, 64];
+            return (
+              <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "center", gap: 6, paddingBottom: 4 }}>
+                {podiumOrder.map((entry, col) => {
+                  const rank = podiumRanks[col]; // 0=1st,1=2nd,2=3rd
+                  const platH = podiumHeights[col];
+                  const skinW = skinSizes[col];
+                  return (
+                    <div key={entry.minecraftUsername} style={{ display: "flex", flexDirection: "column", alignItems: "center", flex: 1 }}>
+                      {/* Medal badge */}
+                      <div style={{
+                        width: 22, height: 22, borderRadius: "50%",
+                        background: medalColors[rank],
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        fontSize: 11, fontWeight: 900, color: rank === 0 ? "#7c5200" : rank === 1 ? "#2d3748" : "#5c3010",
+                        boxShadow: `0 0 8px ${medalColors[rank]}80`,
+                        marginBottom: 4, flexShrink: 0,
+                      }}>{rank + 1}</div>
+                      {/* Skin */}
+                      <div style={{ position: "relative", width: skinW, marginBottom: 0 }}>
+                        {rank === 0 && (
+                          <div style={{ position: "absolute", inset: -4, borderRadius: 12, background: `radial-gradient(ellipse at center, ${accent}30 0%, transparent 70%)`, pointerEvents: "none" }} />
+                        )}
+                        <img
+                          src={`https://nmsr.nickac.dev/fullbody/${entry.minecraftUsername}`}
+                          alt={entry.minecraftUsername}
+                          style={{ width: skinW, height: "auto", display: "block", imageRendering: "pixelated",
+                            filter: rank === 0 ? `drop-shadow(0 0 10px ${accent}99)` : "drop-shadow(0 2px 8px rgba(0,0,0,0.7))",
+                          }}
+                          onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
+                        />
+                      </div>
+                      {/* Platform block */}
+                      <div style={{
+                        width: "100%", height: platH,
+                        background: podiumBg[col],
+                        border: `1px solid ${podiumBorder[col]}`,
+                        borderRadius: "8px 8px 4px 4px",
+                        display: "flex", flexDirection: "column",
+                        alignItems: "center", justifyContent: "center",
+                        padding: "6px 4px",
+                        gap: 2,
+                      }}>
+                        <p style={{ fontSize: 10, fontWeight: 800, color: "#fff", textAlign: "center", lineHeight: 1.2,
+                          maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                          textShadow: rank === 0 ? `0 0 8px ${accent}` : "none"
+                        }}>{entry.minecraftUsername}</p>
+                        <p style={{ fontSize: 11, fontWeight: 900, color: medalColors[rank],
+                          textShadow: `0 0 8px ${medalColors[rank]}80`
+                        }}>£{entry.total.toFixed(2)}</p>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-            ))}
-          </div>
+            );
+          })()
         )}
       </div>
 
