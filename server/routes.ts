@@ -706,6 +706,60 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
     }
   });
 
+  // ── Creator Code Payout Claims ────────────────────────────────────────────
+  // Public: get creator code info + balance for the claim page
+  app.get("/api/creator-codes/info", (req, res) => {
+    const { code, serverId } = req.query;
+    if (!code || !serverId) return res.status(400).json({ error: "code and serverId required" });
+    const cc = storage.getCreatorCodeByCode(Number(serverId), String(code));
+    if (!cc) return res.status(404).json({ error: "Invalid or inactive code" });
+    const pending = storage.getCreatorCodePayoutsByCode(cc.id).filter((p: any) => p.status === "pending");
+    res.json({ creatorName: cc.creatorName, code: cc.code, totalEarned: cc.totalEarned, hasPendingClaim: pending.length > 0 });
+  });
+
+  // Public: creator submits a payout request
+  app.post("/api/creator-codes/claim", async (req, res) => {
+    try {
+      const { code, serverId, paypalEmail } = req.body;
+      if (!code || !serverId || !paypalEmail) return res.status(400).json({ error: "code, serverId, paypalEmail required" });
+      const cc = storage.getCreatorCodeByCode(Number(serverId), code);
+      if (!cc) return res.status(404).json({ error: "Invalid or inactive code" });
+      if (cc.totalEarned <= 0) return res.status(400).json({ error: "No earnings to claim yet" });
+      const existing = storage.getCreatorCodePayoutsByCode(cc.id).filter((p: any) => p.status === "pending");
+      if (existing.length > 0) return res.status(409).json({ error: "You already have a pending claim — wait for the owner to review it" });
+      const payout = storage.createCreatorCodePayout({
+        creatorCodeId: cc.id,
+        serverId: Number(serverId),
+        creatorName: cc.creatorName,
+        code: cc.code,
+        amountRequested: cc.totalEarned,
+        paypalEmail,
+        status: "pending",
+      });
+      const server = storage.getServerById(Number(serverId));
+      if (server) {
+        const owner = storage.getUserById(server.ownerId);
+        if (owner) {
+          storage.createNotification({ userId: owner.id, message: `Creator ${cc.creatorName} (${cc.code}) requested a payout of £${(cc.totalEarned / 100).toFixed(2)} via PayPal`, read: false });
+        }
+      }
+      res.json({ success: true, payout });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // Owner: list payout requests for their server
+  app.get("/api/servers/:serverId/creator-payouts", (req, res) => {
+    res.json(storage.getCreatorCodePayoutsByServer(Number(req.params.serverId)));
+  });
+
+  // Owner: approve / reject / mark paid
+  app.patch("/api/creator-payouts/:id", (req, res) => {
+    const { status, ownerNote } = req.body;
+    if (!["approved", "rejected", "paid"].includes(status)) return res.status(400).json({ error: "status must be approved, rejected or paid" });
+    storage.updateCreatorCodePayoutStatus(Number(req.params.id), status, ownerNote);
+    res.json({ success: true });
+  });
+
   // ── Direct product purchase via Stripe Checkout ────────────────────────────
   app.post("/api/stripe/product-checkout", async (req, res) => {
     try {
