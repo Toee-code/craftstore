@@ -1903,6 +1903,39 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 
+  // Patch an order's amount + fix member totalSpent + fix creator code earnings
+  app.post("/api/admin/orders/:orderId/fix-amount", requireAdmin, (req, res) => {
+    try {
+      const orderId = Number(req.params.orderId);
+      const { serverId, newAmount, oldAmount } = req.body;
+      if (!newAmount || !serverId) return res.status(400).json({ error: "serverId and newAmount required" });
+      const orders = storage.getOrdersByServer(Number(serverId));
+      const order = orders.find((o: any) => o.id === orderId);
+      if (!order) return res.status(404).json({ error: "Order not found" });
+      const prev = oldAmount ?? order.amount;
+      const diff = Number(newAmount) - Number(prev);
+      // Update order amount
+      sqlite.prepare("UPDATE orders SET amount = ? WHERE id = ?").run(Number(newAmount), orderId);
+      // Fix member totalSpent
+      const member = storage.getMemberById(order.memberId);
+      if (member) {
+        const corrected = Math.max(0, (member.totalSpent ?? 0) + diff);
+        sqlite.prepare("UPDATE members SET total_spent = ? WHERE id = ?").run(corrected, member.id);
+      }
+      // Fix creator code earnings if one was used
+      if (order.creatorCodeUsed) {
+        const cc = storage.getCreatorCodeByCode(Number(serverId), order.creatorCodeUsed);
+        if (cc) {
+          const oldEarning = Math.round(Number(prev) * (cc.rewardPercent / 100) * 100);
+          const newEarning = Math.round(Number(newAmount) * (cc.rewardPercent / 100) * 100);
+          const earnDiff = newEarning - oldEarning;
+          sqlite.prepare("UPDATE creator_codes SET total_earned = total_earned + ? WHERE id = ?").run(earnDiff, cc.id);
+        }
+      }
+      res.json({ success: true, orderId, newAmount, diff });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
   // Patch an order's creator code retroactively
   app.post("/api/admin/orders/:orderId/creator-code", requireAdmin, (req, res) => {
     try {
