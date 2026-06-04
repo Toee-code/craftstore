@@ -834,6 +834,7 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
           productId: String(productId),
           serverId: String(serverId),
           minecraftUsername,
+          ...(creatorCode ? { creatorCode } : {}),
         },
         success_url: `${baseUrl}/#/store/${serverId}?purchase=success&session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${baseUrl}/#/store/${serverId}`,
@@ -1899,6 +1900,28 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
       });
       storage.updateMemberTotalSpent(member.id, Number(amount));
       res.json({ success: true, order, member });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // Patch an order's creator code retroactively
+  app.post("/api/admin/orders/:orderId/creator-code", requireAdmin, (req, res) => {
+    try {
+      const orderId = Number(req.params.orderId);
+      const { serverId, code } = req.body;
+      if (!code || !serverId) return res.status(400).json({ error: "code and serverId required" });
+      const cc = storage.getCreatorCodeByCode(Number(serverId), String(code));
+      if (!cc) return res.status(404).json({ error: "Creator code not found" });
+      const orders = storage.getOrdersByServer(Number(serverId));
+      const order = orders.find((o: any) => o.id === orderId);
+      if (!order) return res.status(404).json({ error: "Order not found" });
+      // Update order row
+      const db = (storage as any).db;
+      db.prepare("UPDATE orders SET creatorCodeUsed = ?, creatorCodeDiscount = ? WHERE id = ?")
+        .run(cc.code, cc.discountPercent, orderId);
+      // Add earnings
+      const earning = Math.round(order.amount * (cc.rewardPercent / 100) * 100);
+      storage.updateCreatorCodeEarnings(cc.id, earning);
+      res.json({ success: true, earning, code: cc.code });
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 
