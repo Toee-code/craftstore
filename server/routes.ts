@@ -1072,13 +1072,18 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
   app.post("/api/stripe/subscription-checkout", async (req, res) => {
     if (!stripe) return res.status(400).json({ error: "Stripe not configured" });
     try {
-      const { serverId, productId, minecraftUsername, creatorCode } = req.body;
+      const { serverId, productId, minecraftUsername, creatorCode, chosenType } = req.body;
       const server = storage.getServerById(Number(serverId));
       if (!server) return res.status(404).json({ error: "Server not found" });
       const products = storage.getProductsByServer(Number(serverId));
       const product = products.find((p: any) => p.id === Number(productId));
       if (!product) return res.status(404).json({ error: "Product not found" });
       if (product.purchaseType === "one_time") return res.status(400).json({ error: "Not a subscription product" });
+
+      // For both_sub, chosenType must be "subscription" or "one_month_sub"
+      const effectivePurchaseType: string = product.purchaseType === "both_sub"
+        ? (chosenType === "one_month_sub" ? "one_month_sub" : "subscription")
+        : product.purchaseType;
 
       // Look up or create member
       let member = storage.getMemberByUsername(Number(serverId), minecraftUsername);
@@ -1089,7 +1094,7 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
       const discountPct = cc ? cc.discountPercent : 0;
       const basePrice = product.price; // pence
       const playerPrice = Math.round(basePrice * (1 - discountPct / 100));
-      const isOneMonth = product.purchaseType === "one_month_sub";
+      const isOneMonth = effectivePurchaseType === "one_month_sub";
       const baseUrl = getBaseUrl(req);
 
       // Create or reuse a Stripe Price for this product
@@ -1129,7 +1134,7 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
           productId: String(productId),
           serverId: String(serverId),
           minecraftUsername,
-          purchaseType: product.purchaseType,
+          purchaseType: effectivePurchaseType,
           ...(cc ? { creatorCode: cc.code } : {}),
         },
         success_url: `${baseUrl}/#/store/${serverId}?purchase=success&session_id={CHECKOUT_SESSION_ID}`,
@@ -1393,6 +1398,32 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
       try {
         const stripeSub = event.data.object as any;
         storage.updateSubscriptionStatus(stripeSub.id, "expired");
+        // Fire expiry commands
+        const sub = storage.getSubscriptionByStripeId(stripeSub.id);
+        if (sub) {
+          const server = storage.getServerById(sub.server_id);
+          const productsList = storage.getProductsByServer(sub.server_id);
+          const product = productsList.find((p: any) => p.id === sub.product_id);
+          if (server?.webhookUrl && product && (product as any).expiryCommands) {
+            const rawExpiry = (product as any).expiryCommands as string;
+            const expiryCommands = rawExpiry.split("\n").map((c: string) => c.trim()).filter(Boolean)
+              .map((c: string) => c.replace("%player%", sub.minecraft_username).replace("{player}", sub.minecraft_username));
+            if (expiryCommands.length > 0) {
+              await fetch(server.webhookUrl, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "X-CraftStore-Secret": server.webhookSecret || "" },
+                body: JSON.stringify({
+                  event: "subscription_expired",
+                  command: expiryCommands[0],
+                  commands: expiryCommands,
+                  minecraftUsername: sub.minecraft_username,
+                  product: { id: product.id, name: product.name },
+                  secret: server.webhookSecret,
+                }),
+              }).catch(() => {});
+            }
+          }
+        }
       } catch (e) { console.error("[webhook] subscription.deleted error:", e); }
     }
 

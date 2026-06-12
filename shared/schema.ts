@@ -58,8 +58,9 @@ export const products = sqliteTable("products", {
   world: text("world"),                         // e.g. "SMP", "Builderville" — null = all worlds
   preorder: integer("preorder").default(0),      // 1 = pre-order item (payment taken now, command fires on release)
   preorderReleaseDate: text("preorder_release_date"), // ISO date string e.g. "2024-12-25"
-  purchaseType: text("purchase_type").default("one_time"), // "one_time" | "subscription" | "one_month_sub"
+  purchaseType: text("purchase_type").default("one_time"), // "one_time" | "subscription" | "one_month_sub" | "both_sub"
   stripePriceId: text("stripe_price_id"),         // Stripe recurring price ID for subscription products
+  expiryCommands: text("expiry_commands"),          // Commands fired when subscription expires/cancels/lapses
   command: text("command").notNull(),
   stock: integer("stock").default(-1),
   active: integer("active", { mode: "boolean" }).default(true),

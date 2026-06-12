@@ -573,8 +573,15 @@ function ProductCard({ product, accent, playerPrice, onBuy, onGift }: {
           {soldOut ? (
             <span className="px-3 py-1.5 rounded-xl text-xs font-bold" style={{ background: "rgba(255,68,68,0.12)", color: "#ff4444", border: "1.5px solid #ff444440" }}>Sold Out</span>
           ) : (
-            <div className="flex gap-1.5">
-              <button onClick={() => onBuy(product)} className="px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5" style={{ background: isPreorder ? "#2563eb" : (product as any).purchaseType && (product as any).purchaseType !== "one_time" ? "#7c3aed" : accent, color: "#fff", boxShadow: hovered ? `0 0 20px ${accent}60` : "none" }} data-testid={`button-buy-${product.id}`}>{isPreorder ? <>⏱ Pre-Order</> : (product as any).purchaseType === "subscription" ? <>🔄 Subscribe</> : (product as any).purchaseType === "one_month_sub" ? <>📅 1-Month Sub</> : <><ShoppingCart className="w-3 h-3" /> Buy</>}</button>
+            <div className="flex gap-1.5 flex-wrap">
+              {(product as any).purchaseType === "both_sub" ? (
+                <>
+                  <button onClick={() => (onBuy as any)(product, "subscription")} className="px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1" style={{ background: "#7c3aed", color: "#fff", boxShadow: hovered ? `0 0 20px #7c3aed60` : "none" }} data-testid={`button-buy-${product.id}`}>🔄 Monthly</button>
+                  <button onClick={() => (onBuy as any)(product, "one_month_sub")} className="px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1" style={{ background: "#2563eb", color: "#fff", boxShadow: hovered ? `0 0 20px #2563eb60` : "none" }}>📅 1-Month</button>
+                </>
+              ) : (
+                <button onClick={() => onBuy(product)} className="px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5" style={{ background: isPreorder ? "#2563eb" : (product as any).purchaseType && (product as any).purchaseType !== "one_time" ? "#7c3aed" : accent, color: "#fff", boxShadow: hovered ? `0 0 20px ${accent}60` : "none" }} data-testid={`button-buy-${product.id}`}>{isPreorder ? <>⏱ Pre-Order</> : (product as any).purchaseType === "subscription" ? <>🔄 Subscribe</> : (product as any).purchaseType === "one_month_sub" ? <>📅 1-Month Sub</> : <><ShoppingCart className="w-3 h-3" /> Buy</>}</button>
+              )}
               <button onClick={() => onGift(product)} className="p-1.5 rounded-xl transition-all" style={{ background: "rgba(255,255,255,0.08)", color: accent, border: `1px solid ${accent}20` }} title="Gift this item" data-testid={`button-gift-${product.id}`}><Gift className="w-3.5 h-3.5" /></button>
             </div>
           )}
@@ -704,8 +711,15 @@ function DonutProductCard({
         {soldOut ? (
           <div className="w-full py-2.5 rounded-xl font-extrabold text-sm text-center" style={{ background: "rgba(255,68,68,0.12)", color: "#ff4444", border: "1.5px solid #ff444440" }}>Sold Out</div>
         ) : (
-          <div className="flex gap-1.5">
-            <button onClick={() => onBuy(product)} className="flex-1 py-2.5 rounded-xl font-extrabold text-sm transition-all flex items-center justify-center gap-1.5" style={{ background: isPreorder ? "#2563eb" : (product as any).purchaseType === "subscription" || (product as any).purchaseType === "one_month_sub" ? "#7c3aed" : accent, color: "#fff", boxShadow: hovered ? `0 0 20px ${accent}70` : `0 0 10px ${accent}30` }} data-testid={`button-donut-buy-${product.id}`}>{isPreorder ? <>⏱ Pre-Order</> : (product as any).purchaseType === "subscription" ? <>🔄 Subscribe</> : (product as any).purchaseType === "one_month_sub" ? <>📅 1-Month Sub</> : <><ShoppingCart className="w-4 h-4" /> Add to Cart</>}</button>
+          <div className="flex gap-1.5 flex-wrap">
+            {(product as any).purchaseType === "both_sub" ? (
+              <>
+                <button onClick={() => (onBuy as any)(product, "subscription")} className="flex-1 py-2.5 rounded-xl font-extrabold text-sm transition-all flex items-center justify-center gap-1" style={{ background: "#7c3aed", color: "#fff", boxShadow: hovered ? `0 0 20px #7c3aed70` : `0 0 10px #7c3aed30` }} data-testid={`button-donut-buy-${product.id}`}>🔄 Monthly</button>
+                <button onClick={() => (onBuy as any)(product, "one_month_sub")} className="flex-1 py-2.5 rounded-xl font-extrabold text-sm transition-all flex items-center justify-center gap-1" style={{ background: "#2563eb", color: "#fff", boxShadow: hovered ? `0 0 20px #2563eb70` : `0 0 10px #2563eb30` }}>📅 1-Month</button>
+              </>
+            ) : (
+              <button onClick={() => onBuy(product)} className="flex-1 py-2.5 rounded-xl font-extrabold text-sm transition-all flex items-center justify-center gap-1.5" style={{ background: isPreorder ? "#2563eb" : (product as any).purchaseType === "subscription" || (product as any).purchaseType === "one_month_sub" ? "#7c3aed" : accent, color: "#fff", boxShadow: hovered ? `0 0 20px ${accent}70` : `0 0 10px ${accent}30` }} data-testid={`button-donut-buy-${product.id}`}>{isPreorder ? <>⏱ Pre-Order</> : (product as any).purchaseType === "subscription" ? <>🔄 Subscribe</> : (product as any).purchaseType === "one_month_sub" ? <>📅 1-Month Sub</> : <><ShoppingCart className="w-4 h-4" /> Add to Cart</>}</button>
+            )}
             <button onClick={() => onGift(product)} className="px-2.5 rounded-xl transition-all hover:opacity-80" style={{ background: "rgba(255,255,255,0.08)", color: accent, border: `1px solid ${accent}25` }} title="Gift this item" data-testid={`button-donut-gift-${product.id}`}><Gift className="w-4 h-4" /></button>
           </div>
         )}
@@ -895,7 +909,14 @@ function EchoProductCard({
           <div className="w-full py-2 rounded-lg font-bold text-sm text-center" style={{ background: "rgba(255,68,68,0.12)", color: "#ff4444", border: "1.5px solid #ff444440" }}>Sold Out</div>
         ) : (
           <>
-            <button onClick={() => onBuy(product)} className="w-full py-2 rounded-lg font-bold text-sm text-white transition-all hover:brightness-110" style={{ background: isPreorder ? "#2563eb" : (product as any).purchaseType === "subscription" || (product as any).purchaseType === "one_month_sub" ? "#7c3aed" : accent }} data-testid={`button-echo-buy-${product.id}`}>{isPreorder ? "⏱ Pre-Order" : (product as any).purchaseType === "subscription" ? "🔄 Subscribe" : (product as any).purchaseType === "one_month_sub" ? "📅 1-Month Sub" : "Add to Basket"}</button>
+            {(product as any).purchaseType === "both_sub" ? (
+              <div className="flex gap-1.5">
+                <button onClick={() => (onBuy as any)(product, "subscription")} className="flex-1 py-2 rounded-lg font-bold text-sm text-white transition-all hover:brightness-110" style={{ background: "#7c3aed" }} data-testid={`button-echo-buy-${product.id}`}>🔄 Monthly</button>
+                <button onClick={() => (onBuy as any)(product, "one_month_sub")} className="flex-1 py-2 rounded-lg font-bold text-sm text-white transition-all hover:brightness-110" style={{ background: "#2563eb" }}>📅 1-Month</button>
+              </div>
+            ) : (
+              <button onClick={() => onBuy(product)} className="w-full py-2 rounded-lg font-bold text-sm text-white transition-all hover:brightness-110" style={{ background: isPreorder ? "#2563eb" : (product as any).purchaseType === "subscription" || (product as any).purchaseType === "one_month_sub" ? "#7c3aed" : accent }} data-testid={`button-echo-buy-${product.id}`}>{isPreorder ? "⏱ Pre-Order" : (product as any).purchaseType === "subscription" ? "🔄 Subscribe" : (product as any).purchaseType === "one_month_sub" ? "📅 1-Month Sub" : "Add to Basket"}</button>
+            )}
             <button onClick={() => onGift(product)} className="w-full py-1.5 rounded-lg text-xs font-medium flex items-center justify-center gap-1 transition-all hover:brightness-110" style={{ background: "rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.45)" }} data-testid={`button-echo-gift-${product.id}`}><Gift className="w-3 h-3" /></button>
           </>
         )}
@@ -2246,26 +2267,34 @@ function ThemedStore({ data }: { data: StoreData }) {
     finally { setCodeLoading(false); }
   };
 
-  const handleBuy = async (product: Product) => {
+  const handleSubBuy = async (product: Product, chosenType?: string) => {
+    // Subscription flow — redirect to Stripe
+    if (!username.trim() && !memberSession) {
+      setCheckout({ open: true, product, mode: "buy", paymentMode: "card" });
+      return;
+    }
+    const uname = username.trim() || memberSession?.minecraftUsername || "";
+    if (!uname) { alert("Enter your Minecraft username first."); return; }
+    try {
+      const resp = await fetch(`/api/stripe/subscription-checkout`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ serverId, productId: product.id, minecraftUsername: uname, creatorCode: creatorCode || undefined, ...(chosenType ? { chosenType } : {}) }),
+      });
+      const { url, error } = await resp.json();
+      if (url) window.location.href = url;
+      else alert(error || "Failed to start checkout");
+    } catch { alert("Failed to start checkout"); }
+  };
+
+  const handleBuy = async (product: Product, chosenType?: string) => {
     const pt = (product as any).purchaseType || "one_time";
     if (pt === "subscription" || pt === "one_month_sub") {
-      // Subscription flow — redirect to Stripe
-      if (!username.trim() && !memberSession) {
-        setCheckout({ open: true, product, mode: "buy", paymentMode: "card" });
-        return;
-      }
-      const uname = username.trim() || memberSession?.minecraftUsername || "";
-      if (!uname) { alert("Enter your Minecraft username first."); return; }
-      try {
-        const resp = await fetch(`/api/stripe/subscription-checkout`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ serverId, productId: product.id, minecraftUsername: uname, creatorCode: creatorCode || undefined }),
-        });
-        const { url, error } = await resp.json();
-        if (url) window.location.href = url;
-        else alert(error || "Failed to start checkout");
-      } catch { alert("Failed to start checkout"); }
+      await handleSubBuy(product);
+      return;
+    }
+    if (pt === "both_sub") {
+      await handleSubBuy(product, chosenType || "subscription");
       return;
     }
     setCheckout({ open: true, product, mode: "buy", paymentMode: "balance" });

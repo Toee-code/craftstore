@@ -241,6 +241,7 @@ const alterStatements = [
   "ALTER TABLE creator_codes ADD COLUMN paid_out INTEGER NOT NULL DEFAULT 0",
   "ALTER TABLE products ADD COLUMN purchase_type TEXT DEFAULT 'one_time'",
   "ALTER TABLE products ADD COLUMN stripe_price_id TEXT",
+  "ALTER TABLE products ADD COLUMN expiry_commands TEXT",
   `CREATE TABLE IF NOT EXISTS subscriptions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     server_id INTEGER NOT NULL,
