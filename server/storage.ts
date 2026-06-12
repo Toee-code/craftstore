@@ -239,6 +239,23 @@ const alterStatements = [
     resolved_at TEXT
   )`,
   "ALTER TABLE creator_codes ADD COLUMN paid_out INTEGER NOT NULL DEFAULT 0",
+  "ALTER TABLE products ADD COLUMN purchase_type TEXT DEFAULT 'one_time'",
+  "ALTER TABLE products ADD COLUMN stripe_price_id TEXT",
+  `CREATE TABLE IF NOT EXISTS subscriptions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    server_id INTEGER NOT NULL,
+    product_id INTEGER NOT NULL,
+    member_id INTEGER NOT NULL,
+    minecraft_username TEXT NOT NULL,
+    stripe_subscription_id TEXT NOT NULL,
+    stripe_customer_id TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'active',
+    current_period_end TEXT,
+    cancel_at_period_end INTEGER DEFAULT 0,
+    product_name TEXT,
+    amount REAL,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`,
 ];
 for (const stmt of alterStatements) {
   try { sqlite.exec(stmt); } catch { /* column already exists */ }
@@ -421,6 +438,13 @@ export interface IStorage {
   getMemberSession(token: string): MemberSessionRow | undefined;
   deleteMemberSession(token: string): void;
   deleteExpiredMemberSessions(): void;
+  // Subscriptions
+  createSubscription(data: { serverId: number; productId: number; memberId: number; minecraftUsername: string; stripeSubscriptionId: string; stripeCustomerId: string; status: string; currentPeriodEnd: string; cancelAtPeriodEnd: number; productName: string; amount: number }): any;
+  getSubscriptionsByServer(serverId: number): any[];
+  getSubscriptionsByUsername(serverId: number, username: string): any[];
+  getSubscriptionByStripeId(stripeSubscriptionId: string): any;
+  updateSubscriptionStatus(stripeSubscriptionId: string, status: string, currentPeriodEnd?: string, cancelAtPeriodEnd?: number): void;
+  cancelSubscription(stripeSubscriptionId: string): void;
 }
 
 export const storage: IStorage = {
@@ -1064,12 +1088,35 @@ export const storage: IStorage = {
       ownerNote: ownerNote || null,
       resolvedAt: new Date().toISOString(),
     }).where(eq(creatorCodePayouts.id, id)).run();
-    // If marking as paid, record paidOut on the code
     if (status === "paid") {
       const payout = db.select().from(creatorCodePayouts).where(eq(creatorCodePayouts.id, id)).get() as CreatorCodePayout | undefined;
       if (payout) {
         db.update(creatorCodes).set({ totalEarned: sql`total_earned - ${payout.amountRequested}` }).where(eq(creatorCodes.id, payout.creatorCodeId)).run();
       }
     }
+  },
+
+  // ── Subscriptions ─────────────────────────────────────────────────────────────
+  createSubscription(data: any): any {
+    return sqlite.prepare(`
+      INSERT INTO subscriptions (server_id, product_id, member_id, minecraft_username, stripe_subscription_id, stripe_customer_id, status, current_period_end, cancel_at_period_end, product_name, amount, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(data.serverId, data.productId, data.memberId, data.minecraftUsername, data.stripeSubscriptionId, data.stripeCustomerId, data.status, data.currentPeriodEnd, data.cancelAtPeriodEnd, data.productName, data.amount, new Date().toISOString());
+  },
+  getSubscriptionsByServer(serverId: number): any[] {
+    return sqlite.prepare("SELECT * FROM subscriptions WHERE server_id = ? ORDER BY created_at DESC").all(serverId);
+  },
+  getSubscriptionsByUsername(serverId: number, username: string): any[] {
+    return sqlite.prepare("SELECT * FROM subscriptions WHERE server_id = ? AND minecraft_username = ? ORDER BY created_at DESC").all(serverId, username);
+  },
+  getSubscriptionByStripeId(stripeSubscriptionId: string): any {
+    return sqlite.prepare("SELECT * FROM subscriptions WHERE stripe_subscription_id = ?").get(stripeSubscriptionId);
+  },
+  updateSubscriptionStatus(stripeSubscriptionId: string, status: string, currentPeriodEnd?: string, cancelAtPeriodEnd?: number): void {
+    sqlite.prepare("UPDATE subscriptions SET status = ?, current_period_end = COALESCE(?, current_period_end), cancel_at_period_end = COALESCE(?, cancel_at_period_end) WHERE stripe_subscription_id = ?")
+      .run(status, currentPeriodEnd ?? null, cancelAtPeriodEnd ?? null, stripeSubscriptionId);
+  },
+  cancelSubscription(stripeSubscriptionId: string): void {
+    sqlite.prepare("UPDATE subscriptions SET status = 'cancelled', cancel_at_period_end = 1 WHERE stripe_subscription_id = ?").run(stripeSubscriptionId);
   },
 };

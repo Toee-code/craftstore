@@ -58,6 +58,8 @@ export const products = sqliteTable("products", {
   world: text("world"),                         // e.g. "SMP", "Builderville" — null = all worlds
   preorder: integer("preorder").default(0),      // 1 = pre-order item (payment taken now, command fires on release)
   preorderReleaseDate: text("preorder_release_date"), // ISO date string e.g. "2024-12-25"
+  purchaseType: text("purchase_type").default("one_time"), // "one_time" | "subscription" | "one_month_sub"
+  stripePriceId: text("stripe_price_id"),         // Stripe recurring price ID for subscription products
   command: text("command").notNull(),
   stock: integer("stock").default(-1),
   active: integer("active", { mode: "boolean" }).default(true),
@@ -305,3 +307,24 @@ export const creatorCodePayouts = sqliteTable("creator_code_payouts", {
 export const insertCreatorCodePayoutSchema = createInsertSchema(creatorCodePayouts).omit({ id: true, createdAt: true, resolvedAt: true });
 export type InsertCreatorCodePayout = z.infer<typeof insertCreatorCodePayoutSchema>;
 export type CreatorCodePayout = typeof creatorCodePayouts.$inferSelect;
+
+// ─── Subscriptions ─────────────────────────────────────────────────────────────
+export const subscriptions = sqliteTable("subscriptions", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  serverId: integer("server_id").notNull(),
+  productId: integer("product_id").notNull(),
+  memberId: integer("member_id").notNull(),
+  minecraftUsername: text("minecraft_username").notNull(),
+  stripeSubscriptionId: text("stripe_subscription_id").notNull(),
+  stripeCustomerId: text("stripe_customer_id").notNull(),
+  status: text("status").notNull().default("active"), // active | cancelled | expired
+  currentPeriodEnd: text("current_period_end"),        // ISO date — when next payment is due / when it expires
+  cancelAtPeriodEnd: integer("cancel_at_period_end").default(0), // 1 = will cancel at end of period
+  productName: text("product_name"),
+  amount: real("amount"),                              // monthly price in pounds
+  createdAt: text("created_at").notNull().default(new Date().toISOString()),
+});
+
+export const insertSubscriptionSchema = createInsertSchema(subscriptions).omit({ id: true, createdAt: true });
+export type InsertSubscription = z.infer<typeof insertSubscriptionSchema>;
+export type Subscription = typeof subscriptions.$inferSelect;

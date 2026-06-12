@@ -9,6 +9,27 @@ import Stripe from "stripe";
 const stripeKey = process.env.STRIPE_SECRET_KEY || "";
 const stripe = stripeKey ? new Stripe(stripeKey, { apiVersion: "2025-03-31.basil" }) : null;
 
+// Fire /npcl addspend command after every successful purchase
+async function fireSpendCommand(server: any, minecraftUsername: string, amountPounds: number) {
+  if (!server?.webhookUrl) return;
+  const amountStr = amountPounds.toFixed(2);
+  const cmd = `/npcl addspend ${minecraftUsername} ${amountStr}`;
+  try {
+    await fetch(server.webhookUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-CraftStore-Secret": server.webhookSecret || "" },
+      body: JSON.stringify({
+        event: "spend_update",
+        command: cmd,
+        commands: [cmd],
+        minecraftUsername,
+        amount: amountStr,
+        secret: server.webhookSecret,
+      }),
+    });
+  } catch { /* silent — spend command is best-effort */ }
+}
+
 // Public URL for Stripe redirect (deployment proxy or localhost)
 function getBaseUrl(req: any): string {
   const host = req.headers["x-forwarded-host"] || req.headers.host || "localhost:5000";
@@ -517,6 +538,7 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
           });
           if (response.ok) {
             storage.updateOrderStatus(order.id, "completed", true);
+            await fireSpendCommand(server, minecraftUsername, playerPrice / 100);
           } else {
             storage.updateOrderStatus(order.id, "failed", false);
           }
@@ -525,6 +547,7 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
         }
       } else {
         storage.updateOrderStatus(order.id, "completed", false);
+        await fireSpendCommand(server, minecraftUsername, playerPrice / 100);
       }
 
       // Notify the server owner
@@ -811,6 +834,7 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
           try {
             await fetch(server.webhookUrl, { method: "POST", headers: { "Content-Type": "application/json", "X-CraftStore-Secret": server.webhookSecret || "" }, body: JSON.stringify({ event: "purchase", orderId: order.id, minecraftUsername, command, commands, preorder: !!(product as any).preorder, preorderReleaseDate: (product as any).preorderReleaseDate || null, product: { id: product.id, name: product.name }, productName: product.name, secret: server.webhookSecret }) });
             storage.updateOrderStatus(order.id, "completed", true);
+            await fireSpendCommand(server, minecraftUsername, playerPrice / 100);
           } catch { storage.updateOrderStatus(order.id, "failed", false); }
         }
         return res.json({ success: true, demoMode: true, orderId: order.id });
@@ -935,12 +959,18 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
               headers: { "Content-Type": "application/json", "X-CraftStore-Secret": server.webhookSecret || "" },
               body: JSON.stringify({ event: "purchase", orderId: order.id, minecraftUsername, command, commands, preorder: false, preorderReleaseDate: null, product: { id: product.id, name: product.name }, productName: product.name, secret: server.webhookSecret }),
             });
-            storage.updateOrderStatus(order.id, wResp.ok ? "completed" : "failed", wResp.ok);
+            if (wResp.ok) {
+              storage.updateOrderStatus(order.id, "completed", wResp.ok);
+              await fireSpendCommand(server, minecraftUsername, playerPrice / 100);
+            } else {
+              storage.updateOrderStatus(order.id, "failed", false);
+            }
           } catch {
             storage.updateOrderStatus(order.id, "failed", false);
           }
         } else {
           storage.updateOrderStatus(order.id, "completed", false);
+          await fireSpendCommand(server, minecraftUsername, playerPrice / 100);
         }
 
         // Send push notification to server owner
@@ -1038,6 +1068,97 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
     }
   });
 
+  // ── Subscription checkout ──────────────────────────────────────────────────
+  app.post("/api/stripe/subscription-checkout", async (req, res) => {
+    if (!stripe) return res.status(400).json({ error: "Stripe not configured" });
+    try {
+      const { serverId, productId, minecraftUsername, creatorCode } = req.body;
+      const server = storage.getServerById(Number(serverId));
+      if (!server) return res.status(404).json({ error: "Server not found" });
+      const products = storage.getProductsByServer(Number(serverId));
+      const product = products.find((p: any) => p.id === Number(productId));
+      if (!product) return res.status(404).json({ error: "Product not found" });
+      if (product.purchaseType === "one_time") return res.status(400).json({ error: "Not a subscription product" });
+
+      // Look up or create member
+      let member = storage.getMemberByUsername(Number(serverId), minecraftUsername);
+      if (!member) member = storage.createMember({ serverId: Number(serverId), minecraftUsername, balance: 0, totalSpent: 0 });
+
+      // Validate creator code
+      const cc = creatorCode ? storage.getCreatorCodeByCode(Number(serverId), String(creatorCode).toUpperCase()) : null;
+      const discountPct = cc ? cc.discountPercent : 0;
+      const basePrice = product.price; // pence
+      const playerPrice = Math.round(basePrice * (1 - discountPct / 100));
+      const isOneMonth = product.purchaseType === "one_month_sub";
+      const baseUrl = getBaseUrl(req);
+
+      // Create or reuse a Stripe Price for this product
+      let stripePriceId = product.stripePriceId;
+      if (!stripePriceId) {
+        const stripeProduct = await stripe.products.create({ name: `${server.name} - ${product.name}` });
+        const stripePrice = await stripe.prices.create({
+          product: stripeProduct.id,
+          unit_amount: playerPrice,
+          currency: "gbp",
+          recurring: { interval: "month" },
+        });
+        stripePriceId = stripePrice.id;
+        // Save for future use (only if no discount, otherwise create fresh each time)
+        if (!cc) sqlite.prepare("UPDATE products SET stripe_price_id = ? WHERE id = ?").run(stripePriceId, product.id);
+      }
+
+      // If discount applied, create a one-time discounted price
+      let finalPriceId = stripePriceId;
+      if (cc) {
+        const discountedStripeProduct = await stripe.products.create({ name: `${server.name} - ${product.name} (${discountPct}% off)` });
+        const discountedPrice = await stripe.prices.create({
+          product: discountedStripeProduct.id,
+          unit_amount: playerPrice,
+          currency: "gbp",
+          recurring: { interval: "month" },
+        });
+        finalPriceId = discountedPrice.id;
+      }
+
+      const session = await stripe.checkout.sessions.create({
+        mode: "subscription",
+        line_items: [{ price: finalPriceId, quantity: 1 }],
+        ...(isOneMonth ? { subscription_data: { metadata: { cancel_after_trial: "true" } } } : {}),
+        metadata: {
+          type: "subscription",
+          productId: String(productId),
+          serverId: String(serverId),
+          minecraftUsername,
+          purchaseType: product.purchaseType,
+          ...(cc ? { creatorCode: cc.code } : {}),
+        },
+        success_url: `${baseUrl}/#/store/${serverId}?purchase=success&session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${baseUrl}/#/store/${serverId}`,
+      });
+
+      res.json({ url: session.url });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // Get subscriptions for a player
+  app.get("/api/servers/:serverId/subscriptions/:username", (req, res) => {
+    const { serverId, username } = req.params;
+    const subs = storage.getSubscriptionsByUsername(Number(serverId), username);
+    res.json(subs);
+  });
+
+  // Cancel a subscription
+  app.post("/api/subscriptions/:stripeSubId/cancel", async (req, res) => {
+    if (!stripe) return res.status(400).json({ error: "Stripe not configured" });
+    try {
+      const { stripeSubId } = req.params;
+      // Cancel at period end so player keeps access until billing cycle ends
+      await stripe.subscriptions.update(stripeSubId, { cancel_at_period_end: true });
+      storage.cancelSubscription(stripeSubId);
+      res.json({ success: true });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
   // Stripe webhook (for production reliability)
   app.post("/api/stripe/webhook", async (req, res) => {
     if (!stripe) return res.json({ received: true });
@@ -1125,12 +1246,18 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
                   headers: { "Content-Type": "application/json", "X-CraftStore-Secret": server.webhookSecret || "" },
                   body: JSON.stringify({ event: "purchase", orderId: order.id, minecraftUsername, command, commands, preorder: false, preorderReleaseDate: null, product: { id: product.id, name: product.name }, productName: product.name, secret: server.webhookSecret }),
                 });
-                storage.updateOrderStatus(order.id, wResp.ok ? "completed" : "failed", wResp.ok);
+                if (wResp.ok) {
+                  storage.updateOrderStatus(order.id, "completed", true);
+                  await fireSpendCommand(server, minecraftUsername, playerPrice / 100);
+                } else {
+                  storage.updateOrderStatus(order.id, "failed", false);
+                }
               } catch {
                 storage.updateOrderStatus(order.id, "failed", false);
               }
             } else {
               storage.updateOrderStatus(order.id, "completed", false);
+              await fireSpendCommand(server, minecraftUsername, playerPrice / 100);
             }
 
             // Push notification
@@ -1168,6 +1295,46 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
           }
         }
 
+      // ── Subscription first payment ───────────────────────────────────────
+      } else if (meta.type === "subscription") {
+        try {
+          const { serverId, productId, minecraftUsername, purchaseType, creatorCode: savedCode } = meta;
+          const server = storage.getServerById(Number(serverId));
+          const productsList = storage.getProductsByServer(Number(serverId));
+          const product = productsList.find((p: any) => p.id === Number(productId));
+          if (server && product) {
+            let member = storage.getMemberByUsername(Number(serverId), minecraftUsername);
+            if (!member) member = storage.createMember({ serverId: Number(serverId), minecraftUsername, balance: 0, totalSpent: 0 });
+            const stripeSubId = (session as any).subscription as string;
+            if (stripeSubId) {
+              const existing = storage.getSubscriptionByStripeId(stripeSubId);
+              if (!existing) {
+                const cc = savedCode ? storage.getCreatorCodeByCode(Number(serverId), savedCode) : null;
+                const discountPct = cc ? cc.discountPercent : 0;
+                const basePrice = product.price;
+                const playerPrice = Math.round(basePrice * (1 - discountPct / 100));
+                const stripeSubObj = stripe ? await stripe.subscriptions.retrieve(stripeSubId) : null;
+                const periodEnd = stripeSubObj ? new Date((stripeSubObj as any).current_period_end * 1000).toISOString() : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+                storage.createSubscription({ serverId: Number(serverId), productId: Number(productId), memberId: member.id, minecraftUsername, stripeSubscriptionId: stripeSubId, stripeCustomerId: session.customer as string, status: "active", currentPeriodEnd: periodEnd, cancelAtPeriodEnd: purchaseType === "one_month_sub" ? 1 : 0, productName: product.name, amount: playerPrice / 100 });
+                storage.updateMemberTotalSpent(member.id, playerPrice / 100);
+                if (cc) storage.updateCreatorCodeEarnings(cc.id, Math.round(playerPrice * (cc.rewardPercent / 100)));
+                if (server.webhookUrl) {
+                  const cmd = product.command.replace("%player%", minecraftUsername).replace("{player}", minecraftUsername);
+                  const commands = cmd.split("\n").map((c: string) => c.trim()).filter(Boolean);
+                  try {
+                    const wResp = await fetch(server.webhookUrl, { method: "POST", headers: { "Content-Type": "application/json", "X-CraftStore-Secret": server.webhookSecret || "" }, body: JSON.stringify({ event: "subscription_start", command: cmd, commands, minecraftUsername, product: { id: product.id, name: product.name }, secret: server.webhookSecret }) });
+                    if (wResp.ok) await fireSpendCommand(server, minecraftUsername, playerPrice / 100);
+                  } catch {}
+                } else {
+                  await fireSpendCommand(server, minecraftUsername, playerPrice / 100);
+                }
+                if (purchaseType === "one_month_sub" && stripe) {
+                  await stripe.subscriptions.update(stripeSubId, { cancel_at_period_end: true });
+                }
+              }
+            }
+          }
+        } catch (e) { console.error("[webhook] subscription checkout error:", e); }
       // ── Preset purchase ─────────────────────────────────────────────────
       } else {
         const dbSession = storage.getCheckoutSession(session.id);
@@ -1179,6 +1346,65 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
         }
       }
     }
+    // ── Subscription activated (checkout completed for subscription mode)
+    if (event.type === "checkout.session.completed") {
+      // Already handled above for one_time; handle subscription type here
+    }
+
+    // ── Subscription renewal — fire command again each month
+    if (event.type === "invoice.paid") {
+      try {
+        const invoice = event.data.object as any;
+        const stripeSubId = invoice.subscription;
+        if (!stripeSubId) { res.json({ received: true }); return; }
+        const sub = storage.getSubscriptionByStripeId(stripeSubId);
+        if (!sub) { res.json({ received: true }); return; }
+        // Update period end
+        const periodEnd = new Date(invoice.lines?.data?.[0]?.period?.end * 1000).toISOString();
+        storage.updateSubscriptionStatus(stripeSubId, "active", periodEnd);
+        // Fire the command to Minecraft server
+        const server = storage.getServerById(sub.server_id);
+        const productsList = storage.getProductsByServer(sub.server_id);
+        const product = productsList.find((p: any) => p.id === sub.product_id);
+        if (server?.webhookUrl && product) {
+          const cmd = product.command.replace("%player%", sub.minecraft_username).replace("{player}", sub.minecraft_username);
+          const commands = cmd.split("\n").map((c: string) => c.trim()).filter(Boolean);
+          await fetch(server.webhookUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "X-CraftStore-Secret": server.webhookSecret || "" },
+            body: JSON.stringify({ event: "subscription_renewal", command: cmd, commands, minecraftUsername: sub.minecraft_username, product: { id: product.id, name: product.name }, secret: server.webhookSecret }),
+          });
+          await fireSpendCommand(server, sub.minecraft_username, sub.amount);
+        }
+        // If one_month_sub, cancel at period end after first payment
+        if (sub.purchase_type === "one_month_sub" || invoice.lines?.data?.[0]?.period?.start === invoice.lines?.data?.[0]?.period?.end) {
+          // Count how many times invoice.paid has fired for this sub
+          const invoiceCount = invoice.lines?.data?.length || 1;
+          if (sub.purchase_type === "one_month_sub") {
+            if (stripe) await stripe.subscriptions.update(stripeSubId, { cancel_at_period_end: true });
+            storage.updateSubscriptionStatus(stripeSubId, "active", periodEnd, 1);
+          }
+        }
+      } catch (e) { console.error("[webhook] invoice.paid error:", e); }
+    }
+
+    // ── Subscription cancelled / expired
+    if (event.type === "customer.subscription.deleted") {
+      try {
+        const stripeSub = event.data.object as any;
+        storage.updateSubscriptionStatus(stripeSub.id, "expired");
+      } catch (e) { console.error("[webhook] subscription.deleted error:", e); }
+    }
+
+    if (event.type === "customer.subscription.updated") {
+      try {
+        const stripeSub = event.data.object as any;
+        const periodEnd = new Date(stripeSub.current_period_end * 1000).toISOString();
+        const cancelAtEnd = stripeSub.cancel_at_period_end ? 1 : 0;
+        storage.updateSubscriptionStatus(stripeSub.id, stripeSub.status === "active" ? "active" : stripeSub.status, periodEnd, cancelAtEnd);
+      } catch (e) { console.error("[webhook] subscription.updated error:", e); }
+    }
+
     res.json({ received: true });
   });
 

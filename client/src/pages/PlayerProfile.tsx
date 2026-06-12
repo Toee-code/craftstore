@@ -67,6 +67,22 @@ export default function PlayerProfile() {
     queryFn: () => apiRequest("GET", `/api/store/${serverId}`).then(r => r.json()),
   });
 
+  const { data: subscriptions = [] } = useQuery<any[]>({
+    queryKey: ["/api/servers", serverId, "subscriptions", username],
+    queryFn: () => apiRequest("GET", `/api/servers/${serverId}/subscriptions/${encodeURIComponent(username!)}`).then(r => r.json()),
+    enabled: !!username && !!serverId,
+  });
+
+  const cancelSubMutation = useMutation({
+    mutationFn: (stripeSubId: string) =>
+      apiRequest("POST", `/api/subscriptions/${stripeSubId}/cancel`).then(r => r.json()),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["/api/servers", serverId, "subscriptions", username] });
+      toast({ title: "Subscription cancelled", description: "You\'ll keep access until the end of the billing period." });
+    },
+    onError: () => toast({ title: "Failed to cancel", variant: "destructive" }),
+  });
+
   // Balance top-up
   const [topupAmount, setTopupAmount] = useState<number>(10);
   const [customAmount, setCustomAmount] = useState("");
@@ -319,6 +335,42 @@ export default function PlayerProfile() {
                 )}
               </CardContent>
             </Card>
+
+            {/* Subscriptions */}
+            {subscriptions.length > 0 && (
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <CreditCard className="w-4 h-4 text-primary" /> Active Subscriptions
+                    <Badge variant="secondary" className="ml-auto">{subscriptions.filter((s: any) => s.status === "active").length}</Badge>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {subscriptions.map((sub: any) => (
+                    <div key={sub.stripe_subscription_id} className="flex items-center justify-between p-3 rounded-lg border border-border/40 bg-muted/10">
+                      <div className="space-y-0.5">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-sm">{sub.product_name}</span>
+                          <Badge variant={sub.status === "active" ? "default" : "secondary"} className="text-xs">
+                            {sub.cancel_at_period_end ? "Cancels at period end" : sub.status}
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          {fmt(sub.amount ?? 0)}/mo · {sub.cancel_at_period_end ? "Ends" : "Renews"} {sub.current_period_end ? fmtDate(sub.current_period_end) : "—"}
+                        </p>
+                      </div>
+                      {sub.status === "active" && !sub.cancel_at_period_end && (
+                        <Button size="sm" variant="outline" className="text-destructive border-destructive/30 hover:bg-destructive/10 text-xs"
+                          onClick={() => cancelSubMutation.mutate(sub.stripe_subscription_id)}
+                          disabled={cancelSubMutation.isPending}>
+                          Cancel
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            )}
           </>
         )}
       </main>

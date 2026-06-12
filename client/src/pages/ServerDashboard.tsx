@@ -581,7 +581,7 @@ function ProductImagePicker({
 interface ProductForm {
   name: string; description: string; price: number;
   command: string; category: string; stock: number; imageUrl: string;
-  imageType: string; playerHeadName: string; enchanted: boolean; featured: boolean; preorder: boolean; preorderReleaseDate: string;
+  imageType: string; playerHeadName: string; enchanted: boolean; featured: boolean; preorder: boolean; preorderReleaseDate: string; purchaseType: string;
 }
 interface MemberForm { minecraftUsername: string; email: string; balance: number; }
 
@@ -1534,7 +1534,7 @@ export default function ServerDashboard() {
   };
 
   // Add product
-  const productForm = useForm<ProductForm>({ defaultValues: { imageType: "upload", playerHeadName: "", stock: -1, enchanted: false, featured: false, preorder: false, preorderReleaseDate: "" } });
+  const productForm = useForm<ProductForm>({ defaultValues: { imageType: "upload", playerHeadName: "", stock: -1, enchanted: false, featured: false, preorder: false, preorderReleaseDate: "", purchaseType: "one_time" } });
   const addProduct = useMutation({
     mutationFn: (data: ProductForm) =>
       apiRequest("POST", `/api/servers/${serverId}/products`, data).then(r => r.json()),
@@ -1542,13 +1542,13 @@ export default function ServerDashboard() {
       qc.invalidateQueries({ queryKey: ["/api/servers", serverId, "products"] });
       qc.invalidateQueries({ queryKey: ["/api/servers", serverId, "stats"] });
       setAddProductOpen(false);
-      productForm.reset({ imageType: "upload", playerHeadName: "", stock: -1, enchanted: false, featured: false, preorder: false, preorderReleaseDate: "" });
+      productForm.reset({ imageType: "upload", playerHeadName: "", stock: -1, enchanted: false, featured: false, preorder: false, preorderReleaseDate: "", purchaseType: "one_time" });
       toast({ title: "Product added" });
     },
   });
 
   // Edit product
-  const editForm = useForm<ProductForm>({ defaultValues: { imageType: "upload", playerHeadName: "", stock: -1, enchanted: false, featured: false, preorder: false, preorderReleaseDate: "" } });
+  const editForm = useForm<ProductForm>({ defaultValues: { imageType: "upload", playerHeadName: "", stock: -1, enchanted: false, featured: false, preorder: false, preorderReleaseDate: "", purchaseType: "one_time" } });
   const updateProduct = useMutation({
     mutationFn: (data: ProductForm & { id: number }) =>
       apiRequest("PATCH", `/api/products/${data.id}`, data).then(r => r.json()),
@@ -1577,6 +1577,7 @@ export default function ServerDashboard() {
       world: (p as any).world ?? "",
       preorder: !!(p as any).preorder,
       preorderReleaseDate: (p as any).preorderReleaseDate ?? "",
+      purchaseType: (p as any).purchaseType ?? "one_time",
     });
   };
 
@@ -1954,6 +1955,28 @@ export default function ServerDashboard() {
                           <p className="text-xs text-muted-foreground">Shown on the store as the expected availability date</p>
                         </div>
                       )}
+                      {/* Purchase Type */}
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Purchase Type</Label>
+                        <div className="flex gap-2">
+                          {(["one_time", "subscription", "one_month_sub"] as const).map(pt => (
+                            <button key={pt} type="button"
+                              onClick={() => productForm.setValue("purchaseType", pt)}
+                              className={`flex-1 py-1.5 rounded-md text-xs font-semibold border transition-colors ${
+                                productForm.watch("purchaseType") === pt
+                                  ? "bg-primary text-primary-foreground border-primary"
+                                  : "bg-muted text-muted-foreground border-border"
+                              }`}>
+                              {pt === "one_time" ? "One-Time" : pt === "subscription" ? "Monthly Sub" : "1-Month Sub"}
+                            </button>
+                          ))}
+                        </div>
+                        {productForm.watch("purchaseType") !== "one_time" && (
+                          <p className="text-xs text-muted-foreground">
+                            {productForm.watch("purchaseType") === "subscription" ? "Recurring monthly — player can cancel anytime." : "Charged once, auto-cancels after 1 month."}
+                          </p>
+                        )}
+                      </div>
                     </div>
                     <ProductImagePicker
                       imageType={productForm.watch("imageType") || "upload"}
@@ -2071,6 +2094,28 @@ export default function ServerDashboard() {
                         <p className="text-xs text-muted-foreground">Shown on the store as the expected availability date</p>
                       </div>
                     )}
+                    {/* Purchase Type */}
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Purchase Type</Label>
+                      <div className="flex gap-2">
+                        {(["one_time", "subscription", "one_month_sub"] as const).map(pt => (
+                          <button key={pt} type="button"
+                            onClick={() => editForm.setValue("purchaseType", pt)}
+                            className={`flex-1 py-1.5 rounded-md text-xs font-semibold border transition-colors ${
+                              editForm.watch("purchaseType") === pt
+                                ? "bg-primary text-primary-foreground border-primary"
+                                : "bg-muted text-muted-foreground border-border"
+                            }`}>
+                            {pt === "one_time" ? "One-Time" : pt === "subscription" ? "Monthly Sub" : "1-Month Sub"}
+                          </button>
+                        ))}
+                      </div>
+                      {editForm.watch("purchaseType") !== "one_time" && (
+                        <p className="text-xs text-muted-foreground">
+                          {editForm.watch("purchaseType") === "subscription" ? "Recurring monthly — player can cancel anytime." : "Charged once, auto-cancels after 1 month."}
+                        </p>
+                      )}
+                    </div>
                   </div>
                   <ProductImagePicker
                     imageType={editForm.watch("imageType") || "upload"}
