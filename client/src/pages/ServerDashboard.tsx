@@ -1990,7 +1990,7 @@ export default function ServerDashboard() {
                             placeholder={"lp user {player} parent remove vip\nessentials:gamemode survival {player}"}
                             className="w-full rounded-md border border-border bg-background px-3 py-2 text-xs font-mono resize-y min-h-[60px] focus:outline-none focus:ring-1 focus:ring-primary"
                           />
-                          <p className="text-xs text-muted-foreground">One command per line. Use <code className="bg-muted px-1 rounded">{{player}}</code> for the player's username.</p>
+                          <p className="text-xs text-muted-foreground">One command per line. Use <code className="bg-muted px-1 rounded">{'{player}'}</code> for the player's username.</p>
                         </div>
                       )}
                     </div>
@@ -2144,7 +2144,7 @@ export default function ServerDashboard() {
                           placeholder={"lp user {player} parent remove vip\nessentials:gamemode survival {player}"}
                           className="w-full rounded-md border border-border bg-background px-3 py-2 text-xs font-mono resize-y min-h-[60px] focus:outline-none focus:ring-1 focus:ring-primary"
                         />
-                        <p className="text-xs text-muted-foreground">One command per line. Use <code className="bg-muted px-1 rounded">{{player}}</code> for the player's username.</p>
+                        <p className="text-xs text-muted-foreground">One command per line. Use <code className="bg-muted px-1 rounded">{'{player}'}</code> for the player's username.</p>
                       </div>
                     )}
                   </div>
