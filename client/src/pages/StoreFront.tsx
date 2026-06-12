@@ -3084,6 +3084,20 @@ function ThemedStore({ data }: { data: StoreData }) {
             </div>
           </DialogContent>
         </Dialog>
+
+        {/* Subscription username prompt — Echo layout */}
+        <Dialog open={subPrompt.open} onOpenChange={(o) => { if (!o) setSubPrompt(p => ({ ...p, open: false })); }}>
+          <DialogContent className="max-w-xs" style={{ background: "#0f0f16", border: "1px solid rgba(255,255,255,0.12)", color: "#fff" }}>
+            <DialogHeader><DialogTitle style={{ color: "#fff" }}>Enter Your Username</DialogTitle></DialogHeader>
+            <p className="text-xs mb-3" style={{ color: "rgba(255,255,255,0.5)" }}>Your Minecraft username is needed to link this subscription to your account.</p>
+            <input autoFocus className="w-full rounded-md border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 outline-none focus:ring-1 mb-3" placeholder="Minecraft username" value={subPromptUsername} onChange={e => setSubPromptUsername(e.target.value)}
+              onKeyDown={async e => { if (e.key === "Enter" && subPromptUsername.trim() && subPrompt.product) { setSubPromptLoading(true); setSubPrompt(p => ({ ...p, open: false })); await fireSubCheckout(subPrompt.product, subPromptUsername.trim(), subPrompt.chosenType); setSubPromptLoading(false); } }} />
+            <Button className="w-full font-bold" style={{ background: accent, color: "#fff" }} disabled={!subPromptUsername.trim() || subPromptLoading}
+              onClick={async () => { if (!subPrompt.product) return; setSubPromptLoading(true); setSubPrompt(p => ({ ...p, open: false })); await fireSubCheckout(subPrompt.product, subPromptUsername.trim(), subPrompt.chosenType); setSubPromptLoading(false); }}>
+              {subPromptLoading ? "Redirecting…" : "Continue to Checkout"}
+            </Button>
+          </DialogContent>
+        </Dialog>
       </div>
     );
   }
