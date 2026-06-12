@@ -2118,6 +2118,9 @@ function ThemedStore({ data }: { data: StoreData }) {
   const [memberAuthOpen, setMemberAuthOpen] = useState(false);
   const [playerDropdownOpen, setPlayerDropdownOpen] = useState(false);
   const [donateOpen, setDonateOpen] = useState(false);
+  const [subPrompt, setSubPrompt] = useState<{ open: boolean; product: Product | null; chosenType: string }>({ open: false, product: null, chosenType: "subscription" });
+  const [subPromptUsername, setSubPromptUsername] = useState("");
+  const [subPromptLoading, setSubPromptLoading] = useState(false);
 
   // ── Persistent member session ──────────────────────────────────────────────
   const memberTokenKey = `cs_member_token_${data.server.id}`;
@@ -2267,24 +2270,29 @@ function ThemedStore({ data }: { data: StoreData }) {
     finally { setCodeLoading(false); }
   };
 
-  const handleSubBuy = async (product: Product, chosenType?: string) => {
-    // Subscription flow — redirect to Stripe
-    if (!username.trim() && !memberSession) {
-      setCheckout({ open: true, product, mode: "buy", paymentMode: "card" });
-      return;
-    }
-    const uname = username.trim() || memberSession?.minecraftUsername || "";
-    if (!uname) { alert("Enter your Minecraft username first."); return; }
+  const fireSubCheckout = async (product: Product, uname: string, chosenType: string) => {
     try {
       const resp = await fetch(`/api/stripe/subscription-checkout`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ serverId, productId: product.id, minecraftUsername: uname, creatorCode: creatorCode || undefined, ...(chosenType ? { chosenType } : {}) }),
+        body: JSON.stringify({ serverId: data.server.id, productId: product.id, minecraftUsername: uname, creatorCode: creatorCode || undefined, chosenType }),
       });
       const { url, error } = await resp.json();
       if (url) window.location.href = url;
       else alert(error || "Failed to start checkout");
     } catch { alert("Failed to start checkout"); }
+  };
+
+  const handleSubBuy = async (product: Product, chosenType?: string) => {
+    const ct = chosenType || (product as any).purchaseType || "subscription";
+    const uname = memberSession?.minecraftUsername || username.trim();
+    if (!uname) {
+      // Show username prompt dialog
+      setSubPromptUsername("");
+      setSubPrompt({ open: true, product, chosenType: ct });
+      return;
+    }
+    await fireSubCheckout(product, uname, ct);
   };
 
   const handleBuy = async (product: Product, chosenType?: string) => {
@@ -2687,6 +2695,19 @@ function ThemedStore({ data }: { data: StoreData }) {
           </DialogContent>
         </Dialog>
 
+        {/* Subscription username prompt */}
+        <Dialog open={subPrompt.open} onOpenChange={(o) => { if (!o) setSubPrompt(p => ({ ...p, open: false })); }}>
+          <DialogContent className="max-w-xs" style={{ background: "#111214", border: "1px solid rgba(255,255,255,0.12)", color: "#fff" }}>
+            <DialogHeader><DialogTitle style={{ color: "#fff" }}>Enter Your Username</DialogTitle></DialogHeader>
+            <p className="text-xs mb-3" style={{ color: "rgba(255,255,255,0.5)" }}>Your Minecraft username is needed to link this subscription to your account.</p>
+            <input autoFocus className="w-full rounded-md border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 outline-none focus:ring-1 mb-3" placeholder="Minecraft username" value={subPromptUsername} onChange={e => setSubPromptUsername(e.target.value)}
+              onKeyDown={async e => { if (e.key === "Enter" && subPromptUsername.trim() && subPrompt.product) { setSubPromptLoading(true); setSubPrompt(p => ({ ...p, open: false })); await fireSubCheckout(subPrompt.product, subPromptUsername.trim(), subPrompt.chosenType); setSubPromptLoading(false); } }} />
+            <Button className="w-full font-bold" style={{ background: accent, color: "#fff" }} disabled={!subPromptUsername.trim() || subPromptLoading}
+              onClick={async () => { if (!subPrompt.product) return; setSubPromptLoading(true); setSubPrompt(p => ({ ...p, open: false })); await fireSubCheckout(subPrompt.product, subPromptUsername.trim(), subPrompt.chosenType); setSubPromptLoading(false); }}>
+              {subPromptLoading ? "Redirecting…" : "Continue to Checkout"}
+            </Button>
+          </DialogContent>
+        </Dialog>
         {/* Shared modals — member auth + checkout (same Dialog as standard layout) */}
         {memberAuthOpen && (
           <MemberAuthModal serverId={data.server.id} accent={accent} onClose={() => setMemberAuthOpen(false)} onLogin={(s) => setMemberSession(s)} bedrockEnabled={data.server.bedrockEnabled} bedrockPrefix={data.server.bedrockPrefix} bedrockReplaceSpaces={data.server.bedrockReplaceSpaces} />
@@ -2907,6 +2928,19 @@ function ThemedStore({ data }: { data: StoreData }) {
           memberSession={memberSession}
         />
 
+        {/* Subscription username prompt */}
+        <Dialog open={subPrompt.open} onOpenChange={(o) => { if (!o) setSubPrompt(p => ({ ...p, open: false })); }}>
+          <DialogContent className="max-w-xs" style={{ background: "#14171d", border: "1px solid rgba(255,255,255,0.1)", color: "#fff" }}>
+            <DialogHeader><DialogTitle style={{ color: "#fff" }}>Enter Your Username</DialogTitle></DialogHeader>
+            <p className="text-xs mb-3" style={{ color: "rgba(255,255,255,0.5)" }}>Your Minecraft username is needed to link this subscription to your account.</p>
+            <input autoFocus className="w-full rounded-md border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 outline-none focus:ring-1 mb-3" placeholder="Minecraft username" value={subPromptUsername} onChange={e => setSubPromptUsername(e.target.value)}
+              onKeyDown={async e => { if (e.key === "Enter" && subPromptUsername.trim() && subPrompt.product) { setSubPromptLoading(true); setSubPrompt(p => ({ ...p, open: false })); await fireSubCheckout(subPrompt.product, subPromptUsername.trim(), subPrompt.chosenType); setSubPromptLoading(false); } }} />
+            <Button className="w-full font-bold" style={{ background: accent, color: "#fff" }} disabled={!subPromptUsername.trim() || subPromptLoading}
+              onClick={async () => { if (!subPrompt.product) return; setSubPromptLoading(true); setSubPrompt(p => ({ ...p, open: false })); await fireSubCheckout(subPrompt.product, subPromptUsername.trim(), subPrompt.chosenType); setSubPromptLoading(false); }}>
+              {subPromptLoading ? "Redirecting…" : "Continue to Checkout"}
+            </Button>
+          </DialogContent>
+        </Dialog>
         {/* Modals */}
         {memberAuthOpen && (
           <MemberAuthModal serverId={data.server.id} accent={accent} onClose={() => setMemberAuthOpen(false)} onLogin={(s) => setMemberSession(s)} bedrockEnabled={data.server.bedrockEnabled} bedrockPrefix={data.server.bedrockPrefix} bedrockReplaceSpaces={data.server.bedrockReplaceSpaces} />
@@ -3305,6 +3339,19 @@ function ThemedStore({ data }: { data: StoreData }) {
         </main>
       </div>
 
+      {/* Subscription username prompt */}
+      <Dialog open={subPrompt.open} onOpenChange={(o) => { if (!o) setSubPrompt(p => ({ ...p, open: false })); }}>
+        <DialogContent className="max-w-xs" style={{ background: "#0f0f16", border: "1px solid rgba(255,255,255,0.12)", color: "#fff" }}>
+          <DialogHeader><DialogTitle style={{ color: "#fff" }}>Enter Your Username</DialogTitle></DialogHeader>
+          <p className="text-xs mb-3" style={{ color: "rgba(255,255,255,0.5)" }}>Your Minecraft username is needed to link this subscription to your account.</p>
+          <input autoFocus className="w-full rounded-md border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-white/30 outline-none focus:ring-1 mb-3" placeholder="Minecraft username" value={subPromptUsername} onChange={e => setSubPromptUsername(e.target.value)}
+            onKeyDown={async e => { if (e.key === "Enter" && subPromptUsername.trim() && subPrompt.product) { setSubPromptLoading(true); setSubPrompt(p => ({ ...p, open: false })); await fireSubCheckout(subPrompt.product, subPromptUsername.trim(), subPrompt.chosenType); setSubPromptLoading(false); } }} />
+          <Button className="w-full font-bold" style={{ background: accent, color: "#fff" }} disabled={!subPromptUsername.trim() || subPromptLoading}
+            onClick={async () => { if (!subPrompt.product) return; setSubPromptLoading(true); setSubPrompt(p => ({ ...p, open: false })); await fireSubCheckout(subPrompt.product, subPromptUsername.trim(), subPrompt.chosenType); setSubPromptLoading(false); }}>
+            {subPromptLoading ? "Redirecting…" : "Continue to Checkout"}
+          </Button>
+        </DialogContent>
+      </Dialog>
       {/* Member Auth Modal */}
       {memberAuthOpen && (
         <MemberAuthModal serverId={data.server.id} accent={accent} onClose={() => setMemberAuthOpen(false)} onLogin={(s) => setMemberSession(s)} bedrockEnabled={data.server.bedrockEnabled} bedrockPrefix={data.server.bedrockPrefix} bedrockReplaceSpaces={data.server.bedrockReplaceSpaces} />
