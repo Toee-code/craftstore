@@ -2150,12 +2150,10 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
     if (!stripe) return res.status(400).json({ error: "Stripe not configured" });
     const acct = req.params.accountId;
     try {
-      // Pull checkout sessions
-      const sessions = await stripe.checkout.sessions.list({ limit: 50 }, { stripeAccount: acct });
-      // Pull payment intents as fallback
-      const intents = await stripe.paymentIntents.list({ limit: 50 }, { stripeAccount: acct });
-      // Pull subscriptions
-      const subs = await stripe.subscriptions.list({ limit: 50 }, { stripeAccount: acct });
+      // Use platform key (destination charges) — no stripeAccount header needed
+      const sessions = await stripe.checkout.sessions.list({ limit: 50 });
+      const intents = await stripe.paymentIntents.list({ limit: 50 });
+      const charges = await stripe.charges.list({ limit: 50 });
       res.json({
         sessions: sessions.data.map((s: any) => ({
           id: s.id, status: s.status, payment_status: s.payment_status,
@@ -2168,14 +2166,14 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
           id: pi.id, status: pi.status, amount: pi.amount,
           currency: pi.currency, metadata: pi.metadata,
           description: pi.description, created: pi.created,
+          transfer_data: pi.transfer_data,
         })),
-        subscriptions: subs.data.map((sub: any) => ({
-          id: sub.id, status: sub.status,
-          current_period_end: sub.current_period_end,
-          cancel_at_period_end: sub.cancel_at_period_end,
-          metadata: sub.metadata,
-          items: sub.items?.data?.map((i: any) => ({ price: i.price?.unit_amount, product: i.price?.product })),
-          customer: sub.customer, created: sub.created,
+        charges: charges.data.map((c: any) => ({
+          id: c.id, status: c.status, amount: c.amount,
+          currency: c.currency, description: c.description,
+          metadata: c.metadata, created: c.created,
+          destination: c.destination,
+          billing_details: c.billing_details,
         })),
       });
     } catch (e: any) { res.status(500).json({ error: e.message }); }
