@@ -2262,6 +2262,35 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
   });
 
   // Directly set creator code totalEarned
+  // Temp: manually create order for a missed purchase
+  app.post("/api/admin/manual-order", requireAdmin, (req, res) => {
+    try {
+      const { serverId, productId, minecraftUsername, amount, status } = req.body;
+      let member = storage.getMemberByUsername(Number(serverId), minecraftUsername);
+      if (!member) member = storage.createMember({ serverId: Number(serverId), minecraftUsername, balance: 0, totalSpent: 0 });
+      const product = storage.getProductById(Number(productId));
+      const platformFee = Math.round(Number(amount) * PLATFORM_FEE_RATE * 100) / 100;
+      const order = storage.createOrder({ serverId: Number(serverId), productId: Number(productId), memberId: member.id, minecraftUsername, amount: Number(amount), platformFee, status: status || "completed", webhookDelivered: false, creatorCodeUsed: null, creatorCodeDiscount: 0 });
+      storage.updateMemberTotalSpent(member.id, Number(amount));
+      res.json({ success: true, orderId: order.id, memberId: member.id });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+  // Temp: manually create subscription record
+  app.post("/api/admin/manual-subscription", requireAdmin, (req, res) => {
+    try {
+      const { serverId, productId, minecraftUsername, stripeSubscriptionId, amount, productName, status } = req.body;
+      let member = storage.getMemberByUsername(Number(serverId), minecraftUsername);
+      if (!member) member = storage.createMember({ serverId: Number(serverId), minecraftUsername, balance: 0, totalSpent: 0 });
+      const existing = stripeSubscriptionId ? storage.getSubscriptionByStripeId(stripeSubscriptionId) : null;
+      if (existing) return res.json({ success: true, existing: true, subId: existing.id });
+      const periodEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+      const sub = storage.createSubscription({ serverId: Number(serverId), productId: Number(productId), memberId: member.id, minecraftUsername, stripeSubscriptionId: stripeSubscriptionId || `manual_${Date.now()}`, stripeCustomerId: "", status: status || "active", currentPeriodEnd: periodEnd, cancelAtPeriodEnd: 0, productName: productName || "Subscription", amount: Number(amount) });
+      storage.updateMemberTotalSpent(member.id, Number(amount));
+      res.json({ success: true, subId: sub.id, memberId: member.id });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
   app.post("/api/admin/creator-codes/:id/set-earned", requireAdmin, (req, res) => {
     try {
       const id = Number(req.params.id);
