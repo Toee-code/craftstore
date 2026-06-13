@@ -30,6 +30,49 @@ async function fireSpendCommand(server: any, minecraftUsername: string, amountPo
   } catch { /* silent — spend command is best-effort */ }
 }
 
+/**
+ * Try to push a purchase command to the plugin via webhook.
+ * If the push fails (network blocked, server offline, etc.), mark the order as
+ * completed+undelivered so the plugin's poller picks it up within 30 seconds.
+ * Never marks an order as "failed" due to a webhook push failure — payment already
+ * succeeded, so the order is always completed; only delivery may be delayed.
+ */
+async function fireWebhookOrQueue(
+  server: any,
+  order: { id: number },
+  minecraftUsername: string,
+  command: string,
+  commands: string[],
+  productId: number,
+  productName: string,
+  playerPrice: number,
+  storageRef: typeof storage,
+  event = "purchase",
+): Promise<void> {
+  if (!server.webhookUrl) {
+    storageRef.updateOrderStatus(order.id, "completed", false);
+    return;
+  }
+  try {
+    const wResp = await fetch(server.webhookUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-CraftStore-Secret": server.webhookSecret || "" },
+      body: JSON.stringify({ event, orderId: order.id, minecraftUsername, command, commands, preorder: false, preorderReleaseDate: null, product: { id: productId, name: productName }, productName, secret: server.webhookSecret }),
+      signal: AbortSignal.timeout(6000),
+    });
+    if (wResp.ok) {
+      storageRef.updateOrderStatus(order.id, "completed", true);
+      await fireSpendCommand(server, minecraftUsername, playerPrice);
+    } else {
+      // Webhook reachable but returned error — queue for poller
+      storageRef.updateOrderStatus(order.id, "completed", false);
+    }
+  } catch {
+    // Webhook unreachable (network block, offline) — queue for poller
+    storageRef.updateOrderStatus(order.id, "completed", false);
+  }
+}
+
 // Public URL for Stripe redirect (deployment proxy or localhost)
 function getBaseUrl(req: any): string {
   const host = req.headers["x-forwarded-host"] || req.headers.host || "localhost:5000";
@@ -1007,27 +1050,10 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
         // Fire webhook to Minecraft server (skip for preorders)
         if ((product as any).preorder) {
           storage.updateOrderStatus(order.id, "pending", false);
-        } else if (server.webhookUrl) {
+        } else {
           const command = product.command.replace("%player%", minecraftUsername).replace("{player}", minecraftUsername);
           const commands = command.split("\n").map((c: string) => c.trim()).filter(Boolean);
-          try {
-            const wResp = await fetch(server.webhookUrl, {
-              method: "POST",
-              headers: { "Content-Type": "application/json", "X-CraftStore-Secret": server.webhookSecret || "" },
-              body: JSON.stringify({ event: "purchase", orderId: order.id, minecraftUsername, command, commands, preorder: false, preorderReleaseDate: null, product: { id: product.id, name: product.name }, productName: product.name, secret: server.webhookSecret }),
-            });
-            if (wResp.ok) {
-              storage.updateOrderStatus(order.id, "completed", wResp.ok);
-              await fireSpendCommand(server, minecraftUsername, playerPrice / 100);
-            } else {
-              storage.updateOrderStatus(order.id, "failed", false);
-            }
-          } catch {
-            storage.updateOrderStatus(order.id, "failed", false);
-          }
-        } else {
-          storage.updateOrderStatus(order.id, "completed", false);
-          await fireSpendCommand(server, minecraftUsername, playerPrice / 100);
+          await fireWebhookOrQueue(server, order, minecraftUsername, command, commands, product.id, product.name, playerPrice, storage);
         }
 
         // Send push notification to server owner
@@ -1303,27 +1329,10 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
             // Fire Minecraft webhook (skip for preorders)
             if ((product as any).preorder) {
               storage.updateOrderStatus(order.id, "pending", false);
-            } else if (server.webhookUrl) {
+            } else {
               const command = product.command.replace("%player%", minecraftUsername).replace("{player}", minecraftUsername);
               const commands = command.split("\n").map((c: string) => c.trim()).filter(Boolean);
-              try {
-                const wResp = await fetch(server.webhookUrl, {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json", "X-CraftStore-Secret": server.webhookSecret || "" },
-                  body: JSON.stringify({ event: "purchase", orderId: order.id, minecraftUsername, command, commands, preorder: false, preorderReleaseDate: null, product: { id: product.id, name: product.name }, productName: product.name, secret: server.webhookSecret }),
-                });
-                if (wResp.ok) {
-                  storage.updateOrderStatus(order.id, "completed", true);
-                  await fireSpendCommand(server, minecraftUsername, playerPrice / 100);
-                } else {
-                  storage.updateOrderStatus(order.id, "failed", false);
-                }
-              } catch {
-                storage.updateOrderStatus(order.id, "failed", false);
-              }
-            } else {
-              storage.updateOrderStatus(order.id, "completed", false);
-              await fireSpendCommand(server, minecraftUsername, playerPrice / 100);
+              await fireWebhookOrQueue(server, order, minecraftUsername, command, commands, product.id, product.name, playerPrice, storage);
             }
 
             // Push notification
