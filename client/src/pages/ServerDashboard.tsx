@@ -1429,7 +1429,7 @@ export default function ServerDashboard() {
 
   const retryOrder = useMutation({
     mutationFn: ({ orderId, username }: { orderId: number; username: string }) =>
-      apiRequest("POST", `/api/admin/orders/${orderId}/retry`, { minecraftUsername: username }).then(r => r.json()),
+      apiRequest("POST", `/api/servers/${serverId}/orders/${orderId}/retry`, { minecraftUsername: username }).then(r => r.json()),
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ["/api/servers", serverId, "orders"] });
       setRetryDialog(null);

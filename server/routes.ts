@@ -2356,6 +2356,52 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
     }
   });
 
+  // Server-owner retry endpoint (no requireAdmin — server owner uses their server ID)
+  app.post("/api/servers/:serverId/orders/:orderId/retry", async (req, res) => {
+    try {
+      const orderId = Number(req.params.orderId);
+      const serverId = Number(req.params.serverId);
+      const order = storage.getOrderById(orderId);
+      if (!order) return res.status(404).json({ error: "Order not found" });
+      if (order.serverId !== serverId) return res.status(403).json({ error: "Order does not belong to this server" });
+      const server = storage.getServerById(serverId);
+      if (!server) return res.status(404).json({ error: "Server not found" });
+      const product = storage.getProductById(order.productId);
+
+      const newUsername = (req.body?.minecraftUsername || "").trim();
+      const targetUsername = newUsername || order.minecraftUsername;
+
+      if (newUsername && newUsername !== order.minecraftUsername) {
+        storage.updateOrderUsername(orderId, newUsername);
+      }
+
+      storage.updateOrderStatus(orderId, "completed", false);
+
+      if (product && server.webhookUrl) {
+        const command = product.command
+          .replace("%player%", targetUsername).replace("{player}", targetUsername);
+        const commands = command.split("\n").map((c: string) => c.trim()).filter(Boolean);
+        try {
+          const wResp = await fetch(server.webhookUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "X-CraftStore-Secret": server.webhookSecret || "" },
+            body: JSON.stringify({ event: "purchase", orderId, minecraftUsername: targetUsername, command, commands, preorder: false, preorderReleaseDate: null, product: { id: product.id, name: product.name }, productName: product.name, secret: server.webhookSecret }),
+            signal: AbortSignal.timeout(6000),
+          });
+          if (wResp.ok) {
+            storage.updateOrderStatus(orderId, "completed", true);
+            await fireSpendCommand(server, targetUsername, order.amount);
+            return res.json({ success: true, message: "Command sent successfully" + (newUsername ? ` to ${newUsername}` : "") });
+          }
+        } catch { /* fall through to polling */ }
+      }
+
+      res.json({ success: true, message: "Queued for delivery — plugin will pick this up within 30 seconds" });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   // Temp: manually create order for a missed purchase
   app.post("/api/admin/manual-order", requireAdmin, (req, res) => {
     try {
