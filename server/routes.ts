@@ -1281,11 +1281,23 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
         // Server-side fulfilment — handles the case where the browser redirect
         // doesn't call /api/stripe/product-confirm (e.g. tab closed, mobile)
         const { productId, serverId, minecraftUsername, creatorCode: savedCode } = meta;
-        // Check if order already created (by product-confirm)
+        // Check if order already created (by product-confirm or manual injection)
         const existingOrders = storage.getOrdersByServer(Number(serverId))
           .filter((o: any) => o.stripePaymentIntentId === session.payment_intent ||
                               (o.minecraftUsername === minecraftUsername && o.productId === Number(productId) &&
-                               Math.abs(new Date(o.createdAt).getTime() - Date.now()) < 5 * 60 * 1000));
+                               Math.abs(new Date(o.createdAt).getTime() - Date.now()) < 30 * 60 * 1000));
+        // If an existing order is missing creator code earnings, backfill them now
+        if (existingOrders.length > 0 && savedCode) {
+          const existingOrder = existingOrders[0];
+          if (!existingOrder.creatorCodeUsed) {
+            const backfillCC = storage.getCreatorCodeByCode(Number(serverId), savedCode);
+            if (backfillCC) {
+              sqlite.prepare("UPDATE orders SET creator_code_used = ?, creator_code_discount = ? WHERE id = ?")
+                .run(backfillCC.code, backfillCC.discountPercent, existingOrder.id);
+              storage.updateCreatorCodeEarnings(backfillCC.id, Math.round(existingOrder.amount * (backfillCC.rewardPercent / 100) * 100));
+            }
+          }
+        }
         if (existingOrders.length === 0) {
           // No order yet — create it now
           const product = storage.getProductById(Number(productId));
