@@ -899,11 +899,68 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
       if (!sessionId) return res.status(400).json({ error: "sessionId required" });
 
       if (stripe) {
-        const stripeSession = await stripe.checkout.sessions.retrieve(sessionId);
-        if (stripeSession.payment_status !== "paid") {
+        // Peek at metadata first to find serverId so we can retrieve with correct connected account
+        let stripeSession: any;
+        try {
+          stripeSession = await stripe.checkout.sessions.retrieve(sessionId);
+        } catch {
+          // May be on a connected account — try without account first
+          stripeSession = null;
+        }
+        // If not found or wrong account, try retrieving via connected account from metadata
+        if (!stripeSession) return res.status(404).json({ error: "Session not found" });
+
+        // If session is on a connected account, retrieve with that account
+        const peekMeta = stripeSession.metadata || {};
+        if (peekMeta.serverId) {
+          const srv = storage.getServerById(Number(peekMeta.serverId));
+          if (srv?.stripeAccountId && srv.stripeConnectStatus === "active") {
+            try {
+              stripeSession = await stripe.checkout.sessions.retrieve(sessionId, {}, { stripeAccount: srv.stripeAccountId });
+            } catch { /* use original */ }
+          }
+        }
+
+        if (stripeSession.payment_status !== "paid" && stripeSession.status !== "complete") {
           return res.status(402).json({ error: "Payment not completed" });
         }
         const meta = stripeSession.metadata || {};
+        // Handle subscription sessions — create subscription record if webhook missed it
+        if (meta.type === "subscription") {
+          const { serverId, productId, minecraftUsername, purchaseType, creatorCode: savedCode } = meta;
+          const server = storage.getServerById(Number(serverId));
+          const productsList = storage.getProductsByServer(Number(serverId));
+          const product = productsList.find((p: any) => p.id === Number(productId));
+          if (server && product) {
+            let member = storage.getMemberByUsername(Number(serverId), minecraftUsername);
+            if (!member) member = storage.createMember({ serverId: Number(serverId), minecraftUsername, balance: 0, totalSpent: 0 });
+            const stripeSubId = stripeSession.subscription as string;
+            if (stripeSubId) {
+              const existing = storage.getSubscriptionByStripeId(stripeSubId);
+              if (!existing) {
+                const cc = savedCode ? storage.getCreatorCodeByCode(Number(serverId), savedCode) : null;
+                const discountPct = cc ? cc.discountPercent : 0;
+                const playerPrice = Math.round(product.price * (1 - discountPct / 100));
+                let stripeSubObj: any = null;
+                try { stripeSubObj = stripe ? await stripe.subscriptions.retrieve(stripeSubId, {}, { stripeAccount: server.stripeAccountId || undefined } as any) : null; } catch {}
+                const periodEnd = stripeSubObj ? new Date((stripeSubObj as any).current_period_end * 1000).toISOString() : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+                storage.createSubscription({ serverId: Number(serverId), productId: Number(productId), memberId: member.id, minecraftUsername, stripeSubscriptionId: stripeSubId, stripeCustomerId: stripeSession.customer as string, status: "active", currentPeriodEnd: periodEnd, cancelAtPeriodEnd: purchaseType === "one_month_sub" ? 1 : 0, productName: product.name, amount: playerPrice / 100 });
+                storage.updateMemberTotalSpent(member.id, playerPrice / 100);
+                if (cc) storage.updateCreatorCodeEarnings(cc.id, Math.round(playerPrice * (cc.rewardPercent / 100)));
+                if (server.webhookUrl) {
+                  const cmd = product.command.replace("%player%", minecraftUsername).replace("{player}", minecraftUsername);
+                  const commands = cmd.split("\n").map((c: string) => c.trim()).filter(Boolean);
+                  try { await fetch(server.webhookUrl, { method: "POST", headers: { "Content-Type": "application/json", "X-CraftStore-Secret": server.webhookSecret || "" }, body: JSON.stringify({ event: "subscription_start", command: cmd, commands, minecraftUsername, product: { id: product.id, name: product.name }, secret: server.webhookSecret }) }); } catch {}
+                }
+                await fireSpendCommand(server, minecraftUsername, playerPrice / 100);
+                if (purchaseType === "one_month_sub" && stripe) {
+                  try { await stripe.subscriptions.update(stripeSubId, { cancel_at_period_end: true }, { stripeAccount: server.stripeAccountId || undefined } as any); } catch {}
+                }
+              }
+            }
+          }
+          return res.json({ success: true });
+        }
         if (meta.type !== "product_purchase") return res.status(400).json({ error: "Wrong session type" });
 
         const { productId, serverId, minecraftUsername, creatorCode: savedCode } = meta;
@@ -1097,16 +1154,20 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
       const isOneMonth = effectivePurchaseType === "one_month_sub";
       const baseUrl = getBaseUrl(req);
 
+      // Stripe Connect options for connected account
+      const connectOpts: any = (server.stripeAccountId && server.stripeConnectStatus === "active")
+        ? { stripeAccount: server.stripeAccountId } : {};
+
       // Create or reuse a Stripe Price for this product
       let stripePriceId = product.stripePriceId;
       if (!stripePriceId) {
-        const stripeProduct = await stripe.products.create({ name: `${server.name} - ${product.name}` });
+        const stripeProduct = await stripe.products.create({ name: `${server.name} - ${product.name}` }, connectOpts);
         const stripePrice = await stripe.prices.create({
           product: stripeProduct.id,
           unit_amount: playerPrice,
           currency: "gbp",
           recurring: { interval: "month" },
-        });
+        }, connectOpts);
         stripePriceId = stripePrice.id;
         // Save for future use (only if no discount, otherwise create fresh each time)
         if (!cc) sqlite.prepare("UPDATE products SET stripe_price_id = ? WHERE id = ?").run(stripePriceId, product.id);
@@ -1115,13 +1176,13 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
       // If discount applied, create a one-time discounted price
       let finalPriceId = stripePriceId;
       if (cc) {
-        const discountedStripeProduct = await stripe.products.create({ name: `${server.name} - ${product.name} (${discountPct}% off)` });
+        const discountedStripeProduct = await stripe.products.create({ name: `${server.name} - ${product.name} (${discountPct}% off)` }, connectOpts);
         const discountedPrice = await stripe.prices.create({
           product: discountedStripeProduct.id,
           unit_amount: playerPrice,
           currency: "gbp",
           recurring: { interval: "month" },
-        });
+        }, connectOpts);
         finalPriceId = discountedPrice.id;
       }
 
@@ -1139,7 +1200,7 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
         },
         success_url: `${baseUrl}/#/store/${serverId}?purchase=success&session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${baseUrl}/#/store/${serverId}`,
-      });
+      }, connectOpts);
 
       res.json({ url: session.url });
     } catch (e: any) { res.status(500).json({ error: e.message }); }
