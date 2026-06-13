@@ -2145,18 +2145,39 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
     res.json(analytics);
   });
 
-  // Temporary: fetch recent Stripe sessions for manual order fix
+  // Temporary: fetch recent Stripe activity for manual order fix
   app.get("/api/admin/stripe-sessions/:accountId", requireAdmin, async (req, res) => {
     if (!stripe) return res.status(400).json({ error: "Stripe not configured" });
+    const acct = req.params.accountId;
     try {
-      const sessions = await stripe.checkout.sessions.list({ limit: 30 }, { stripeAccount: req.params.accountId });
-      res.json(sessions.data.map((s: any) => ({
-        id: s.id, status: s.status, payment_status: s.payment_status,
-        amount_total: s.amount_total, currency: s.currency,
-        metadata: s.metadata, created: s.created,
-        customer_details: s.customer_details,
-        subscription: s.subscription,
-      })));
+      // Pull checkout sessions
+      const sessions = await stripe.checkout.sessions.list({ limit: 50 }, { stripeAccount: acct });
+      // Pull payment intents as fallback
+      const intents = await stripe.paymentIntents.list({ limit: 50 }, { stripeAccount: acct });
+      // Pull subscriptions
+      const subs = await stripe.subscriptions.list({ limit: 50 }, { stripeAccount: acct });
+      res.json({
+        sessions: sessions.data.map((s: any) => ({
+          id: s.id, status: s.status, payment_status: s.payment_status,
+          amount_total: s.amount_total, currency: s.currency,
+          metadata: s.metadata, created: s.created,
+          customer_details: s.customer_details,
+          subscription: s.subscription,
+        })),
+        paymentIntents: intents.data.map((pi: any) => ({
+          id: pi.id, status: pi.status, amount: pi.amount,
+          currency: pi.currency, metadata: pi.metadata,
+          description: pi.description, created: pi.created,
+        })),
+        subscriptions: subs.data.map((sub: any) => ({
+          id: sub.id, status: sub.status,
+          current_period_end: sub.current_period_end,
+          cancel_at_period_end: sub.cancel_at_period_end,
+          metadata: sub.metadata,
+          items: sub.items?.data?.map((i: any) => ({ price: i.price?.unit_amount, product: i.price?.product })),
+          customer: sub.customer, created: sub.created,
+        })),
+      });
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 
