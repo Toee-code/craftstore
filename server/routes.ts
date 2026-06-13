@@ -2262,6 +2262,37 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
   });
 
   // Directly set creator code totalEarned
+  // Retry webhook command for an order
+  app.post("/api/admin/orders/:orderId/retry", requireAdmin, async (req, res) => {
+    try {
+      const order = storage.getOrderById(Number(req.params.orderId));
+      if (!order) return res.status(404).json({ error: "Order not found" });
+      const server = storage.getServerById(order.serverId);
+      if (!server) return res.status(404).json({ error: "Server not found" });
+      const product = storage.getProductById(order.productId);
+      if (!product) return res.status(404).json({ error: "Product not found" });
+      if (!server.webhookUrl) return res.status(400).json({ error: "No webhook URL configured" });
+      const command = product.command
+        .replace("%player%", order.minecraftUsername).replace("{player}", order.minecraftUsername);
+      const commands = command.split("\n").map((c: string) => c.trim()).filter(Boolean);
+      const wResp = await fetch(server.webhookUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-CraftStore-Secret": server.webhookSecret || "" },
+        body: JSON.stringify({ event: "purchase", orderId: order.id, minecraftUsername: order.minecraftUsername, command, commands, preorder: false, preorderReleaseDate: null, product: { id: product.id, name: product.name }, productName: product.name, secret: server.webhookSecret }),
+      });
+      if (wResp.ok) {
+        storage.updateOrderStatus(order.id, "completed", true);
+        await fireSpendCommand(server, order.minecraftUsername, order.amount);
+        res.json({ success: true, message: "Command sent successfully" });
+      } else {
+        storage.updateOrderStatus(order.id, "failed", false);
+        res.status(502).json({ error: `Webhook returned ${wResp.status}` });
+      }
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   // Temp: manually create order for a missed purchase
   app.post("/api/admin/manual-order", requireAdmin, (req, res) => {
     try {

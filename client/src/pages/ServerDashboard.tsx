@@ -19,7 +19,7 @@ import {
   ArrowLeft, Plus, Trash2, ExternalLink, Package, Users, ShoppingCart,
   BarChart3, Terminal, Copy, Edit3, TrendingUp, DollarSign, Paintbrush, Sparkles, Star,
   ChevronRight, Loader2, Gift, Globe, CheckCircle2, CreditCard, XCircle, AlertCircle,
-  Activity, Tag, Percent, PlusCircle, CheckCircle2 as Check2, X, Link2
+  Activity, Tag, Percent, PlusCircle, CheckCircle2 as Check2, X, Link2, RotateCcw
 } from "lucide-react";
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell
@@ -1420,7 +1420,17 @@ export default function ServerDashboard() {
   const { data: orders = [] } = useQuery<Order[]>({
     queryKey: ["/api/servers", serverId, "orders"],
     queryFn: () => apiRequest("GET", `/api/servers/${serverId}/orders`).then(r => r.json()),
-    refetchInterval: 30000,
+    refetchInterval: 15000,
+  });
+
+  const retryOrder = useMutation({
+    mutationFn: (orderId: number) =>
+      apiRequest("POST", `/api/admin/orders/${orderId}/retry`).then(r => r.json()),
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ["/api/servers", serverId, "orders"] });
+      toast({ title: data.success ? "Command sent" : "Retry failed", description: data.message || data.error, variant: data.success ? "default" : "destructive" });
+    },
+    onError: () => toast({ title: "Retry failed", description: "Could not reach Minecraft server", variant: "destructive" }),
   });
 
   const { data: stats } = useQuery({
@@ -2396,6 +2406,7 @@ export default function ServerDashboard() {
                       <TableHead>Status</TableHead>
                       <TableHead>Webhook</TableHead>
                       <TableHead>Date</TableHead>
+                      <TableHead></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -2416,6 +2427,21 @@ export default function ServerDashboard() {
                           </Badge>
                         </TableCell>
                         <TableCell className="text-muted-foreground text-xs">{new Date(o.createdAt).toLocaleString()}</TableCell>
+                        <TableCell>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 px-2 text-xs gap-1 border-border/60 hover:bg-primary/10 hover:border-primary/40 hover:text-primary"
+                            disabled={retryOrder.isPending && retryOrder.variables === o.id}
+                            onClick={() => retryOrder.mutate(o.id)}
+                            title="Retry command"
+                          >
+                            {retryOrder.isPending && retryOrder.variables === o.id
+                              ? <Loader2 className="w-3 h-3 animate-spin" />
+                              : <RotateCcw className="w-3 h-3" />}
+                            Retry
+                          </Button>
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
