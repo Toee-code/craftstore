@@ -2145,6 +2145,21 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
     res.json(analytics);
   });
 
+  // Temporary: fetch recent Stripe sessions for manual order fix
+  app.get("/api/admin/stripe-sessions/:accountId", requireAdmin, async (req, res) => {
+    if (!stripe) return res.status(400).json({ error: "Stripe not configured" });
+    try {
+      const sessions = await stripe.checkout.sessions.list({ limit: 30 }, { stripeAccount: req.params.accountId });
+      res.json(sessions.data.map((s: any) => ({
+        id: s.id, status: s.status, payment_status: s.payment_status,
+        amount_total: s.amount_total, currency: s.currency,
+        metadata: s.metadata, created: s.created,
+        customer_details: s.customer_details,
+        subscription: s.subscription,
+      })));
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
   app.get("/api/admin/stats", requireAdmin, (req, res) => {
     try { res.json(storage.getAdminStats()); }
     catch (e: any) { res.status(500).json({ error: e.message }); }
