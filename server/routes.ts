@@ -944,8 +944,8 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
                 let stripeSubObj: any = null;
                 try { stripeSubObj = stripe ? await stripe.subscriptions.retrieve(stripeSubId, {}, { stripeAccount: server.stripeAccountId || undefined } as any) : null; } catch {}
                 const periodEnd = stripeSubObj ? new Date((stripeSubObj as any).current_period_end * 1000).toISOString() : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
-                storage.createSubscription({ serverId: Number(serverId), productId: Number(productId), memberId: member.id, minecraftUsername, stripeSubscriptionId: stripeSubId, stripeCustomerId: stripeSession.customer as string, status: "active", currentPeriodEnd: periodEnd, cancelAtPeriodEnd: purchaseType === "one_month_sub" ? 1 : 0, productName: product.name, amount: playerPrice / 100 });
-                storage.updateMemberTotalSpent(member.id, playerPrice / 100);
+                storage.createSubscription({ serverId: Number(serverId), productId: Number(productId), memberId: member.id, minecraftUsername, stripeSubscriptionId: stripeSubId, stripeCustomerId: stripeSession.customer as string, status: "active", currentPeriodEnd: periodEnd, cancelAtPeriodEnd: purchaseType === "one_month_sub" ? 1 : 0, productName: product.name, amount: playerPrice });
+                storage.updateMemberTotalSpent(member.id, playerPrice);
                 if (cc) storage.updateCreatorCodeEarnings(cc.id, Math.round(playerPrice * (cc.rewardPercent / 100)));
                 if (server.webhookUrl) {
                   const cmd = product.command.replace("%player%", minecraftUsername).replace("{player}", minecraftUsername);
@@ -1164,7 +1164,7 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
         const stripeProduct = await stripe.products.create({ name: `${server.name} - ${product.name}` }, connectOpts);
         const stripePrice = await stripe.prices.create({
           product: stripeProduct.id,
-          unit_amount: playerPrice,
+          unit_amount: Math.round(playerPrice * 100), // playerPrice is in pounds, Stripe needs pence
           currency: "gbp",
           recurring: { interval: "month" },
         }, connectOpts);
@@ -1179,7 +1179,7 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
         const discountedStripeProduct = await stripe.products.create({ name: `${server.name} - ${product.name} (${discountPct}% off)` }, connectOpts);
         const discountedPrice = await stripe.prices.create({
           product: discountedStripeProduct.id,
-          unit_amount: playerPrice,
+          unit_amount: Math.round(playerPrice * 100), // playerPrice is in pounds, Stripe needs pence
           currency: "gbp",
           recurring: { interval: "month" },
         }, connectOpts);
@@ -1381,8 +1381,8 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
                 const playerPrice = Math.round(basePrice * (1 - discountPct / 100));
                 const stripeSubObj = stripe ? await stripe.subscriptions.retrieve(stripeSubId) : null;
                 const periodEnd = stripeSubObj ? new Date((stripeSubObj as any).current_period_end * 1000).toISOString() : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
-                storage.createSubscription({ serverId: Number(serverId), productId: Number(productId), memberId: member.id, minecraftUsername, stripeSubscriptionId: stripeSubId, stripeCustomerId: session.customer as string, status: "active", currentPeriodEnd: periodEnd, cancelAtPeriodEnd: purchaseType === "one_month_sub" ? 1 : 0, productName: product.name, amount: playerPrice / 100 });
-                storage.updateMemberTotalSpent(member.id, playerPrice / 100);
+                storage.createSubscription({ serverId: Number(serverId), productId: Number(productId), memberId: member.id, minecraftUsername, stripeSubscriptionId: stripeSubId, stripeCustomerId: session.customer as string, status: "active", currentPeriodEnd: periodEnd, cancelAtPeriodEnd: purchaseType === "one_month_sub" ? 1 : 0, productName: product.name, amount: playerPrice });
+                storage.updateMemberTotalSpent(member.id, playerPrice);
                 if (cc) storage.updateCreatorCodeEarnings(cc.id, Math.round(playerPrice * (cc.rewardPercent / 100)));
                 if (server.webhookUrl) {
                   const cmd = product.command.replace("%player%", minecraftUsername).replace("{player}", minecraftUsername);
