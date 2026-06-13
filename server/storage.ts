@@ -371,6 +371,7 @@ export interface IStorage {
   getOrdersByServer(serverId: number): Order[];
   getOrderById(id: number): Order | undefined;
   updateOrderStatus(id: number, status: string, webhookDelivered?: boolean): Order | undefined;
+  updateOrderUsername(id: number, minecraftUsername: string): void;
   getTopSpenders(serverId: number, since: string | null): { minecraftUsername: string; total: number }[];
   getUndeliveredOrders(): { id: number; serverId: number; productId: number; minecraftUsername: string; webhookRetryCount: number }[];
   incrementWebhookRetry(orderId: number): void;
@@ -587,6 +588,9 @@ export const storage: IStorage = {
     const data: any = { status };
     if (webhookDelivered !== undefined) data.webhookDelivered = webhookDelivered;
     return db.update(orders).set(data).where(eq(orders.id, id)).returning().get();
+  },
+  updateOrderUsername(id, minecraftUsername) {
+    sqlite.prepare(`UPDATE orders SET minecraft_username = ? WHERE id = ?`).run(minecraftUsername, id);
   },
   getTopSpenders(serverId, since) {
     // Returns top 10 spenders for a server, optionally filtered by date

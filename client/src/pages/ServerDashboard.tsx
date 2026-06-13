@@ -12,14 +12,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   ArrowLeft, Plus, Trash2, ExternalLink, Package, Users, ShoppingCart,
   BarChart3, Terminal, Copy, Edit3, TrendingUp, DollarSign, Paintbrush, Sparkles, Star,
   ChevronRight, Loader2, Gift, Globe, CheckCircle2, CreditCard, XCircle, AlertCircle,
-  Activity, Tag, Percent, PlusCircle, CheckCircle2 as Check2, X, Link2, RotateCcw
+  Activity, Tag, Percent, PlusCircle, CheckCircle2 as Check2, X, Link2, RotateCcw, UserPen
 } from "lucide-react";
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell
@@ -1423,11 +1423,16 @@ export default function ServerDashboard() {
     refetchInterval: 15000,
   });
 
+  // Retry / change-username dialog
+  const [retryDialog, setRetryDialog] = useState<{ orderId: number; username: string } | null>(null);
+  const [retryUsername, setRetryUsername] = useState("");
+
   const retryOrder = useMutation({
-    mutationFn: (orderId: number) =>
-      apiRequest("POST", `/api/admin/orders/${orderId}/retry`).then(r => r.json()),
+    mutationFn: ({ orderId, username }: { orderId: number; username: string }) =>
+      apiRequest("POST", `/api/admin/orders/${orderId}/retry`, { minecraftUsername: username }).then(r => r.json()),
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ["/api/servers", serverId, "orders"] });
+      setRetryDialog(null);
       toast({ title: data.success ? "Queued for delivery" : "Retry failed", description: data.message || data.error, variant: data.success ? "default" : "destructive" });
     },
     onError: () => toast({ title: "Retry failed", description: "Could not queue command", variant: "destructive" }),
@@ -2428,19 +2433,30 @@ export default function ServerDashboard() {
                         </TableCell>
                         <TableCell className="text-muted-foreground text-xs">{new Date(o.createdAt).toLocaleString()}</TableCell>
                         <TableCell>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-7 px-2 text-xs gap-1 border-border/60 hover:bg-primary/10 hover:border-primary/40 hover:text-primary"
-                            disabled={retryOrder.isPending && retryOrder.variables === o.id}
-                            onClick={() => retryOrder.mutate(o.id)}
-                            title="Retry command"
-                          >
-                            {retryOrder.isPending && retryOrder.variables === o.id
-                              ? <Loader2 className="w-3 h-3 animate-spin" />
-                              : <RotateCcw className="w-3 h-3" />}
-                            Retry
-                          </Button>
+                          <div className="flex gap-1">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 px-2 text-xs gap-1 border-border/60 hover:bg-primary/10 hover:border-primary/40 hover:text-primary"
+                              disabled={retryOrder.isPending}
+                              onClick={() => retryOrder.mutate({ orderId: o.id, username: o.minecraftUsername })}
+                              title="Retry command"
+                            >
+                              {retryOrder.isPending && retryOrder.variables?.orderId === o.id
+                                ? <Loader2 className="w-3 h-3 animate-spin" />
+                                : <RotateCcw className="w-3 h-3" />}
+                              Retry
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 px-2 text-xs gap-1 border-border/60 hover:bg-amber-500/10 hover:border-amber-500/40 hover:text-amber-400"
+                              title="Change username & re-execute"
+                              onClick={() => { setRetryDialog({ orderId: o.id, username: o.minecraftUsername }); setRetryUsername(o.minecraftUsername); }}
+                            >
+                              <UserPen className="w-3 h-3" />
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -2449,6 +2465,52 @@ export default function ServerDashboard() {
               </div>
             )}
           </TabsContent>
+
+          {/* Change Username & Re-execute Dialog */}
+          <Dialog open={!!retryDialog} onOpenChange={(open) => { if (!open) setRetryDialog(null); }}>
+            <DialogContent className="bg-card border-border/60 max-w-sm">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <UserPen className="w-4 h-4 text-amber-400" />
+                  Change Username & Re-execute
+                </DialogTitle>
+              </DialogHeader>
+              <div className="py-2 space-y-3">
+                <p className="text-sm text-muted-foreground">
+                  Update the Minecraft username for this order and re-send the command.
+                  The order record will be updated with the new name.
+                </p>
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Minecraft Username</Label>
+                  <Input
+                    value={retryUsername}
+                    onChange={e => setRetryUsername(e.target.value)}
+                    placeholder="Enter Minecraft username"
+                    className="bg-background border-border/60 h-9"
+                    onKeyDown={e => {
+                      if (e.key === "Enter" && retryDialog && retryUsername.trim()) {
+                        retryOrder.mutate({ orderId: retryDialog.orderId, username: retryUsername.trim() });
+                      }
+                    }}
+                  />
+                </div>
+              </div>
+              <DialogFooter className="gap-2">
+                <Button variant="outline" size="sm" className="border-border/60" onClick={() => setRetryDialog(null)}>
+                  Cancel
+                </Button>
+                <Button
+                  size="sm"
+                  className="gap-1"
+                  disabled={retryOrder.isPending || !retryUsername.trim()}
+                  onClick={() => retryDialog && retryOrder.mutate({ orderId: retryDialog.orderId, username: retryUsername.trim() })}
+                >
+                  {retryOrder.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <RotateCcw className="w-3 h-3" />}
+                  Execute
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
 
           {/* Appearance Tab */}
           <TabsContent value="appearance">
