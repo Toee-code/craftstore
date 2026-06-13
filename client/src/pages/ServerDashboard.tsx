@@ -1428,9 +1428,9 @@ export default function ServerDashboard() {
       apiRequest("POST", `/api/admin/orders/${orderId}/retry`).then(r => r.json()),
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ["/api/servers", serverId, "orders"] });
-      toast({ title: data.success ? "Command sent" : "Retry failed", description: data.message || data.error, variant: data.success ? "default" : "destructive" });
+      toast({ title: data.success ? "Queued for delivery" : "Retry failed", description: data.message || data.error, variant: data.success ? "default" : "destructive" });
     },
-    onError: () => toast({ title: "Retry failed", description: "Could not reach Minecraft server", variant: "destructive" }),
+    onError: () => toast({ title: "Retry failed", description: "Could not queue command", variant: "destructive" }),
   });
 
   const { data: stats } = useQuery({

@@ -374,6 +374,7 @@ export interface IStorage {
   getTopSpenders(serverId: number, since: string | null): { minecraftUsername: string; total: number }[];
   getUndeliveredOrders(): { id: number; serverId: number; productId: number; minecraftUsername: string; webhookRetryCount: number }[];
   incrementWebhookRetry(orderId: number): void;
+  getPendingCommandsForServer(serverId: number): { id: number; minecraftUsername: string; command: string; commands: string[]; productName: string; amount: number }[];
   getServerAnalytics(serverId: number): { dailyRevenue: { date: string; revenue: number }[]; topProducts: { name: string; count: number; revenue: number }[]; hourlyOrders: { hour: number; count: number }[] };
   getMostPurchased(serverId: number, limit: number): { product_id: number; product_name: string; purchase_count: number; image_url: string | null; image_type: string | null; player_head_name: string | null; price: number }[];
   // Notifications
@@ -637,6 +638,29 @@ export const storage: IStorage = {
 
   incrementWebhookRetry(orderId) {
     sqlite.prepare(`UPDATE orders SET webhook_retry_count = webhook_retry_count + 1 WHERE id = ?`).run(orderId);
+  },
+
+  getPendingCommandsForServer(serverId) {
+    const rows = sqlite.prepare(`
+      SELECT o.id, o.minecraft_username as minecraftUsername,
+             o.amount, o.product_name as productName,
+             p.command
+      FROM orders o
+      LEFT JOIN products p ON p.id = o.product_id
+      WHERE o.server_id = ?
+        AND o.status = 'completed'
+        AND o.webhook_delivered = 0
+      ORDER BY o.created_at ASC
+      LIMIT 50
+    `).all(serverId) as any[];
+    return rows.map((r: any) => ({
+      id: r.id,
+      minecraftUsername: r.minecraftUsername,
+      productName: r.productName || '',
+      amount: r.amount,
+      command: (r.command || '').replace('%player%', r.minecraftUsername).replace('{player}', r.minecraftUsername),
+      commands: (r.command || '').split('\n').map((c: string) => c.trim()).filter(Boolean).map((c: string) => c.replace('%player%', r.minecraftUsername).replace('{player}', r.minecraftUsername)),
+    }));
   },
 
   getServerAnalytics(serverId) {
