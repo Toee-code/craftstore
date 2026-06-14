@@ -97,6 +97,7 @@ export const orders = sqliteTable("orders", {
   platformFee: real("platform_fee").notNull().default(0),   // NEW: 20% platform cut
   status: text("status").notNull().default("pending"),
   stripePaymentIntentId: text("stripe_payment_intent_id"),
+  stripeSessionId: text("stripe_session_id"),
   webhookDelivered: integer("webhook_delivered", { mode: "boolean" }).default(false),
   webhookRetryCount: integer("webhook_retry_count").notNull().default(0),
   creatorCodeUsed: text("creator_code_used"),

@@ -1032,11 +1032,10 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
         let member = storage.getMemberByUsername(Number(serverId), minecraftUsername);
         if (!member) member = storage.createMember({ serverId: Number(serverId), minecraftUsername, balance: 0, totalSpent: 0 });
 
-        // Dedup: if this payment intent already has an order, skip creating a duplicate
-        const paymentIntentId = stripeSession.payment_intent as string | null;
-        const dupOrders = paymentIntentId
-          ? storage.getOrdersByServer(Number(serverId)).filter((o: any) => o.stripePaymentIntentId === paymentIntentId)
-          : [];
+        // Dedup by session ID — session ID is always present even on Connect charges
+        const confirmSessionId = stripeSession.id as string;
+        const dupOrders = storage.getOrdersByServer(Number(serverId))
+          .filter((o: any) => o.stripeSessionId && o.stripeSessionId === confirmSessionId);
         if (dupOrders.length > 0) {
           return res.json({ success: true, duplicate: true });
         }
@@ -1052,7 +1051,7 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
           webhookDelivered: false,
           creatorCodeUsed: confirmCC ? confirmCC.code : null,
           creatorCodeDiscount: confirmCCDiscount,
-          stripePaymentIntentId: paymentIntentId || undefined,
+          stripeSessionId: confirmSessionId,
         } as any);
         if (confirmCC) storage.updateCreatorCodeEarnings(confirmCC.id, Math.round(playerPrice * (confirmCC.rewardPercent / 100) * 100));
         storage.updateMemberTotalSpent(member.id, playerPrice);
@@ -1269,9 +1268,11 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
     let event: Stripe.Event;
     try {
       if (webhookSecret) {
-        event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
+        // Must use raw body buffer for signature verification, not parsed JSON
+        const rawBody = (req as any).rawBody || req.body;
+        event = stripe.webhooks.constructEvent(rawBody, sig, webhookSecret);
       } else {
-        event = JSON.parse(req.body.toString());
+        event = typeof req.body === "string" ? JSON.parse(req.body) : req.body;
       }
     } catch (e: any) {
       return res.status(400).json({ error: e.message });
@@ -1291,11 +1292,11 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
         // Server-side fulfilment — handles the case where the browser redirect
         // doesn't call /api/stripe/product-confirm (e.g. tab closed, mobile)
         const { productId, serverId, minecraftUsername, creatorCode: savedCode } = meta;
-        // Dedup: only block if this exact Stripe payment intent already has an order.
-        // Do NOT block on username+product — the same player can legitimately buy
-        // the same item multiple times.
+        // Dedup by session ID — payment_intent is null on Connect destination charges
+        // so we use the checkout session ID which is always present
+        const sessionId = session.id;
         const existingOrders = storage.getOrdersByServer(Number(serverId))
-          .filter((o: any) => o.stripePaymentIntentId && o.stripePaymentIntentId === session.payment_intent);
+          .filter((o: any) => o.stripeSessionId && o.stripeSessionId === sessionId);
         if (existingOrders.length === 0) {
           // No order yet — create it now
           const product = storage.getProductById(Number(productId));
@@ -1332,7 +1333,8 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
               webhookDelivered: false,
               creatorCodeUsed: webhookCC ? webhookCC.code : null,
               creatorCodeDiscount: webhookCCDiscount,
-            });
+              stripeSessionId: sessionId,
+            } as any);
             if (webhookCC) storage.updateCreatorCodeEarnings(webhookCC.id, Math.round(playerPrice * (webhookCC.rewardPercent / 100) * 100));
             storage.updateMemberTotalSpent(member.id, playerPrice);
 

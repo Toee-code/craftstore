@@ -214,6 +214,7 @@ const alterStatements = [
   // v10 — creator codes
   "ALTER TABLE orders ADD COLUMN creator_code_used TEXT",
   "ALTER TABLE orders ADD COLUMN creator_code_discount INTEGER DEFAULT 0",
+  "ALTER TABLE orders ADD COLUMN stripe_session_id TEXT",
   `CREATE TABLE IF NOT EXISTS creator_codes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     server_id INTEGER NOT NULL,
