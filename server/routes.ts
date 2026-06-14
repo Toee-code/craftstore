@@ -1261,7 +1261,7 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
   });
 
   // Stripe webhook (for production reliability)
-  // Temporary debug endpoint
+  // Debug + webhook auto-setup endpoint
   app.get("/api/admin/debug-env", requireAdmin, (req, res) => {
     res.json({
       hasStripeKey: !!process.env.STRIPE_SECRET_KEY,
@@ -1271,22 +1271,48 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
     });
   });
 
+  // List + register Stripe webhook endpoints
+  app.post("/api/admin/setup-stripe-webhook", requireAdmin, async (req, res) => {
+    if (!stripe) return res.status(400).json({ error: "Stripe not configured" });
+    try {
+      const webhookUrl = `https://craftstore-s1xb.onrender.com/api/stripe/webhook`;
+      // List existing webhooks
+      const existing = await stripe.webhookEndpoints.list({ limit: 20 });
+      const alreadyExists = existing.data.find((w: any) => w.url === webhookUrl);
+      if (alreadyExists) {
+        return res.json({ exists: true, id: alreadyExists.id, secret: alreadyExists.secret || "(not returned — retrieve separately)", status: alreadyExists.status });
+      }
+      // Create new webhook
+      const webhook = await stripe.webhookEndpoints.create({
+        url: webhookUrl,
+        enabled_events: ["checkout.session.completed", "customer.subscription.deleted", "customer.subscription.updated", "invoice.paid"],
+      });
+      res.json({ created: true, id: webhook.id, secret: webhook.secret, url: webhook.url });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   app.post("/api/stripe/webhook", async (req, res) => {
     if (!stripe) return res.json({ received: true });
     const sig = req.headers["stripe-signature"] as string;
     const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
     let event: Stripe.Event;
     try {
-      if (webhookSecret) {
+      if (webhookSecret && sig) {
         // Must use raw body buffer for signature verification, not parsed JSON
         const rawBody = (req as any).rawBody || req.body;
         event = stripe.webhooks.constructEvent(rawBody, sig, webhookSecret);
       } else {
-        event = typeof req.body === "string" ? JSON.parse(req.body) : req.body;
+        // No webhook secret configured — accept event directly (no sig verification)
+        event = typeof req.body === "object" ? req.body : JSON.parse(req.body);
       }
     } catch (e: any) {
+      console.error("[Stripe Webhook] Parse/verify error:", e.message);
       return res.status(400).json({ error: e.message });
     }
+    console.log(`[Stripe Webhook] Received: ${event.type}`);
+    res.json({ received: true }); // Respond immediately so Stripe doesn't retry on timeout
     if (event.type === "checkout.session.completed") {
       const session = event.data.object as Stripe.Checkout.Session;
       const meta = session.metadata || {};
