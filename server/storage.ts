@@ -654,7 +654,7 @@ export const storage: IStorage = {
       LEFT JOIN products p ON p.id = o.product_id
       WHERE o.server_id = ?
         AND o.status = 'completed'
-        AND o.webhook_delivered = 0
+        AND (o.webhook_delivered = 0 OR o.webhook_delivered IS NULL OR o.webhook_delivered = 'false')
       ORDER BY o.created_at ASC
       LIMIT 50
     `).all(serverId) as any[];

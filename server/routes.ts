@@ -2368,6 +2368,16 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
 
   // Plugin polling endpoint — returns all undelivered completed orders for a server
   // Authenticated by webhook secret in X-CraftStore-Secret header
+  // Raw debug: check what webhook_delivered values look like in DB
+  app.get("/api/admin/debug-orders", requireAdmin, (req, res) => {
+    try {
+      const rows = (storage as any).sqlite
+        ? (storage as any).sqlite.prepare("SELECT id, minecraft_username, status, webhook_delivered, typeof(webhook_delivered) as wd_type FROM orders LIMIT 20").all()
+        : sqlite.prepare("SELECT id, minecraft_username, status, webhook_delivered, typeof(webhook_delivered) as wd_type FROM orders LIMIT 20").all();
+      res.json(rows);
+    } catch(e: any) { res.status(500).json({ error: e.message }); }
+  });
+
   app.get("/api/servers/:id/pending-commands", (req, res) => {
     try {
       const serverId = Number(req.params.id);
