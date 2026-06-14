@@ -1261,6 +1261,16 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
   });
 
   // Stripe webhook (for production reliability)
+  // Temporary debug endpoint
+  app.get("/api/admin/debug-env", requireAdmin, (req, res) => {
+    res.json({
+      hasStripeKey: !!process.env.STRIPE_SECRET_KEY,
+      hasWebhookSecret: !!process.env.STRIPE_WEBHOOK_SECRET,
+      webhookSecretPrefix: process.env.STRIPE_WEBHOOK_SECRET ? process.env.STRIPE_WEBHOOK_SECRET.substring(0, 8) : null,
+      nodeEnv: process.env.NODE_ENV,
+    });
+  });
+
   app.post("/api/stripe/webhook", async (req, res) => {
     if (!stripe) return res.json({ received: true });
     const sig = req.headers["stripe-signature"] as string;
