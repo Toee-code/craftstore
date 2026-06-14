@@ -648,7 +648,7 @@ export const storage: IStorage = {
   getPendingCommandsForServer(serverId) {
     const rows = sqlite.prepare(`
       SELECT o.id, o.minecraft_username as minecraftUsername,
-             o.amount, o.product_name as productName,
+             o.amount, p.name as productName,
              p.command
       FROM orders o
       LEFT JOIN products p ON p.id = o.product_id

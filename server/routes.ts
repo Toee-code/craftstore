@@ -1404,6 +1404,7 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
           const donationAmount = Number(amount);
           const platformFee = Math.round(donationAmount * PLATFORM_FEE_RATE * 100) / 100;
           storage.updateMemberTotalSpent(member.id, donationAmount);
+          storage.updateMemberBalance(member.id, (member.balance ?? 0) + donationAmount);
           // Push notification to server owner
           try {
             const tokens = storage.getDeviceTokensForServer(Number(serverId));
