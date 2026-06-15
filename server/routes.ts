@@ -1314,8 +1314,10 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
     console.log(`[Stripe Webhook] Received: ${event.type}`);
     res.json({ received: true }); // Respond immediately so Stripe doesn't retry on timeout
     if (event.type === "checkout.session.completed") {
+      try {
       const session = event.data.object as Stripe.Checkout.Session;
       const meta = session.metadata || {};
+      console.log(`[Stripe Webhook] Session ${session.id} meta.type=${meta.type} status=${session.status} payment_status=${session.payment_status}`);
 
       // ── Balance top-up ──────────────────────────────────────────────────
       if (meta.type === "balance_topup") {
@@ -1328,15 +1330,18 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
         // Server-side fulfilment — handles the case where the browser redirect
         // doesn't call /api/stripe/product-confirm (e.g. tab closed, mobile)
         const { productId, serverId, minecraftUsername, creatorCode: savedCode } = meta;
+        console.log(`[Stripe Webhook] product_purchase: productId=${productId} serverId=${serverId} player=${minecraftUsername}`);
         // Dedup by session ID — payment_intent is null on Connect destination charges
         // so we use the checkout session ID which is always present
         const sessionId = session.id;
         const existingOrders = storage.getOrdersByServer(Number(serverId))
           .filter((o: any) => o.stripeSessionId && o.stripeSessionId === sessionId);
+        console.log(`[Stripe Webhook] Dedup check: sessionId=${sessionId} existingOrders=${existingOrders.length}`);
         if (existingOrders.length === 0) {
           // No order yet — create it now
           const product = storage.getProductById(Number(productId));
           const server = storage.getServerById(Number(serverId));
+          console.log(`[Stripe Webhook] Creating order: product=${product?.name} server=${server?.name}`);
           if (product && server) {
             const theme = storage.getStoreTheme(Number(serverId));
             const feeMode = theme?.feeMode || "absorb";
@@ -1371,6 +1376,7 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
               creatorCodeDiscount: webhookCCDiscount,
               stripeSessionId: sessionId,
             } as any);
+            console.log(`[Stripe Webhook] Order created: id=${order.id} for ${minecraftUsername} amount=${playerPrice}`);
             if (webhookCC) storage.updateCreatorCodeEarnings(webhookCC.id, Math.round(playerPrice * (webhookCC.rewardPercent / 100) * 100));
             storage.updateMemberTotalSpent(member.id, playerPrice);
 
@@ -1380,7 +1386,9 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
             } else {
               const command = product.command.replace("%player%", minecraftUsername).replace("{player}", minecraftUsername);
               const commands = command.split("\n").map((c: string) => c.trim()).filter(Boolean);
+              console.log(`[Stripe Webhook] Firing webhook/queue for order ${order.id}, command: ${commands[0]}`);
               await fireWebhookOrQueue(server, order, minecraftUsername, command, commands, product.id, product.name, playerPrice, storage);
+              console.log(`[Stripe Webhook] fireWebhookOrQueue done for order ${order.id}`);
             }
 
             // Push notification
@@ -1468,6 +1476,9 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
             storage.purchasePreset({ ownerId: dbSession.ownerId, presetId: dbSession.presetId, serverId: dbSession.serverId });
           }
         }
+      }
+      } catch (webhookErr: any) {
+        console.error("[Stripe Webhook] Error processing checkout.session.completed:", webhookErr?.message, webhookErr?.stack);
       }
     }
     // ── Subscription activated (checkout completed for subscription mode)
