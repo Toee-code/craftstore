@@ -243,6 +243,8 @@ const alterStatements = [
   "ALTER TABLE products ADD COLUMN purchase_type TEXT DEFAULT 'one_time'",
   "ALTER TABLE products ADD COLUMN stripe_price_id TEXT",
   "ALTER TABLE products ADD COLUMN expiry_commands TEXT",
+  // v11 — unique index on stripe_session_id to prevent duplicate orders from race conditions
+  "CREATE UNIQUE INDEX IF NOT EXISTS idx_orders_stripe_session_id ON orders(stripe_session_id) WHERE stripe_session_id IS NOT NULL",
   `CREATE TABLE IF NOT EXISTS subscriptions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     server_id INTEGER NOT NULL,

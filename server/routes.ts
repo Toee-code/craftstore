@@ -7,7 +7,7 @@ import Stripe from "stripe";
 
 // Stripe — uses STRIPE_SECRET_KEY env var (falls back to test mode stub)
 const stripeKey = process.env.STRIPE_SECRET_KEY || "";
-const stripe = stripeKey ? new Stripe(stripeKey, { apiVersion: "2025-03-31.basil" }) : null;
+const stripe = stripeKey ? new Stripe(stripeKey, { apiVersion: "2026-03-25.dahlia" }) : null;
 
 // Fire /npcl addspend command after every successful purchase
 async function fireSpendCommand(server: any, minecraftUsername: string, amountPounds: number) {
@@ -1040,19 +1040,26 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
           return res.json({ success: true, duplicate: true });
         }
 
-        const order = storage.createOrder({
-          serverId: Number(serverId),
-          productId: Number(productId),
-          memberId: member.id,
-          minecraftUsername,
-          amount: playerPrice,
-          platformFee,
-          status: "pending",
-          webhookDelivered: false,
-          creatorCodeUsed: confirmCC ? confirmCC.code : null,
-          creatorCodeDiscount: confirmCCDiscount,
-          stripeSessionId: confirmSessionId,
-        } as any);
+        let order: any;
+        try {
+          order = storage.createOrder({
+            serverId: Number(serverId),
+            productId: Number(productId),
+            memberId: member.id,
+            minecraftUsername,
+            amount: playerPrice,
+            platformFee,
+            status: "pending",
+            webhookDelivered: false,
+            creatorCodeUsed: confirmCC ? confirmCC.code : null,
+            creatorCodeDiscount: confirmCCDiscount,
+            stripeSessionId: confirmSessionId,
+          } as any);
+        } catch (dbErr: any) {
+          // UNIQUE constraint violation — Stripe webhook already created this order
+          console.log(`[product-confirm] Duplicate session ${confirmSessionId} caught by UNIQUE index — skipping`);
+          return res.json({ success: true, duplicate: true });
+        }
         if (confirmCC) storage.updateCreatorCodeEarnings(confirmCC.id, Math.round(playerPrice * (confirmCC.rewardPercent / 100) * 100));
         storage.updateMemberTotalSpent(member.id, playerPrice);
 
@@ -1363,19 +1370,26 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
             let member = storage.getMemberByUsername(Number(serverId), minecraftUsername);
             if (!member) member = storage.createMember({ serverId: Number(serverId), minecraftUsername, balance: 0, totalSpent: 0 });
 
-            const order = storage.createOrder({
-              serverId: Number(serverId),
-              productId: Number(productId),
-              memberId: member.id,
-              minecraftUsername,
-              amount: playerPrice,
-              platformFee,
-              status: "pending",
-              webhookDelivered: false,
-              creatorCodeUsed: webhookCC ? webhookCC.code : null,
-              creatorCodeDiscount: webhookCCDiscount,
-              stripeSessionId: sessionId,
-            } as any);
+            let order: any;
+            try {
+              order = storage.createOrder({
+                serverId: Number(serverId),
+                productId: Number(productId),
+                memberId: member.id,
+                minecraftUsername,
+                amount: playerPrice,
+                platformFee,
+                status: "pending",
+                webhookDelivered: false,
+                creatorCodeUsed: webhookCC ? webhookCC.code : null,
+                creatorCodeDiscount: webhookCCDiscount,
+                stripeSessionId: sessionId,
+              } as any);
+            } catch (dbErr: any) {
+              // UNIQUE constraint — product-confirm already created this order
+              console.log(`[Stripe Webhook] Duplicate session ${sessionId} caught by UNIQUE index — skipping`);
+              return;
+            }
             console.log(`[Stripe Webhook] Order created: id=${order.id} for ${minecraftUsername} amount=${playerPrice}`);
             if (webhookCC) storage.updateCreatorCodeEarnings(webhookCC.id, Math.round(playerPrice * (webhookCC.rewardPercent / 100) * 100));
             storage.updateMemberTotalSpent(member.id, playerPrice);
