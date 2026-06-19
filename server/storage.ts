@@ -581,7 +581,7 @@ export const storage: IStorage = {
   getOrdersByServer(serverId) {
     return db.select().from(orders)
       .where(eq(orders.serverId, serverId))
-      .orderBy(desc(orders.createdAt))
+      .orderBy(desc(orders.createdAt), desc(orders.id))
       .all();
   },
   getOrderById(id) {

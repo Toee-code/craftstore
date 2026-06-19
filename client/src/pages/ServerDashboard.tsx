@@ -2393,8 +2393,12 @@ export default function ServerDashboard() {
 
           {/* Orders Tab */}
           <TabsContent value="orders">
-            <h2 className="font-semibold mb-4">Recent Orders ({orders.length})</h2>
-            {orders.length === 0 ? (
+            {(() => {
+              const sortedOrders = [...orders].sort((a: any, b: any) => b.id - a.id);
+              return (
+              <>
+            <h2 className="font-semibold mb-4">Recent Orders ({sortedOrders.length})</h2>
+            {sortedOrders.length === 0 ? (
               <div className="text-center py-16 border-2 border-dashed border-border/60 rounded-xl">
                 <ShoppingCart className="w-8 h-8 text-muted-foreground mx-auto mb-3" />
                 <p className="text-sm text-muted-foreground">No orders yet</p>
@@ -2415,7 +2419,7 @@ export default function ServerDashboard() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {orders.map(o => (
+                    {sortedOrders.map(o => (
                       <TableRow key={o.id} className="border-border/60" data-testid={`row-order-${o.id}`}>
                         <TableCell className="text-muted-foreground text-xs font-mono">#{o.id}</TableCell>
                         <TableCell className="font-mono text-sm">{o.minecraftUsername}</TableCell>
@@ -2464,6 +2468,9 @@ export default function ServerDashboard() {
                 </Table>
               </div>
             )}
+              </>
+              );
+            })()}
           </TabsContent>
 
           {/* Change Username & Re-execute Dialog */}
