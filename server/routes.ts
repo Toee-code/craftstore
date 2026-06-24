@@ -15,8 +15,8 @@ async function firePostPurchaseCommands(server: any, minecraftUsername: string, 
   if (!server?.webhookUrl) return;
   const amountStr = amountPounds.toFixed(2);
   const cmds = [
-    `/npcl addspend ${minecraftUsername} ${amountStr}`,
-    `/donogoal add ${amountStr}`,
+    `npcl addspend ${minecraftUsername} ${amountStr}`,
+    `donogoal add ${amountStr}`,
   ];
   try {
     await fetch(server.webhookUrl, {
