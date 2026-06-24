@@ -9,25 +9,35 @@ import Stripe from "stripe";
 const stripeKey = process.env.STRIPE_SECRET_KEY || "";
 const stripe = stripeKey ? new Stripe(stripeKey, { apiVersion: "2026-03-25.dahlia" }) : null;
 
-// Fire /npcl addspend command after every successful purchase
-async function fireSpendCommand(server: any, minecraftUsername: string, amountPounds: number) {
+// Fire post-purchase tracking commands immediately on every purchase.
+// These always run right after the order is created — never on retry.
+async function firePostPurchaseCommands(server: any, minecraftUsername: string, amountPounds: number) {
   if (!server?.webhookUrl) return;
   const amountStr = amountPounds.toFixed(2);
-  const cmd = `/npcl addspend ${minecraftUsername} ${amountStr}`;
+  const cmds = [
+    `/npcl addspend ${minecraftUsername} ${amountStr}`,
+    `/donogoal add ${amountStr}`,
+  ];
   try {
     await fetch(server.webhookUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-CraftStore-Secret": server.webhookSecret || "" },
       body: JSON.stringify({
         event: "spend_update",
-        command: cmd,
-        commands: [cmd],
+        commands: cmds,
+        command: cmds.join("\n"),
         minecraftUsername,
         amount: amountStr,
         secret: server.webhookSecret,
       }),
     });
-  } catch { /* silent — spend command is best-effort */ }
+  } catch { /* silent — tracking commands are best-effort */ }
+}
+
+// Legacy alias used in a few older call sites (balance top-up, subscription renewal)
+// that legitimately still need per-event spend tracking.
+async function fireSpendCommand(server: any, minecraftUsername: string, amountPounds: number) {
+  return firePostPurchaseCommands(server, minecraftUsername, amountPounds);
 }
 
 /**
@@ -62,7 +72,7 @@ async function fireWebhookOrQueue(
     });
     if (wResp.ok) {
       storageRef.updateOrderStatus(order.id, "completed", true);
-      await fireSpendCommand(server, minecraftUsername, playerPrice);
+      // NOTE: firePostPurchaseCommands is called at order-creation time, not here
     } else {
       // Webhook reachable but returned error — queue for poller
       storageRef.updateOrderStatus(order.id, "completed", false);
@@ -1063,6 +1073,9 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
         if (confirmCC) storage.updateCreatorCodeEarnings(confirmCC.id, Math.round(playerPrice * (confirmCC.rewardPercent / 100) * 100));
         storage.updateMemberTotalSpent(member.id, playerPrice);
 
+        // Fire /npcl addspend + /donogoal add immediately on purchase (not on retry)
+        await firePostPurchaseCommands(server, minecraftUsername, playerPrice);
+
         // Fire webhook to Minecraft server (skip for preorders)
         if ((product as any).preorder) {
           storage.updateOrderStatus(order.id, "pending", false);
@@ -1393,6 +1406,9 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
             console.log(`[Stripe Webhook] Order created: id=${order.id} for ${minecraftUsername} amount=${playerPrice}`);
             if (webhookCC) storage.updateCreatorCodeEarnings(webhookCC.id, Math.round(playerPrice * (webhookCC.rewardPercent / 100) * 100));
             storage.updateMemberTotalSpent(member.id, playerPrice);
+
+            // Fire /npcl addspend + /donogoal add immediately on purchase (not on retry)
+            await firePostPurchaseCommands(server, minecraftUsername, playerPrice);
 
             // Fire Minecraft webhook (skip for preorders)
             if ((product as any).preorder) {
@@ -1777,6 +1793,8 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
         giftsReceived: giftRows,
         leaderboardRank: rank > 0 ? rank : null,
         totalOnLeaderboard,
+        ecoRank: (member as any).ecoRank ?? null,
+        ecoBalance: (member as any).ecoBalance ?? null,
       });
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
@@ -2433,7 +2451,7 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
       const order = storage.getOrderById(orderId);
       if (!order) return res.status(404).json({ error: "Order not found" });
       storage.updateOrderStatus(orderId, "completed", true);
-      await fireSpendCommand(server, order.minecraftUsername, order.amount);
+      // NOTE: /npcl addspend + /donogoal add fired at purchase time, not here
       res.json({ success: true });
     } catch (e: any) {
       res.status(500).json({ error: e.message });
@@ -2474,7 +2492,7 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
           });
           if (wResp.ok) {
             storage.updateOrderStatus(orderId, "completed", true);
-            await fireSpendCommand(server, targetUsername, order.amount);
+            // NOTE: /npcl addspend + /donogoal add are NOT fired on retry
             return res.json({ success: true, message: "Command sent successfully" + (newUsername ? ` to ${newUsername}` : "") });
           }
         } catch { /* fall through to polling */ }
@@ -2484,6 +2502,27 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
     } catch (e: any) {
       res.status(500).json({ error: e.message });
     }
+  });
+
+  // ── AjLeaderboards player stats push (called by plugin on player join) ─────
+  // Plugin posts: { minecraftUsername, ecoRank, ecoBalance }
+  // Auth: X-CraftStore-Secret header
+  app.post("/api/servers/:id/player-stats", (req: any, res: any) => {
+    try {
+      const serverId = Number(req.params.id);
+      const server = storage.getServerById(serverId);
+      if (!server) return res.status(404).json({ error: "Server not found" });
+      const providedSecret = req.headers["x-craftstore-secret"] || "";
+      if (providedSecret !== server.webhookSecret) return res.status(403).json({ error: "Forbidden" });
+      const { minecraftUsername, ecoRank, ecoBalance } = req.body;
+      if (!minecraftUsername) return res.status(400).json({ error: "minecraftUsername required" });
+      const rank = Number(ecoRank);
+      const bal = Number(ecoBalance);
+      if (!isNaN(rank) && !isNaN(bal)) {
+        (storage as any).updateMemberEcoStats(serverId, minecraftUsername, rank, bal);
+      }
+      res.json({ success: true });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 
   // Temp: manually create order for a missed purchase

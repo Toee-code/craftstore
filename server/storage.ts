@@ -245,6 +245,9 @@ const alterStatements = [
   "ALTER TABLE products ADD COLUMN expiry_commands TEXT",
   // v11 — unique index on stripe_session_id to prevent duplicate orders from race conditions
   "CREATE UNIQUE INDEX IF NOT EXISTS idx_orders_stripe_session_id ON orders(stripe_session_id) WHERE stripe_session_id IS NOT NULL",
+  // v12 — AjLeaderboards economy stats on members
+  "ALTER TABLE members ADD COLUMN eco_rank INTEGER",
+  "ALTER TABLE members ADD COLUMN eco_balance REAL",
   `CREATE TABLE IF NOT EXISTS subscriptions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     server_id INTEGER NOT NULL,
@@ -569,6 +572,11 @@ export const storage: IStorage = {
   },
   updateMemberTotalSpent(id, addAmount) {
     sqlite.prepare("UPDATE members SET total_spent = total_spent + ? WHERE id = ?").run(addAmount, id);
+  },
+  updateMemberEcoStats(serverId: number, minecraftUsername: string, ecoRank: number, ecoBalance: number) {
+    sqlite.prepare(
+      "UPDATE members SET eco_rank = ?, eco_balance = ? WHERE server_id = ? AND LOWER(minecraft_username) = LOWER(?)"
+    ).run(ecoRank, ecoBalance, serverId, minecraftUsername);
   },
   deleteMember(id) {
     db.delete(members).where(eq(members.id, id)).run();

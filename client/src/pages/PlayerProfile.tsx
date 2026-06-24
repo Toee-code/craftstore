@@ -138,6 +138,8 @@ export default function PlayerProfile() {
   const totalSpent: number = profile?.totalSpent ?? 0;
   const rank: number | null = profile?.leaderboardRank ?? null;
   const totalPlayers: number = profile?.totalOnLeaderboard ?? 0;
+  const ecoRank: number | null = profile?.ecoRank ?? null;
+  const ecoBalance: number | null = profile?.ecoBalance ?? null;
 
   return (
     <div className="min-h-screen bg-background">
@@ -195,7 +197,7 @@ export default function PlayerProfile() {
                 <CardContent className="pt-4 pb-4">
                   <div className="flex items-center gap-2 mb-1">
                     <Trophy className={`w-4 h-4 ${rank === 1 ? "text-yellow-400" : "text-muted-foreground"}`} />
-                    <span className="text-xs text-muted-foreground">Leaderboard</span>
+                    <span className="text-xs text-muted-foreground">Store Rank</span>
                   </div>
                   {rank ? (
                     <p className={`text-2xl font-bold ${rank === 1 ? "text-yellow-400" : rank <= 3 ? "text-primary" : ""}`}>
@@ -207,6 +209,44 @@ export default function PlayerProfile() {
                 </CardContent>
               </Card>
             </div>
+
+            {/* Economy Leaderboard Card */}
+            {(ecoRank !== null || ecoBalance !== null) && (
+              <Card className={`border ${
+                ecoRank === 1 ? "bg-yellow-500/10 border-yellow-500/30" :
+                ecoRank !== null && ecoRank <= 3 ? "bg-primary/5 border-primary/20" :
+                "bg-card border-border/60"
+              }`}>
+                <CardContent className="pt-4 pb-4 flex items-center gap-4">
+                  <div className={`w-12 h-12 rounded-full flex items-center justify-center text-xl shrink-0 ${
+                    ecoRank === 1 ? "bg-yellow-500/20 text-yellow-400" :
+                    ecoRank === 2 ? "bg-slate-400/20 text-slate-300" :
+                    ecoRank === 3 ? "bg-orange-500/20 text-orange-400" :
+                    "bg-primary/10 text-primary"
+                  }`}>
+                    {ecoRank === 1 ? "🥇" : ecoRank === 2 ? "🥈" : ecoRank === 3 ? "🥉" : <TrendingUp className="w-5 h-5" />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-muted-foreground mb-0.5">In-Game Economy Rank</p>
+                    <div className="flex items-baseline gap-2 flex-wrap">
+                      {ecoRank !== null && (
+                        <p className={`text-2xl font-bold ${
+                          ecoRank === 1 ? "text-yellow-400" : ecoRank <= 3 ? "text-primary" : ""
+                        }`}>
+                          #{ecoRank}
+                        </p>
+                      )}
+                      {ecoBalance !== null && (
+                        <p className="text-sm text-muted-foreground">
+                          ${Number(ecoBalance).toLocaleString("en", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </p>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-0.5">Your all-time vault balance on {server?.name ?? "the server"}</p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             {/* Leaderboard badge */}
             {rank && rank <= 3 && (

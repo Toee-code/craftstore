@@ -78,7 +78,9 @@ export const members = sqliteTable("members", {
   minecraftUsername: text("minecraft_username").notNull(),
   email: text("email"),
   balance: real("balance").notNull().default(0),
-  totalSpent: real("total_spent").notNull().default(0),  // NEW: cumulative spending
+  totalSpent: real("total_spent").notNull().default(0),
+  ecoRank: integer("eco_rank"),          // AjLeaderboards: vault balance rank
+  ecoBalance: real("eco_balance"),       // AjLeaderboards: vault balance value
   createdAt: text("created_at").notNull().default(new Date().toISOString()),
 });
 
