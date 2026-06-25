@@ -627,12 +627,12 @@ export const storage: IStorage = {
 
   getMostPurchased(serverId: number, limit: number) {
     return sqlite.prepare(`
-      SELECT o.product_id, o.product_name, COUNT(*) as purchase_count,
+      SELECT o.product_id, p.name as product_name, COUNT(*) as purchase_count,
              p.image_url, p.image_type, p.player_head_name, p.price
       FROM orders o
       LEFT JOIN products p ON p.id = o.product_id
       WHERE o.server_id = ? AND o.status IN ('completed', 'failed', 'pending')
-      GROUP BY o.product_id, o.product_name
+      GROUP BY o.product_id
       ORDER BY purchase_count DESC
       LIMIT ?
     `).all(serverId, limit) as any[];

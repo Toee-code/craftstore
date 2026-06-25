@@ -1606,6 +1606,103 @@ function MostPopularSection({ serverId, accent, onBuy, onGift, calcPlayerPrice, 
   );
 }
 
+// ─── Most Bought Page ──────────────────────────────────────────────────────────
+function MostBoughtPage({ serverId, accent, onBuy, onGift, calcPlayerPrice, products }: {
+  serverId: number; accent: string;
+  onBuy: (p: Product) => void; onGift: (p: Product) => void;
+  calcPlayerPrice: (price: number) => number;
+  products: Product[];
+}) {
+  const { data: popular, isLoading } = useQuery<any[]>({
+    queryKey: ["/api/servers", serverId, "most-purchased-full"],
+    queryFn: () => apiRequest("GET", `/api/servers/${serverId}/most-purchased?limit=20`).then(r => r.json()),
+    staleTime: 60_000,
+  });
+
+  const items = (popular ?? []).map(row => ({
+    ...row,
+    product: products.find(p => p.id === row.product_id) ?? null,
+  }));
+
+  const medals = ["🥇", "🥈", "🥉"];
+
+  return (
+    <div className="max-w-2xl mx-auto pb-20">
+      <div className="flex items-center gap-3 mb-8">
+        <Flame className="w-6 h-6" style={{ color: accent }} />
+        <h1 className="text-2xl font-extrabold text-white">Most Bought Packages</h1>
+      </div>
+
+      {isLoading && (
+        <div className="flex justify-center py-20">
+          <Loader2 className="w-6 h-6 animate-spin" style={{ color: accent }} />
+        </div>
+      )}
+
+      {!isLoading && items.length === 0 && (
+        <div className="text-center py-20" style={{ color: "rgba(255,255,255,0.3)" }}>
+          <Package className="w-10 h-10 mx-auto mb-3" style={{ color: "rgba(255,255,255,0.1)" }} />
+          <p className="text-sm">No purchases yet</p>
+        </div>
+      )}
+
+      <div className="flex flex-col gap-3">
+        {items.map((item, i) => {
+          const imgUrl = item.image_type === "playerhead" && item.player_head_name
+            ? `https://nmsr.nickac.dev/head/${encodeURIComponent(item.player_head_name)}`
+            : item.image_url;
+          const playerPrice = calcPlayerPrice(item.price ?? 0);
+          return (
+            <div key={item.product_id}
+              className="flex items-center gap-4 rounded-2xl px-5 py-4 transition-all"
+              style={{
+                background: i === 0 ? `${accent}15` : "rgba(255,255,255,0.04)",
+                border: i === 0 ? `1px solid ${accent}40` : i === 1 ? "1px solid rgba(255,255,255,0.1)" : "1px solid rgba(255,255,255,0.06)",
+              }}>
+              {/* Rank */}
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 font-extrabold text-base"
+                style={{ background: i < 3 ? (i === 0 ? accent : "rgba(255,255,255,0.10)") : "rgba(255,255,255,0.05)", color: i === 0 ? "#000" : "rgba(255,255,255,0.5)" }}>
+                {i < 3 ? medals[i] : i + 1}
+              </div>
+              {/* Image */}
+              {imgUrl ? (
+                <img src={imgUrl} alt={item.product_name}
+                  className="w-12 h-12 rounded-xl object-cover shrink-0"
+                  style={{ imageRendering: item.image_type === "minecraft_item" ? "pixelated" : "auto" }} />
+              ) : (
+                <div className="w-12 h-12 rounded-xl shrink-0 flex items-center justify-center"
+                  style={{ background: "rgba(255,255,255,0.06)" }}>
+                  <Package className="w-6 h-6" style={{ color: "rgba(255,255,255,0.2)" }} />
+                </div>
+              )}
+              {/* Info */}
+              <div className="flex-1 min-w-0">
+                <p className="font-bold text-white truncate">{item.product_name ?? "Unknown Package"}</p>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <span className="text-xs font-bold" style={{ color: accent }}>£{playerPrice.toFixed(2)}</span>
+                  <span className="text-xs" style={{ color: "rgba(255,255,255,0.3)" }}>·</span>
+                  <span className="text-xs" style={{ color: "rgba(255,255,255,0.35)" }}>
+                    {item.purchase_count} {item.purchase_count === 1 ? "purchase" : "purchases"}
+                  </span>
+                </div>
+              </div>
+              {/* Buy button */}
+              {item.product && (
+                <button
+                  onClick={() => onBuy(item.product)}
+                  className="shrink-0 px-4 py-2 rounded-xl text-sm font-bold transition-all hover:brightness-110 active:scale-95"
+                  style={{ background: accent, color: "#000" }}>
+                  Buy
+                </button>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // ─── AutoVideo — forces autoplay+muted as DOM properties for iOS Safari ─────────
 function AutoVideo({ src, className, style }: { src: string; className?: string; style?: React.CSSProperties }) {
   const ref = useRef<HTMLVideoElement>(null);
@@ -2503,6 +2600,7 @@ function ThemedStore({ data }: { data: StoreData }) {
         })}
 
         <p className="text-xs font-bold uppercase tracking-widest px-3 pt-4 pb-1.5" style={{ color: "rgba(255,255,255,0.25)" }}>Community</p>
+        <NavItem id="popular" icon={<Flame className="w-4 h-4" />} label="Most Bought" />
         <NavItem id="leaderboard" icon={<Trophy className="w-4 h-4" />} label="Top Customers" />
       </div>
     </nav>
@@ -2643,6 +2741,10 @@ function ThemedStore({ data }: { data: StoreData }) {
           {page === "leaderboard" ? (
             <div className="px-4 pt-8">
               <LeaderboardPanel serverId={data.server.id} accent={accent} />
+            </div>
+          ) : page === "popular" ? (
+            <div className="px-4 pt-8">
+              <MostBoughtPage serverId={data.server.id} accent={accent} onBuy={handleBuy} onGift={handleGift} calcPlayerPrice={calcPlayerPrice} products={worldFiltered} />
             </div>
           ) : (
             <DonutLayout
