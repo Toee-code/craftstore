@@ -1536,7 +1536,7 @@ function MostPopularSection({ serverId, accent, onBuy, onGift, calcPlayerPrice, 
 }) {
   const { data: popular } = useQuery<any[]>({
     queryKey: ["/api/servers", serverId, "most-purchased"],
-    queryFn: () => apiRequest("GET", `/api/servers/${serverId}/most-purchased?limit=5`).then(r => r.json()),
+    queryFn: () => apiRequest("GET", `/api/servers/${serverId}/most-purchased?limit=3`).then(r => r.json()),
     staleTime: 60_000,
   });
 
