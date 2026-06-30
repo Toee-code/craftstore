@@ -1003,9 +1003,9 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
                 if (server.webhookUrl) {
                   const cmd = product.command.replace("%player%", minecraftUsername).replace("{player}", minecraftUsername);
                   const commands = cmd.split("\n").map((c: string) => c.trim()).filter(Boolean);
-                  try { await fetch(server.webhookUrl, { method: "POST", headers: { "Content-Type": "application/json", "X-CraftStore-Secret": server.webhookSecret || "" }, body: JSON.stringify({ event: "subscription_start", command: cmd, commands, minecraftUsername, product: { id: product.id, name: product.name }, secret: server.webhookSecret }) }); } catch {}
+                  try { await fetch(server.webhookUrl, { method: "POST", headers: { "Content-Type": "application/json", "X-CraftStore-Secret": server.webhookSecret || "" }, body: JSON.stringify({ event: "purchase", command: cmd, commands, minecraftUsername, product: { id: product.id, name: product.name }, secret: server.webhookSecret }) }); } catch {}
                 }
-                await fireSpendCommand(server, minecraftUsername, playerPrice / 100);
+                await firePostPurchaseCommands(server, minecraftUsername, playerPrice);
                 if (purchaseType === "one_month_sub" && stripe) {
                   try { await stripe.subscriptions.update(stripeSubId, { cancel_at_period_end: true }, { stripeAccount: server.stripeAccountId || undefined } as any); } catch {}
                 }
@@ -1484,12 +1484,10 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
                   const cmd = product.command.replace("%player%", minecraftUsername).replace("{player}", minecraftUsername);
                   const commands = cmd.split("\n").map((c: string) => c.trim()).filter(Boolean);
                   try {
-                    const wResp = await fetch(server.webhookUrl, { method: "POST", headers: { "Content-Type": "application/json", "X-CraftStore-Secret": server.webhookSecret || "" }, body: JSON.stringify({ event: "subscription_start", command: cmd, commands, minecraftUsername, product: { id: product.id, name: product.name }, secret: server.webhookSecret }) });
-                    if (wResp.ok) await fireSpendCommand(server, minecraftUsername, playerPrice / 100);
+                    await fetch(server.webhookUrl, { method: "POST", headers: { "Content-Type": "application/json", "X-CraftStore-Secret": server.webhookSecret || "" }, body: JSON.stringify({ event: "purchase", command: cmd, commands, minecraftUsername, product: { id: product.id, name: product.name }, secret: server.webhookSecret }) });
                   } catch {}
-                } else {
-                  await fireSpendCommand(server, minecraftUsername, playerPrice / 100);
                 }
+                await firePostPurchaseCommands(server, minecraftUsername, playerPrice);
                 if (purchaseType === "one_month_sub" && stripe) {
                   await stripe.subscriptions.update(stripeSubId, { cancel_at_period_end: true });
                 }
@@ -1537,9 +1535,9 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
           await fetch(server.webhookUrl, {
             method: "POST",
             headers: { "Content-Type": "application/json", "X-CraftStore-Secret": server.webhookSecret || "" },
-            body: JSON.stringify({ event: "subscription_renewal", command: cmd, commands, minecraftUsername: sub.minecraft_username, product: { id: product.id, name: product.name }, secret: server.webhookSecret }),
+            body: JSON.stringify({ event: "purchase", command: cmd, commands, minecraftUsername: sub.minecraft_username, product: { id: product.id, name: product.name }, secret: server.webhookSecret }),
           });
-          await fireSpendCommand(server, sub.minecraft_username, sub.amount);
+          await firePostPurchaseCommands(server, sub.minecraft_username, sub.amount);
         }
         // If one_month_sub, cancel at period end after first payment
         if (sub.purchase_type === "one_month_sub" || invoice.lines?.data?.[0]?.period?.start === invoice.lines?.data?.[0]?.period?.end) {
