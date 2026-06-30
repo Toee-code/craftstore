@@ -589,10 +589,33 @@ export const storage: IStorage = {
     return db.insert(orders).values(data).returning().get();
   },
   getOrdersByServer(serverId) {
-    return db.select().from(orders)
-      .where(eq(orders.serverId, serverId))
-      .orderBy(desc(orders.createdAt), desc(orders.id))
-      .all();
+    // Use raw SQL to include product_name (from orders or joined from products)
+    const rows = sqlite.prepare(`
+      SELECT o.*, COALESCE(o.product_name, p.name) as product_name
+      FROM orders o
+      LEFT JOIN products p ON o.product_id = p.id
+      WHERE o.server_id = ?
+      ORDER BY o.created_at DESC, o.id DESC
+    `).all(serverId) as any[];
+    // Map snake_case to camelCase to match Drizzle output shape
+    return rows.map((r: any) => ({
+      id: r.id,
+      serverId: r.server_id,
+      productId: r.product_id,
+      memberId: r.member_id,
+      minecraftUsername: r.minecraft_username,
+      amount: r.amount,
+      platformFee: r.platform_fee,
+      status: r.status,
+      stripePaymentIntentId: r.stripe_payment_intent_id,
+      stripeSessionId: r.stripe_session_id,
+      webhookDelivered: r.webhook_delivered,
+      webhookRetryCount: r.webhook_retry_count,
+      creatorCodeUsed: r.creator_code_used,
+      creatorCodeDiscount: r.creator_code_discount,
+      createdAt: r.created_at,
+      productName: r.product_name || null,
+    }));
   },
   getOrderById(id) {
     return db.select().from(orders).where(eq(orders.id, id)).get();
