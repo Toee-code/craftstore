@@ -609,7 +609,7 @@ export const storage: IStorage = {
       return sqlite.prepare(`
         SELECT minecraft_username, SUM(amount) as total
         FROM orders
-        WHERE server_id = ? AND status IN ('completed', 'failed', 'pending') AND created_at >= ?
+        WHERE server_id = ? AND status IN ('completed', 'failed', 'pending', 'delivered') AND created_at >= ?
         GROUP BY minecraft_username
         ORDER BY total DESC
         LIMIT 10
@@ -618,7 +618,7 @@ export const storage: IStorage = {
     return sqlite.prepare(`
       SELECT minecraft_username, SUM(amount) as total
       FROM orders
-      WHERE server_id = ? AND status IN ('completed', 'failed', 'pending')
+      WHERE server_id = ? AND status IN ('completed', 'failed', 'pending', 'delivered')
       GROUP BY minecraft_username
       ORDER BY total DESC
       LIMIT 10
@@ -631,7 +631,7 @@ export const storage: IStorage = {
              p.image_url, p.image_type, p.player_head_name, p.price
       FROM orders o
       LEFT JOIN products p ON p.id = o.product_id
-      WHERE o.server_id = ? AND o.status IN ('completed', 'failed', 'pending')
+      WHERE o.server_id = ? AND o.status IN ('completed', 'failed', 'pending', 'delivered')
       GROUP BY o.product_id
       ORDER BY purchase_count DESC
       LIMIT ?
@@ -663,7 +663,7 @@ export const storage: IStorage = {
       FROM orders o
       LEFT JOIN products p ON p.id = o.product_id
       WHERE o.server_id = ?
-        AND o.status = 'completed'
+        AND o.status IN ('completed', 'delivered')
         AND (o.webhook_delivered = 0 OR o.webhook_delivered IS NULL OR o.webhook_delivered = 'false')
       ORDER BY o.created_at ASC
       LIMIT 50
@@ -684,7 +684,7 @@ export const storage: IStorage = {
       SELECT strftime('%Y-%m-%d', created_at) as date,
              COALESCE(SUM(amount), 0) as revenue
       FROM orders
-      WHERE server_id = ? AND status IN ('completed', 'failed', 'pending')
+      WHERE server_id = ? AND status IN ('completed', 'failed', 'pending', 'delivered')
         AND created_at >= datetime('now', '-30 days')
       GROUP BY date
       ORDER BY date ASC
@@ -696,7 +696,7 @@ export const storage: IStorage = {
              COUNT(*) as count,
              COALESCE(SUM(o.amount), 0) as revenue
       FROM orders o
-      WHERE o.server_id = ? AND o.status IN ('completed', 'failed', 'pending')
+      WHERE o.server_id = ? AND o.status IN ('completed', 'failed', 'pending', 'delivered')
       GROUP BY o.product_name
       ORDER BY count DESC
       LIMIT 5
@@ -707,7 +707,7 @@ export const storage: IStorage = {
       SELECT CAST(strftime('%H', created_at) AS INTEGER) as hour,
              COUNT(*) as count
       FROM orders
-      WHERE server_id = ? AND status IN ('completed', 'failed', 'pending')
+      WHERE server_id = ? AND status IN ('completed', 'failed', 'pending', 'delivered')
       GROUP BY hour
       ORDER BY hour ASC
     `).all(serverId) as { hour: number; count: number }[];

@@ -634,7 +634,7 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
   app.get("/api/servers/:serverId/stats", (req, res) => {
     const serverId = Number(req.params.serverId);
     const allOrders = storage.getOrdersByServer(serverId);
-    const completedOrders = allOrders.filter(o => o.status === "completed" || o.status === "failed" || o.status === "pending");
+    const completedOrders = allOrders.filter(o => o.status === "completed" || o.status === "failed" || o.status === "pending" || o.status === "delivered");
     const revenue = completedOrders.reduce((sum, o) => sum + o.amount, 0);
     const platformRevenue = completedOrders.reduce((sum, o) => sum + (o.platformFee || 0), 0);
     const membersList = storage.getMembersByServer(serverId);
@@ -1817,7 +1817,7 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
       if (!member) return res.status(404).json({ error: "Member not found" });
       // Orders
       const allOrders = storage.getOrdersByServer(serverId);
-      const myOrders = allOrders.filter((o: any) => o.minecraftUsername === username && (o.status === "completed" || o.status === "failed" || o.status === "pending"));
+      const myOrders = allOrders.filter((o: any) => o.minecraftUsername === username && (o.status === "completed" || o.status === "failed" || o.status === "pending" || o.status === "delivered"));
       // Gifts received (via gift_orders)
       const giftRows = (storage as any).getGiftsReceivedByUsername
         ? (storage as any).getGiftsReceivedByUsername(serverId, username)
@@ -1930,7 +1930,7 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
     if (!member) return res.status(404).json({ error: "Member not found" });
     const allOrders = storage.getOrdersByServer(serverId);
     const memberOrders = allOrders.filter(o => o.minecraftUsername === username);
-    const completedOrders = memberOrders.filter(o => o.status === "completed" || o.status === "failed" || o.status === "pending");
+    const completedOrders = memberOrders.filter(o => o.status === "completed" || o.status === "failed" || o.status === "pending" || o.status === "delivered");
     const totalSpent = completedOrders.reduce((s, o) => s + o.amount, 0);
     const productsList = storage.getProductsByServer(serverId);
     const productMap: Record<number, string> = {};
@@ -2384,10 +2384,16 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
   // Admin: manually create an order (for backfilling missed donations/purchases)
   app.post("/api/admin/orders", requireAdmin, (req, res) => {
     try {
-      const { serverId, productId, minecraftUsername, amount, platformFee, status } = req.body;
+      const { serverId, productId, minecraftUsername, amount, platformFee, status, productName } = req.body;
       if (!serverId || !minecraftUsername || !amount) return res.status(400).json({ error: "serverId, minecraftUsername, amount required" });
       let member = storage.getMemberByUsername(Number(serverId), minecraftUsername);
       if (!member) member = storage.createMember({ serverId: Number(serverId), minecraftUsername, balance: 0, totalSpent: 0 });
+      // Look up product name if not provided
+      let resolvedName = productName;
+      if (!resolvedName && productId) {
+        const prod = storage.getProductById(Number(productId));
+        resolvedName = prod?.name || null;
+      }
       const order = storage.createOrder({
         serverId: Number(serverId),
         productId: productId ? Number(productId) : 1,
@@ -2396,8 +2402,9 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
         amount: Number(amount),
         platformFee: platformFee ? Number(platformFee) : Math.round(Number(amount) * 0.2 * 100) / 100,
         status: status || "completed",
-        webhookDelivered: false,
-      });
+        webhookDelivered: true,
+        productName: resolvedName,
+      } as any);
       storage.updateMemberTotalSpent(member.id, Number(amount));
       res.json({ success: true, order, member });
     } catch (e: any) { res.status(500).json({ error: e.message }); }
@@ -2626,7 +2633,18 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 
-  app.post("/api/admin/creator-codes/:id/set-earned", requireAdmin, (req, res) => {
+  // Temp: set product_name on an existing order
+  app.post("/api/admin/orders/:orderId/set-product-name", requireAdmin, (req, res) => {
+    try {
+      const orderId = Number(req.params.orderId);
+      const { productName } = req.body;
+      if (!productName) return res.status(400).json({ error: "productName required" });
+      sqlite.prepare("UPDATE orders SET product_name = ? WHERE id = ?").run(productName, orderId);
+      res.json({ success: true, orderId, productName });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
+    app.post("/api/admin/creator-codes/:id/set-earned", requireAdmin, (req, res) => {
     try {
       const id = Number(req.params.id);
       const { totalEarned } = req.body;
