@@ -2560,6 +2560,29 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 
+  // Temp: list all Stripe subscriptions with customer name + metadata (to find MC usernames)
+  app.get("/api/admin/stripe-subscriptions-raw", requireAdmin, async (req, res) => {
+    try {
+      const server = storage.getServer(1);
+      if (!stripe) return res.status(400).json({ error: "No stripe" });
+      const subs = await stripe.subscriptions.list(
+        { limit: 100, expand: ["data.customer"] },
+        { stripeAccount: server?.stripeAccountId || undefined } as any
+      );
+      const result = subs.data.map((s: any) => ({
+        id: s.id,
+        status: s.status,
+        customer_name: s.customer?.name || s.customer?.email || s.customer_id,
+        customer_email: s.customer?.email,
+        metadata: s.metadata,
+        current_period_end: new Date(s.current_period_end * 1000).toISOString(),
+        amount: s.items?.data?.[0]?.price?.unit_amount,
+        currency: s.items?.data?.[0]?.price?.currency,
+      }));
+      res.json({ subscriptions: result });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
   app.post("/api/admin/creator-codes/:id/set-earned", requireAdmin, (req, res) => {
     try {
       const id = Number(req.params.id);
