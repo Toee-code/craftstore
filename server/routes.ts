@@ -1473,13 +1473,31 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
               if (!existing) {
                 const cc = savedCode ? storage.getCreatorCodeByCode(Number(serverId), savedCode) : null;
                 const discountPct = cc ? cc.discountPercent : 0;
-                const basePrice = product.price;
-                const playerPrice = Math.round(basePrice * (1 - discountPct / 100));
+                // product.price is in PENCE — convert to pounds for storage & commands
+                const playerPricePounds = Math.round(product.price * (1 - discountPct / 100)) / 100;
+                const platformFee = Math.round(product.price * PLATFORM_FEE_RATE * 100) / 10000;
                 const stripeSubObj = stripe ? await stripe.subscriptions.retrieve(stripeSubId) : null;
                 const periodEnd = stripeSubObj ? new Date((stripeSubObj as any).current_period_end * 1000).toISOString() : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
-                storage.createSubscription({ serverId: Number(serverId), productId: Number(productId), memberId: member.id, minecraftUsername, stripeSubscriptionId: stripeSubId, stripeCustomerId: session.customer as string, status: "active", currentPeriodEnd: periodEnd, cancelAtPeriodEnd: purchaseType === "one_month_sub" ? 1 : 0, productName: product.name, amount: playerPrice });
-                storage.updateMemberTotalSpent(member.id, playerPrice);
-                if (cc) storage.updateCreatorCodeEarnings(cc.id, Math.round(playerPrice * (cc.rewardPercent / 100)));
+                storage.createSubscription({ serverId: Number(serverId), productId: Number(productId), memberId: member.id, minecraftUsername, stripeSubscriptionId: stripeSubId, stripeCustomerId: session.customer as string, status: "active", currentPeriodEnd: periodEnd, cancelAtPeriodEnd: purchaseType === "one_month_sub" ? 1 : 0, productName: product.name, amount: playerPricePounds });
+                // Create an order record so it shows on the dashboard
+                try {
+                  storage.createOrder({
+                    serverId: Number(serverId),
+                    productId: Number(productId),
+                    memberId: member.id,
+                    minecraftUsername,
+                    amount: playerPricePounds,
+                    platformFee,
+                    status: "delivered",
+                    webhookDelivered: true,
+                    creatorCodeUsed: cc ? cc.code : null,
+                    creatorCodeDiscount: discountPct,
+                    stripeSessionId: session.id,
+                  } as any);
+                } catch (dupErr: any) { console.log(`[webhook] sub order dedup: ${dupErr.message}`); }
+                storage.updateMemberTotalSpent(member.id, playerPricePounds);
+                if (cc) storage.updateCreatorCodeEarnings(cc.id, Math.round(playerPricePounds * (cc.rewardPercent / 100) * 100));
+                // Fire the product command (lp user {player} parent add toeeplus etc.)
                 if (server.webhookUrl) {
                   const cmd = product.command.replace("%player%", minecraftUsername).replace("{player}", minecraftUsername);
                   const commands = cmd.split("\n").map((c: string) => c.trim()).filter(Boolean);
@@ -1487,10 +1505,12 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
                     await fetch(server.webhookUrl, { method: "POST", headers: { "Content-Type": "application/json", "X-CraftStore-Secret": server.webhookSecret || "" }, body: JSON.stringify({ event: "purchase", command: cmd, commands, minecraftUsername, product: { id: product.id, name: product.name }, secret: server.webhookSecret }) });
                   } catch {}
                 }
-                await firePostPurchaseCommands(server, minecraftUsername, playerPrice);
+                // Fire npcl addspend + donogoal add with correct pounds amount
+                await firePostPurchaseCommands(server, minecraftUsername, playerPricePounds);
                 if (purchaseType === "one_month_sub" && stripe) {
                   await stripe.subscriptions.update(stripeSubId, { cancel_at_period_end: true });
                 }
+                console.log(`[webhook] Subscription created: ${minecraftUsername} product=${product.name} amount=£${playerPricePounds}`);
               }
             }
           }
@@ -1529,15 +1549,38 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
         const server = storage.getServerById(sub.server_id);
         const productsList = storage.getProductsByServer(sub.server_id);
         const product = productsList.find((p: any) => p.id === sub.product_id);
-        if (server?.webhookUrl && product) {
+        if (server && product) {
+          const amountPounds = sub.amount; // stored in pounds since the fix
           const cmd = product.command.replace("%player%", sub.minecraft_username).replace("{player}", sub.minecraft_username);
           const commands = cmd.split("\n").map((c: string) => c.trim()).filter(Boolean);
-          await fetch(server.webhookUrl, {
-            method: "POST",
-            headers: { "Content-Type": "application/json", "X-CraftStore-Secret": server.webhookSecret || "" },
-            body: JSON.stringify({ event: "purchase", command: cmd, commands, minecraftUsername: sub.minecraft_username, product: { id: product.id, name: product.name }, secret: server.webhookSecret }),
-          });
-          await firePostPurchaseCommands(server, sub.minecraft_username, sub.amount);
+          // Create an order record for the renewal so it shows on the dashboard
+          try {
+            let member = storage.getMemberByUsername(sub.server_id, sub.minecraft_username);
+            if (!member) member = storage.createMember({ serverId: sub.server_id, minecraftUsername: sub.minecraft_username, balance: 0, totalSpent: 0 });
+            storage.createOrder({
+              serverId: sub.server_id,
+              productId: sub.product_id,
+              memberId: member.id,
+              minecraftUsername: sub.minecraft_username,
+              amount: amountPounds,
+              platformFee: Math.round(amountPounds * PLATFORM_FEE_RATE * 100) / 100,
+              status: "delivered",
+              webhookDelivered: true,
+              creatorCodeUsed: null,
+              creatorCodeDiscount: 0,
+              stripeSessionId: `renewal_${invoice.id}`,
+            } as any);
+            storage.updateMemberTotalSpent(member.id, amountPounds);
+          } catch (dupErr: any) { console.log(`[webhook] renewal order dedup: ${dupErr.message}`); }
+          if (server.webhookUrl) {
+            await fetch(server.webhookUrl, {
+              method: "POST",
+              headers: { "Content-Type": "application/json", "X-CraftStore-Secret": server.webhookSecret || "" },
+              body: JSON.stringify({ event: "purchase", command: cmd, commands, minecraftUsername: sub.minecraft_username, product: { id: product.id, name: product.name }, secret: server.webhookSecret }),
+            }).catch(() => {});
+          }
+          await firePostPurchaseCommands(server, sub.minecraft_username, amountPounds);
+          console.log(`[webhook] Sub renewal fired: ${sub.minecraft_username} amount=£${amountPounds}`);
         }
         // If one_month_sub, cancel at period end after first payment
         if (sub.purchase_type === "one_month_sub" || invoice.lines?.data?.[0]?.period?.start === invoice.lines?.data?.[0]?.period?.end) {
