@@ -2563,7 +2563,7 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
   // Temp: list all Stripe subscriptions with customer name + metadata (to find MC usernames)
   app.get("/api/admin/stripe-subscriptions-raw", requireAdmin, async (req, res) => {
     try {
-      const server = storage.getServer(1);
+      const server = storage.getServerById(1);
       if (!stripe) return res.status(400).json({ error: "No stripe" });
       const subs = await stripe.subscriptions.list(
         { limit: 100, expand: ["data.customer"] },
