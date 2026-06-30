@@ -248,6 +248,8 @@ const alterStatements = [
   // v12 — AjLeaderboards economy stats on members
   "ALTER TABLE members ADD COLUMN eco_rank INTEGER",
   "ALTER TABLE members ADD COLUMN eco_balance REAL",
+  // v13 — product name on orders for display
+  "ALTER TABLE orders ADD COLUMN product_name TEXT",
   `CREATE TABLE IF NOT EXISTS subscriptions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     server_id INTEGER NOT NULL,
