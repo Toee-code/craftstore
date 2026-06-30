@@ -2552,6 +2552,14 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 
+  // List all subscriptions for a server (admin)
+  app.get("/api/admin/servers/:serverId/subscriptions", requireAdmin, (req, res) => {
+    try {
+      const subs = storage.getSubscriptionsByServer(Number(req.params.serverId));
+      res.json({ subscriptions: subs });
+    } catch (e: any) { res.status(500).json({ error: e.message }); }
+  });
+
   app.post("/api/admin/creator-codes/:id/set-earned", requireAdmin, (req, res) => {
     try {
       const id = Number(req.params.id);
