@@ -2575,7 +2575,7 @@ async function sendPushNotifications(tokens: string[], title: string, body: stri
         customer_name: s.customer?.name || s.customer?.email || s.customer_id,
         customer_email: s.customer?.email,
         metadata: s.metadata,
-        current_period_end: new Date(s.current_period_end * 1000).toISOString(),
+        current_period_end: s.current_period_end ? new Date(s.current_period_end * 1000).toISOString() : null,
         amount: s.items?.data?.[0]?.price?.unit_amount,
         currency: s.items?.data?.[0]?.price?.currency,
       }));
